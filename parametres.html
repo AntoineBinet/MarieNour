@@ -133,6 +133,15 @@
         </div>
       </section>
 
+      <section aria-labelledby="sec-reset-profile">
+        <h2 id="sec-reset-profile">Réinitialisation</h2>
+        <p class="warning">Cette action efface le profil local, les imports et le suivi des candidatures.</p>
+        <div class="btn-row">
+          <button type="button" class="danger-btn" id="btn-reset-profile">Réinitialiser le profil</button>
+        </div>
+        <div class="deploy-status" id="reset-status" aria-live="polite"></div>
+      </section>
+
       <p class="muted" style="margin-top: var(--space-6);">
         <a href="/">Accueil</a> · <form action="/logout" method="post" style="display:inline;"><button type="submit" class="ghost-btn small">Se déconnecter</button></form>
       </p>
@@ -160,6 +169,8 @@
   const btnLogs = document.getElementById("btn-logs");
   const cloneInput = document.getElementById("clone-command");
   const btnCopyClone = document.getElementById("btn-copy-clone");
+  const btnResetProfile = document.getElementById("btn-reset-profile");
+  const resetStatus = document.getElementById("reset-status");
 
   if (btnCopyClone && cloneInput) {
     btnCopyClone.addEventListener("click", function () {
@@ -289,6 +300,40 @@
       .then((d) => setResults(d.logs || d.message || "Aucun log."))
       .catch(() => setResults("Erreur lors de la lecture des logs."));
   });
+
+  function clearLocalProfileCache() {
+    try {
+      localStorage.removeItem("marieNourJobSearchProfile_v3");
+      localStorage.removeItem("marieNourJobSearchProfile_v1");
+      localStorage.removeItem("marieNourJobSearchProfile_v2");
+      localStorage.removeItem("mnwork_last_sync");
+    } catch (_) {}
+  }
+
+  if (btnResetProfile && resetStatus) {
+    btnResetProfile.addEventListener("click", function () {
+      const confirmed = window.confirm("Supprimer définitivement le profil local, les imports et le suivi des candidatures ?");
+      if (!confirmed) return;
+      btnResetProfile.disabled = true;
+      resetStatus.textContent = "Réinitialisation en cours…";
+      resetStatus.className = "deploy-status";
+      fetch(API + "/api/profile", { method: "DELETE", credentials: "include" })
+        .then((r) => {
+          if (!r.ok) throw new Error("Erreur " + r.status);
+          clearLocalProfileCache();
+          resetStatus.textContent = "Profil réinitialisé. Retour à l'accueil…";
+          resetStatus.className = "deploy-status success";
+          setTimeout(function () {
+            window.location.href = "/";
+          }, 1200);
+        })
+        .catch((err) => {
+          resetStatus.textContent = "Erreur : " + (err.message || err);
+          resetStatus.className = "deploy-status error";
+          btnResetProfile.disabled = false;
+        });
+    });
+  }
 
   const aiProviderOllama = document.querySelector('input[name="ai-provider"][value="ollama"]');
   const aiProviderSonar = document.querySelector('input[name="ai-provider"][value="sonar"]');
