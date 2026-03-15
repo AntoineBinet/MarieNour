@@ -1,0 +1,10 @@
+# Tunnel MNWork — marienour.work → localhost:3000
+tunnel: 5040bce7-4796-4a6d-9672-17d6a7335433
+credentials-file: C:\Users\binet\.cloudflared\5040bce7-4796-4a6d-9672-17d6a7335433.json
+
+ingress:
+  - hostname: marienour.work
+    service: http://localhost:3000
+  - hostname: www.marienour.work
+    service: http://localhost:3000
+  - service: http_status:404

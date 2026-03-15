@@ -1,0 +1,15 @@
+# Configuration Cloudflare Tunnel pour MNWork — domaine marienour.work
+# 1. Copier ce fichier en cloudflared-config.yml
+# 2. Remplacer <TUNNEL_ID> par l’ID du tunnel (cloudflared tunnel create mnwork)
+# 3. Remplacer <CHEMIN_CREDENTIALS> par le chemin complet du fichier .json (ex. C:\Users\Vous\.cloudflared\xxx.json)
+# Voir docs/TUNNEL-CLOUDFLARE.md pour les étapes détaillées.
+
+tunnel: <TUNNEL_ID>
+credentials-file: <CHEMIN_CREDENTIALS>
+
+ingress:
+  - hostname: marienour.work
+    service: http://localhost:3000
+  - hostname: www.marienour.work
+    service: http://localhost:3000
+  - service: http_status:404

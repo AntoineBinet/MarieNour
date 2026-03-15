@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assistant candidature — Marie-Nour Salibi</title>
+    <meta
+      name="description"
+      content="Mini-app interactive locale pour structurer un profil de candidature, importer un CV ou un profil, suivre des candidatures et préparer des briefs IA honnêtes."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Aller au contenu</a>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="img" aria-label="Logo candidature">
+              <path d="M12 48V16h18c10 0 18 8 18 18s-8 14-18 14H12Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"></path>
+              <path d="M22 24h11c5 0 9 4 9 9s-4 9-9 9H22" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"></path>
+            </svg>
+          </div>
+          <div>
+            <p class="eyebrow">Mini-app candidature locale</p>
+            <h1 data-testid="text-app-title">Bienvenue Marie-Nour</h1>
+            <p class="lede" id="welcome-message" data-testid="text-welcome-message">
+              Importe réellement tes documents, structure ton profil une fois, puis prépare des actions ciblées sans rien inventer.
+            </p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="ghost-btn menu-drawer-btn" id="menu-drawer-btn" type="button" aria-label="Ouvrir le menu" aria-expanded="false">
+            Menu
+          </button>
+          <button class="ghost-btn" id="theme-toggle" type="button" data-testid="button-theme-toggle" aria-label="Basculer le thème">
+            Thème
+          </button>
+          <button class="ghost-btn" id="reset-profile-btn" type="button" data-testid="button-reset-profile">
+            Réinitialiser
+          </button>
+        </div>
+      </header>
+
+      <div class="drawer-overlay" id="drawer-overlay" aria-hidden="true"></div>
+
+      <main id="main-content" class="layout-grid">
+        <aside class="sidebar" aria-label="Navigation et résumé">
+          <section class="panel hero-panel">
+            <h2>Accueil</h2>
+            <p id="home-status" data-testid="text-home-status">
+              Ton espace central pour piloter la recherche, les imports, le CV, la lettre et le suivi des candidatures.
+            </p>
+            <div class="stack-sm">
+              <button class="primary-btn" id="primary-entry-btn" type="button" data-testid="button-primary-entry">
+                Lancer le questionnaire complet
+              </button>
+              <button class="secondary-btn" id="secondary-entry-btn" type="button" data-testid="button-secondary-entry">
+                Accéder à mon espace
+              </button>
+            </div>
+          </section>
+
+          <section class="panel progress-panel" id="progress-panel">
+            <div class="progress-head">
+              <h2>Progression</h2>
+              <span id="progress-text" data-testid="text-progress">0%</span>
+            </div>
+            <div class="progress-track" aria-hidden="true">
+              <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p id="progress-step-label" class="muted" data-testid="text-progress-step">Onboarding non démarré</p>
+          </section>
+
+          <nav class="panel nav-panel" aria-label="Sections principales">
+            <h2>Navigation</h2>
+            <div class="tab-list" id="tab-list"></div>
+          </nav>
+
+          <section class="panel summary-panel">
+            <div class="panel-head-inline">
+              <h2>Résumé en direct</h2>
+              <span class="badge" id="profile-state-badge" data-testid="status-profile">Profil vide</span>
+            </div>
+            <div id="live-summary" class="summary-list" data-testid="text-live-summary"></div>
+          </section>
+        </aside>
+
+        <section class="content-column">
+          <div id="dashboard-actions" class="panel dashboard-actions hidden" data-testid="section-dashboard-actions">
+            <div class="panel-head-inline">
+              <div>
+                <h2>Actions rapides</h2>
+                <p class="muted">Prépare des briefs clairs pour lancer ensuite tes recherches et générations avec tes outils d’IA.</p>
+              </div>
+            </div>
+            <div class="actions-grid">
+              <button class="action-card" type="button" data-action="offers" data-testid="button-action-offers">
+                <span class="action-title">Chercher des offres</span>
+                <span class="action-desc">Prépare un brief de recherche basé sur ton profil et ton ciblage.</span>
+              </button>
+              <button class="action-card" type="button" data-action="cv" data-testid="button-action-cv">
+                <span class="action-title">Générer un CV pour une annonce</span>
+                <span class="action-desc">Assemble les éléments utiles, y compris les imports réellement parsés.</span>
+              </button>
+              <button class="action-card" type="button" data-action="letter" data-testid="button-action-letter">
+                <span class="action-title">Générer une lettre de motivation</span>
+                <span class="action-desc">Prépare un brief structuré avec le ton et les forces à valoriser.</span>
+              </button>
+            </div>
+          </div>
+
+          <section id="content-area" class="panel content-panel" data-testid="section-content-area"></section>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-details">
+          <p>Application locale avec parsing côté client, sauvegarde du profil et des documents dans une base locale (SQLite + dossier dédié).</p>
+          <p class="footer-shortcuts muted">Raccourcis : Ctrl+S sauvegarder, Échap annuler l’édition.</p>
+        </div>
+        <p class="footer-mobile-short muted">App locale · Données stockées localement.</p>
+        <span id="connection-status" class="connection-status" aria-live="polite"></span>
+        <form action="/logout" method="post" class="footer-logout-form">
+          <button type="submit" class="ghost-btn small">Se déconnecter</button>
+        </form>
+      </footer>
+    </div>
+
+    <input type="file" id="application-attach-input" accept=".pdf,.docx,.txt,.html" class="hidden" aria-hidden="true" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+      }
+    </script>
+    <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
+    <script src="app.js?v=4" defer></script>
+  </body>
+</html>
