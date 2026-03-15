@@ -463,6 +463,209 @@ async function start() {
     res.status(status).json({ error: message });
   }
 
+  async function callOllama(prompt, opts = {}) {
+    const cfg = _load_ai_config();
+    const url = (cfg.ollama_url || OLLAMA_URL_DEFAULT).replace(/\/$/, "") + "/api/generate";
+    const body = {
+      model: opts.model || cfg.ollama_model || OLLAMA_MODEL_DEFAULT,
+      prompt: typeof prompt === "string" ? prompt : (Array.isArray(prompt) ? prompt.map((m) => m.content || m).join("\n") : String(prompt)),
+      stream: opts.stream ?? false,
+    };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), opts.timeoutMs || OLLAMA_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || `Ollama ${res.status}`);
+      }
+      const data = await res.json();
+      return data.response || data.message || "";
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function callSonar(messages, opts = {}) {
+    const cfg = _load_ai_config();
+    const key = cfg.sonar_api_key || process.env.PERPLEXITY_API_KEY;
+    if (!key) throw new Error("Clé API Sonar (Perplexity) non configurée.");
+    const model = opts.model || cfg.sonar_model || SONAR_MODEL_DEFAULT;
+    const msgs = Array.isArray(messages)
+      ? messages.map((m) => (typeof m === "string" ? { role: "user", content: m } : { role: m.role || "user", content: m.content || "" }))
+      : [{ role: "user", content: String(messages) }];
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), opts.timeoutMs || 60000);
+    try {
+      const res = await fetch(PERPLEXITY_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: msgs,
+          max_tokens: opts.max_tokens ?? 1024,
+          temperature: opts.temperature ?? 0.2,
+          stream: opts.stream ?? false,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || `Perplexity ${res.status}`);
+      }
+      const data = await res.json();
+      const choice = data.choices && data.choices[0];
+      return choice ? (choice.message && choice.message.content) || choice.text || "" : "";
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function generateWithFallback(prompt, providerOverride = null) {
+    const cfg = _load_ai_config();
+    const primary = providerOverride || cfg.provider || "ollama";
+    const tryOrder = primary === "sonar" ? ["sonar", "ollama"] : ["ollama", "sonar"];
+    for (const p of tryOrder) {
+      try {
+        if (p === "ollama") return { provider: "ollama", text: await callOllama(prompt) };
+        if (p === "sonar") return { provider: "sonar", text: await callSonar([{ role: "user", content: prompt }]) };
+      } catch (err) {
+        if (!cfg.fallback_enabled || tryOrder.indexOf(p) === tryOrder.length - 1) throw err;
+      }
+    }
+    throw new Error("Aucun fournisseur IA disponible.");
+  }
+
+  app.get("/api/ai/config", (req, res) => {
+    try {
+      const cfg = _load_ai_config();
+      const key = cfg.sonar_api_key || "";
+      res.json({
+        provider: cfg.provider,
+        fallback_enabled: cfg.fallback_enabled,
+        ollama_url: cfg.ollama_url,
+        ollama_model: cfg.ollama_model,
+        sonar_model: cfg.sonar_model,
+        sonar_api_key_set: key.length > 0,
+        sonar_api_key_preview: key.length > 4 ? key.slice(0, 4) + "…" + key.slice(-2) : key ? "***" : "",
+      });
+    } catch (e) {
+      sendError(res, 500, "Erreur lecture config IA.");
+    }
+  });
+
+  app.post("/api/ai/config", (req, res) => {
+    const body = req.body || {};
+    try {
+      const updated = _save_ai_config({
+        provider: body.provider,
+        fallback_enabled: body.fallback_enabled,
+        ollama_url: body.ollama_url,
+        ollama_model: body.ollama_model,
+        sonar_api_key: body.sonar_api_key,
+        sonar_model: body.sonar_model,
+      });
+      res.json({
+        ok: true,
+        provider: updated.provider,
+        fallback_enabled: updated.fallback_enabled,
+        ollama_url: updated.ollama_url,
+        ollama_model: updated.ollama_model,
+        sonar_model: updated.sonar_model,
+        sonar_api_key_set: (updated.sonar_api_key || "").length > 0,
+      });
+    } catch (e) {
+      sendError(res, 500, "Erreur sauvegarde config IA.");
+    }
+  });
+
+  app.post("/api/ai/test", (req, res) => {
+    const provider = (req.body && req.body.provider) || _load_ai_config().provider;
+    const testPrompt = "Réponds uniquement par le mot OK.";
+    (async () => {
+      try {
+        let text = "";
+        if (provider === "sonar") text = await callSonar([{ role: "user", content: testPrompt }]);
+        else text = await callOllama(testPrompt);
+        const excerpt = (text || "").trim().slice(0, 200);
+        res.json({ ok: true, provider, excerpt, message: "Connexion réussie." });
+      } catch (err) {
+        res.status(500).json({ ok: false, provider, error: (err && err.message) || String(err) });
+      }
+    })();
+  });
+
+  app.post("/api/ai/generate", (req, res) => {
+    const prompt = req.body && req.body.prompt;
+    if (!prompt || typeof prompt !== "string") {
+      return sendError(res, 400, "prompt requis.");
+    }
+    (async () => {
+      try {
+        const out = await generateWithFallback(prompt.trim());
+        res.json({ ok: true, provider: out.provider, text: out.text });
+      } catch (err) {
+        sendError(res, 500, (err && err.message) || "Erreur génération IA.");
+      }
+    })();
+  });
+
+  const EXTRACT_CV_SYSTEM = `Tu es un assistant qui extrait les informations structurées d'un CV (texte brut).
+Réponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte autour, avec les clés suivantes (utilise des chaînes vides si absent) :
+firstName, lastName, email, phone, summary, skills (tableau de strings), experiences (tableau d'objets avec: title, company, dates, description), education (tableau d'objets avec: diploma, school, dates), languages (tableau de strings).`;
+
+  app.post("/api/ai/extract-cv", (req, res) => {
+    const text = req.body && req.body.text;
+    if (!text || typeof text !== "string") {
+      return sendError(res, 400, "text requis (contenu texte du CV).");
+    }
+    const prompt = `${EXTRACT_CV_SYSTEM}\n\n---\nCV à analyser:\n${text.slice(0, 15000)}`;
+    (async () => {
+      try {
+        const out = await generateWithFallback(prompt);
+        let parsed = null;
+        const raw = (out.text || "").replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, "$1").trim();
+        try {
+          parsed = JSON.parse(raw);
+        } catch (_) {
+          parsed = { raw: out.text, error: "Réponse non JSON" };
+        }
+        res.json({ ok: true, provider: out.provider, extracted: parsed });
+      } catch (err) {
+        sendError(res, 500, (err && err.message) || "Erreur extraction CV.");
+      }
+    })();
+  });
+
+  app.post("/api/ai/find-jobs", (req, res) => {
+    const { query, location } = req.body || {};
+    const q = typeof query === "string" ? query.trim() : "";
+    if (!q) return sendError(res, 400, "query requis (ex: titre du poste, secteur).");
+    const cfg = _load_ai_config();
+    const sonarKey = cfg.sonar_api_key || process.env.PERPLEXITY_API_KEY;
+    if (!sonarKey) return sendError(res, 400, "Recherche de postes nécessite Sonar (Perplexity). Configurez une clé API dans Paramètres > Configuration IA.");
+    const locationPart = location && String(location).trim() ? ` à ${location}` : "";
+    const prompt = `Liste des postes ouverts correspondant à cette recherche. Donne une liste concise et actuelle (sites d'emploi, offres récentes) : "${q}"${locationPart}. Pour chaque offre : titre du poste, entreprise ou source, lieu si connu, lien ou source si possible. Réponds en français, format lisible (liste à puces).`;
+    (async () => {
+      try {
+        const text = await callSonar([{ role: "user", content: prompt }], { max_tokens: 2048 });
+        res.json({ ok: true, provider: "sonar", text: text || "" });
+      } catch (err) {
+        sendError(res, 500, (err && err.message) || "Erreur recherche de postes.");
+      }
+    })();
+  });
+
   app.get("/api/health", (req, res) => {
     res.status(200).json({ ok: true });
   });

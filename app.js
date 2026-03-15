@@ -39,7 +39,9 @@ const APP_STATE = {
     diagnostic: "",
     parsing: "",
     enrichment: ""
-  }
+  },
+  cvExtractResult: null,
+  findJobsResult: null
 };
 
 const TAB_DEFINITIONS = [
@@ -830,6 +832,26 @@ function renderIdentityForm(isOnboarding) {
       ${renderImportPanel()}
 
       <article class="form-card">
+        <h3>Extraire les infos d'un CV avec l'IA</h3>
+        <p class="muted">Colle le texte d'un CV ci-dessous ou utilise le bouton « Extraire avec l'IA » sur un document importé ci-dessus. L'IA remplit une structure (nom, email, compétences, expériences…) que tu peux appliquer au profil.</p>
+        <div class="field">
+          <label for="cv-extract-text">Texte du CV</label>
+          <textarea id="cv-extract-text" rows="6" placeholder="Colle ici le texte extrait d'un CV…" class="full-width-textarea"></textarea>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="secondary-btn" data-action="extract-cv-ia" data-testid="button-extract-cv-ia">Extraire avec l'IA</button>
+        </div>
+        ${APP_STATE.cvExtractResult ? `
+        <div class="extract-result-box" id="cv-extract-result" data-testid="cv-extract-result">
+          <h4>Résultat (${APP_STATE.cvExtractResult.provider || "IA"})</h4>
+          <pre class="extract-json">${escapeHtml(typeof APP_STATE.cvExtractResult.extracted === "object" ? JSON.stringify(APP_STATE.cvExtractResult.extracted, null, 2) : String(APP_STATE.cvExtractResult.extracted))}</pre>
+          <button type="button" class="primary-btn" data-action="apply-extract-to-profile" data-testid="button-apply-extract">Appliquer au profil</button>
+          <button type="button" class="ghost-btn" data-action="clear-extract-result">Fermer</button>
+        </div>
+        ` : ""}
+      </article>
+
+      <article class="form-card">
         <h3>Règles d’honnêteté</h3>
         <div class="dual-grid">
           ${radioGroup("Autoriser la reformulation sans invention", "honestyRules.allowRephrasing", String(userProfile.honestyRules.allowRephrasing), [["true", "Oui"], ["false", "Non"]], true)}
@@ -910,6 +932,7 @@ function renderImportedDocuments() {
               <button class="small-btn" type="button" data-action="apply-import-merge" data-id="${doc.id}" data-testid="button-merge-import-${doc.id}">Fusionner dans le profil</button>
               <button class="small-btn" type="button" data-action="apply-import-replace" data-id="${doc.id}" data-testid="button-replace-import-${doc.id}">${doc.category === "cv" ? "Ré-importer ce CV en remplacement" : "Remplacer par les données importées"}</button>
               <button class="small-btn" type="button" data-action="generate-parsing-brief" data-id="${doc.id}" data-testid="button-parsing-brief-${doc.id}">Brief cv-vers-userprofile</button>
+              <button class="small-btn" type="button" data-action="extract-cv-ia" data-id="${doc.id}" data-testid="button-extract-cv-ia-doc-${doc.id}">Extraire avec l'IA</button>
               <button class="danger-btn" type="button" data-action="remove-import" data-id="${doc.id}" data-testid="button-remove-import-${doc.id}">Supprimer</button>
             </div>
           </div>
@@ -1015,6 +1038,26 @@ function renderJobSearchForm() {
           ${renderTagsSection("Secteurs à éviter", userProfile.jobSearch.avoidedSectors, "jobSearch.avoidedSectors")}
           ${renderTagsSection("Zones ciblées", userProfile.jobSearch.locations, "jobSearch.locations")}
         </div>
+      </article>
+
+      <article class="form-card">
+        <h3>Trouver des postes ouverts (Sonar)</h3>
+        <p class="muted">Recherche d'offres en temps réel via Sonar (Perplexity). Configure une clé API dans Paramètres > Configuration IA.</p>
+        <div class="field">
+          <label for="find-jobs-query">Recherche (titre, secteur, mots-clés)</label>
+          <input type="text" id="find-jobs-query" placeholder="Ex. chargée de communication Lyon" class="full-width-input" />
+        </div>
+        <div class="field">
+          <label for="find-jobs-location">Lieu (optionnel)</label>
+          <input type="text" id="find-jobs-location" placeholder="Ex. Lyon, Paris" class="full-width-input" />
+        </div>
+        <button type="button" class="primary-btn" data-action="find-jobs-sonar" data-testid="button-find-jobs">Rechercher des postes</button>
+        ${APP_STATE.findJobsResult !== null ? `
+        <div class="find-jobs-result" data-testid="find-jobs-result">
+          <h4>Résultat</h4>
+          <div class="preview-box">${escapeHtml(APP_STATE.findJobsResult)}</div>
+        </div>
+        ` : ""}
       </article>
     </section>
   `;
@@ -1697,6 +1740,103 @@ function handleActionClick(event) {
       renderApp();
       scrollToElement("parsing-brief-panel");
       return;
+    case "extract-cv-ia": {
+      let cvText = "";
+      if (id) {
+        const doc = userProfile.sourceDocuments.imports.find((d) => d.id === id);
+        cvText = doc && doc.parsedText ? doc.parsedText : "";
+      } else {
+        const ta = document.getElementById("cv-extract-text");
+        cvText = ta ? ta.value.trim() : "";
+      }
+      if (!cvText) {
+        APP_STATE.importMessage = "Colle le texte du CV dans la zone prévue ou utilise un document déjà importé.";
+        APP_STATE.importLevel = "warning";
+        renderApp();
+        return;
+      }
+      fetch(`${API_BASE}/api/ai/extract-cv`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: cvText.slice(0, 15000) }),
+        credentials: "include"
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.error) throw new Error(d.error);
+          APP_STATE.cvExtractResult = d;
+          APP_STATE.importMessage = "";
+          renderApp();
+          scrollToElement("cv-extract-result");
+        })
+        .catch((err) => {
+          APP_STATE.importMessage = "Erreur extraction IA : " + (err.message || err);
+          APP_STATE.importLevel = "error";
+          renderApp();
+        });
+      return;
+    }
+    case "apply-extract-to-profile": {
+      const ex = APP_STATE.cvExtractResult && APP_STATE.cvExtractResult.extracted;
+      if (!ex || typeof ex !== "object") return;
+      if (ex.firstName || ex.lastName) userProfile.identity.fullName = [ex.firstName, ex.lastName].filter(Boolean).join(" ").trim() || userProfile.identity.fullName;
+      if (ex.email) userProfile.identity.email = ex.email;
+      if (ex.phone) userProfile.identity.phone = ex.phone;
+      if (ex.summary) userProfile.situation.currentOrLastTitle = ex.summary.slice(0, 200);
+      if (Array.isArray(ex.skills) && ex.skills.length) {
+        userProfile.skillsAndExperience.skills = ex.skills.slice(0, 20).map((s) => ({ name: String(s), level: "intermediaire", example: "" }));
+      }
+      if (Array.isArray(ex.experiences) && ex.experiences.length) {
+        userProfile.skillsAndExperience.experiences = ex.experiences.slice(0, 10).map((e) => ({
+          title: e.title || "",
+          company: e.company || "",
+          city: e.city || "",
+          country: e.country || "",
+          startDate: e.dates || "",
+          endDate: "",
+          missions: e.description || "",
+          achievements: "",
+          tools: ""
+        }));
+      }
+      if (Array.isArray(ex.languages) && ex.languages.length) userProfile.skillsAndExperience.languages = ex.languages.map((l) => ({ name: String(l), level: "" }));
+      APP_STATE.cvExtractResult = null;
+      persistProfile(false);
+      renderApp();
+      return;
+    }
+    case "clear-extract-result":
+      APP_STATE.cvExtractResult = null;
+      renderApp();
+      return;
+    case "find-jobs-sonar": {
+      const qEl = document.getElementById("find-jobs-query");
+      const locEl = document.getElementById("find-jobs-location");
+      const query = qEl ? qEl.value.trim() : "";
+      const location = locEl ? locEl.value.trim() : "";
+      if (!query) {
+        APP_STATE.findJobsResult = "Saisis au moins une recherche (titre, secteur).";
+        renderApp();
+        return;
+      }
+      fetch(`${API_BASE}/api/ai/find-jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, location: location || undefined }),
+        credentials: "include"
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.error) throw new Error(d.error);
+          APP_STATE.findJobsResult = d.text || "Aucun résultat.";
+          renderApp();
+        })
+        .catch((err) => {
+          APP_STATE.findJobsResult = "Erreur : " + (err.message || err);
+          renderApp();
+        });
+      return;
+    }
     case "copy-parsing-brief":
       copyBrief(APP_STATE.briefs.parsing);
       return;

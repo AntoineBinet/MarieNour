@@ -30,6 +30,20 @@
       .param-page .clone-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
       .param-page .clone-row input { flex: 1; min-width: 12rem; padding: 0.5rem 0.75rem; font-family: ui-monospace, monospace; font-size: 0.875rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text); }
       .param-page .clone-row .copy-btn { flex-shrink: 0; }
+      .param-page .ai-config-form .field-group { margin-bottom: var(--space-4); }
+      .param-page .ai-config-form .label-inline { display: block; font-weight: 600; margin-bottom: var(--space-2); }
+      .param-page .radio-group-inline { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+      .param-page .radio-group-inline .radio-label { font-weight: normal; cursor: pointer; }
+      .param-page .ai-block { margin: var(--space-4) 0; padding: var(--space-4); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+      .param-page .ai-block .sub-head { font-size: var(--text-base); margin: 0 0 var(--space-3); }
+      .param-page .ai-block label { display: block; margin-top: var(--space-2); margin-bottom: 0.25rem; font-size: var(--text-sm); }
+      .param-page .ai-block input, .param-page .ai-block select { margin-bottom: var(--space-2); }
+      .param-page .full-width { width: 100%; max-width: 24rem; padding: 0.5rem 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text); }
+      .param-page .small-note { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0.25rem 0 var(--space-2); }
+      .param-page .checkbox-label { font-weight: normal; cursor: pointer; display: inline-flex; align-items: flex-start; gap: 0.5rem; }
+      .param-page .ai-test-result { margin-top: var(--space-3); padding: var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+      .param-page .ai-test-result.success { background: var(--color-pastel-cool); border: 1px solid var(--color-success); }
+      .param-page .ai-test-result.error { background: var(--color-pastel-warm); border: 1px solid var(--color-error); }
     </style>
   </head>
   <body>
@@ -73,6 +87,50 @@
           <button type="button" class="secondary-btn" id="btn-logs">Voir les logs serveur</button>
         </div>
         <div class="results-box" id="verify-results" aria-live="polite"></div>
+      </section>
+
+      <section aria-labelledby="sec-ai" id="sec-ai-config">
+        <h2 id="sec-ai">Configuration IA</h2>
+        <p class="muted" style="margin-bottom: var(--space-4);">Connecter Ollama (local) et/ou Sonar (Perplexity) pour l’extraction de CV et la recherche de postes. Les clés sont stockées dans <code>data/ai_config.json</code> et ne sont pas écrasées par les mises à jour Git.</p>
+        <div class="ai-config-form">
+          <div class="field-group">
+            <span class="label-inline">Fournisseur principal</span>
+            <div class="radio-group-inline" role="radiogroup" aria-label="Fournisseur IA">
+              <label class="radio-label"><input type="radio" name="ai-provider" value="ollama" /> Ollama (local)</label>
+              <label class="radio-label"><input type="radio" name="ai-provider" value="sonar" /> Sonar (Perplexity)</label>
+            </div>
+          </div>
+          <div class="ai-block ollama-block">
+            <h3 class="sub-head">Ollama</h3>
+            <label for="ai-ollama-url">URL</label>
+            <input type="text" id="ai-ollama-url" class="full-width" placeholder="http://127.0.0.1:11434" />
+            <label for="ai-ollama-model">Modèle</label>
+            <input type="text" id="ai-ollama-model" class="full-width" placeholder="llama3.2" />
+          </div>
+          <div class="ai-block sonar-block">
+            <h3 class="sub-head">Sonar (Perplexity)</h3>
+            <label for="ai-sonar-key">Clé API</label>
+            <input type="password" id="ai-sonar-key" class="full-width" placeholder="Clé Perplexity" autocomplete="off" />
+            <p class="small-note"><a href="https://docs.perplexity.ai/" target="_blank" rel="noopener noreferrer">Documentation Perplexity</a></p>
+            <label for="ai-sonar-model">Modèle</label>
+            <select id="ai-sonar-model" class="full-width">
+              <option value="sonar">sonar</option>
+              <option value="sonar-pro">sonar-pro</option>
+              <option value="sonar-reasoning-pro">sonar-reasoning-pro</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ai-fallback" />
+              Activer le fallback automatique (si le fournisseur principal échoue, tenter l’autre)
+            </label>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="primary-btn" id="btn-ai-save">Enregistrer</button>
+            <button type="button" class="secondary-btn" id="btn-ai-test">Tester la connexion</button>
+          </div>
+          <div class="ai-test-result" id="ai-test-result" aria-live="polite"></div>
+        </div>
       </section>
 
       <p class="muted" style="margin-top: var(--space-6);">
@@ -231,6 +289,81 @@
       .then((d) => setResults(d.logs || d.message || "Aucun log."))
       .catch(() => setResults("Erreur lors de la lecture des logs."));
   });
+
+  const aiProviderOllama = document.querySelector('input[name="ai-provider"][value="ollama"]');
+  const aiProviderSonar = document.querySelector('input[name="ai-provider"][value="sonar"]');
+  const aiOllamaUrl = document.getElementById("ai-ollama-url");
+  const aiOllamaModel = document.getElementById("ai-ollama-model");
+  const aiSonarKey = document.getElementById("ai-sonar-key");
+  const aiSonarModel = document.getElementById("ai-sonar-model");
+  const aiFallback = document.getElementById("ai-fallback");
+  const btnAiSave = document.getElementById("btn-ai-save");
+  const btnAiTest = document.getElementById("btn-ai-test");
+  const aiTestResult = document.getElementById("ai-test-result");
+
+  function loadAiConfig() {
+    get("/api/ai/config")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.provider === "sonar") aiProviderSonar.checked = true;
+        else aiProviderOllama.checked = true;
+        if (aiOllamaUrl) aiOllamaUrl.value = d.ollama_url || "http://127.0.0.1:11434";
+        if (aiOllamaModel) aiOllamaModel.value = d.ollama_model || "llama3.2";
+        if (aiSonarKey) aiSonarKey.value = ""; // ne pas préremplir la clé
+        if (aiSonarKey && d.sonar_api_key_preview) aiSonarKey.placeholder = d.sonar_api_key_preview + " (laisser vide pour conserver)";
+        if (aiSonarModel) aiSonarModel.value = d.sonar_model || "sonar";
+        if (aiFallback) aiFallback.checked = Boolean(d.fallback_enabled);
+      })
+      .catch(() => {});
+  }
+  loadAiConfig();
+
+  if (btnAiSave) {
+    btnAiSave.addEventListener("click", function () {
+      const body = {
+        provider: aiProviderOllama && aiProviderOllama.checked ? "ollama" : "sonar",
+        fallback_enabled: aiFallback ? aiFallback.checked : true,
+        ollama_url: aiOllamaUrl ? aiOllamaUrl.value.trim() || undefined,
+        ollama_model: aiOllamaModel ? aiOllamaModel.value.trim() || undefined,
+        sonar_api_key: aiSonarKey && aiSonarKey.value.trim() ? aiSonarKey.value.trim() : undefined,
+        sonar_model: aiSonarModel ? aiSonarModel.value : undefined
+      };
+      fetch(API + "/api/ai/config", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        .then((r) => r.json())
+        .then((d) => {
+          aiTestResult.textContent = d.error || "Configuration enregistrée.";
+          aiTestResult.className = "ai-test-result " + (d.error ? "error" : "success");
+          if (d.ok && aiSonarKey && !body.sonar_api_key) aiSonarKey.value = "";
+        })
+        .catch(() => {
+          aiTestResult.textContent = "Erreur lors de l’enregistrement.";
+          aiTestResult.className = "ai-test-result error";
+        });
+    });
+  }
+
+  if (btnAiTest) {
+    btnAiTest.addEventListener("click", function () {
+      aiTestResult.textContent = "Test en cours…";
+      aiTestResult.className = "ai-test-result";
+      const provider = aiProviderOllama && aiProviderOllama.checked ? "ollama" : "sonar";
+      fetch(API + "/api/ai/test", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider }) })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.ok) {
+            aiTestResult.textContent = "Succès (" + d.provider + ") — " + (d.excerpt || d.message || "").slice(0, 120);
+            aiTestResult.className = "ai-test-result success";
+          } else {
+            aiTestResult.textContent = "Erreur : " + (d.error || "inconnue");
+            aiTestResult.className = "ai-test-result error";
+          }
+        })
+        .catch(() => {
+          aiTestResult.textContent = "Erreur réseau ou serveur.";
+          aiTestResult.className = "ai-test-result error";
+        });
+    });
+  }
 })();
     </script>
   </body>
