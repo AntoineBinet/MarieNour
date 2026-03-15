@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paramètres de mise à jour — MNWork</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600&family=Nunito:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .param-page { max-width: 56rem; margin: 0 auto; padding: var(--space-6); }
+      .param-page h1 { font-family: var(--font-display); font-size: var(--text-xl); margin: 0 0 var(--space-4); }
+      .param-page h2 { font-family: var(--font-display); font-size: var(--text-lg); margin: var(--space-6) 0 var(--space-3); }
+      .param-page section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-5); }
+      .version-badge { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+      .version-badge span { background: var(--color-surface-2); padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); }
+      .param-page .repo-url { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-2); }
+      .param-page .warning { background: var(--color-pastel-warm); border: 1px solid var(--color-warning); border-radius: var(--radius-sm); padding: var(--space-3); margin: var(--space-3) 0; font-size: var(--text-sm); }
+      .param-page .deploy-status { min-height: 1.5em; margin: var(--space-3) 0; font-weight: 600; }
+      .param-page .deploy-status.error { color: var(--color-error); }
+      .param-page .deploy-status.success { color: var(--color-success); }
+      .param-page .terminal { background: #1e1e1e; color: #d4d4d4; padding: var(--space-4); border-radius: var(--radius-sm); font-family: ui-monospace, monospace; font-size: 0.8125rem; overflow-x: auto; max-height: 20rem; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+      .param-page .terminal:empty::before { content: "Flux Git (vide jusqu'au lancement de la mise à jour)"; color: var(--color-text-muted); }
+      .param-page .btn-row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
+      .param-page .results-box { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-4); margin-top: var(--space-3); font-size: var(--text-sm); white-space: pre-wrap; max-height: 16rem; overflow-y: auto; }
+      .param-page .nav-back { margin-bottom: var(--space-4); }
+      .param-page .nav-back a { color: var(--color-primary); text-decoration: none; }
+      .param-page .nav-back a:hover { text-decoration: underline; }
+      .param-page .clone-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+      .param-page .clone-row input { flex: 1; min-width: 12rem; padding: 0.5rem 0.75rem; font-family: ui-monospace, monospace; font-size: 0.875rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text); }
+      .param-page .clone-row .copy-btn { flex-shrink: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="param-page">
+      <nav class="nav-back" aria-label="Navigation">
+        <a href="/">&larr; Retour à l'accueil</a>
+      </nav>
+      <h1>Paramètres de mise à jour</h1>
+
+      <section aria-labelledby="sec-version">
+        <h2 id="sec-version">Version de l'application</h2>
+        <div class="version-badge" id="version-badge">
+          <span id="version-text">—</span>
+          <span id="commit-text">—</span>
+          <span id="branch-text">—</span>
+        </div>
+        <p class="repo-url" id="repo-url">Dépôt : https://github.com/AntoineBinet/MarieNour</p>
+        <p class="muted" style="margin-top: var(--space-4); font-size: var(--text-sm);">Commande clone (utile à distance) :</p>
+        <div class="clone-row">
+          <input type="text" id="clone-command" value="git clone https://github.com/AntoineBinet/MarieNour.git" readonly aria-label="Commande git clone" />
+          <button type="button" class="secondary-btn copy-btn" id="btn-copy-clone">Copier</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="sec-deploy">
+        <h2 id="sec-deploy">Mise à jour du serveur</h2>
+        <p class="warning">Cette action est irréversible : le serveur récupère la branche <code>main</code> depuis GitHub puis redémarre. Les modifications locales non poussées seront perdues.</p>
+        <div class="deploy-status" id="deploy-status" aria-live="polite"></div>
+        <div class="btn-row">
+          <button type="button" class="primary-btn" id="btn-deploy">Mettre à jour et redémarrer le serveur</button>
+        </div>
+        <label for="deploy-console" class="muted" style="display:block; margin-top: var(--space-3);">Flux direct (sortie Git)</label>
+        <pre class="terminal" id="deploy-console" aria-live="polite" role="log"></pre>
+      </section>
+
+      <section aria-labelledby="sec-verify">
+        <h2 id="sec-verify">Vérifications</h2>
+        <div class="btn-row">
+          <button type="button" class="secondary-btn" id="btn-verify">Lancer la vérification</button>
+          <button type="button" class="secondary-btn" id="btn-check-deploy">Vérifier le déploiement</button>
+          <button type="button" class="secondary-btn" id="btn-logs">Voir les logs serveur</button>
+        </div>
+        <div class="results-box" id="verify-results" aria-live="polite"></div>
+      </section>
+
+      <p class="muted" style="margin-top: var(--space-6);">
+        <a href="/">Accueil</a> · <form action="/logout" method="post" style="display:inline;"><button type="submit" class="ghost-btn small">Se déconnecter</button></form>
+      </p>
+    </div>
+
+    <script>
+(function () {
+  const API = "";
+  function get(url) {
+    return fetch(API + url, { credentials: "include" });
+  }
+  function post(url) {
+    return fetch(API + url, { method: "POST", credentials: "include" });
+  }
+
+  const versionText = document.getElementById("version-text");
+  const commitText = document.getElementById("commit-text");
+  const branchText = document.getElementById("branch-text");
+  const deployStatus = document.getElementById("deploy-status");
+  const deployConsole = document.getElementById("deploy-console");
+  const btnDeploy = document.getElementById("btn-deploy");
+  const verifyResults = document.getElementById("verify-results");
+  const btnVerify = document.getElementById("btn-verify");
+  const btnCheckDeploy = document.getElementById("btn-check-deploy");
+  const btnLogs = document.getElementById("btn-logs");
+  const cloneInput = document.getElementById("clone-command");
+  const btnCopyClone = document.getElementById("btn-copy-clone");
+
+  if (btnCopyClone && cloneInput) {
+    btnCopyClone.addEventListener("click", function () {
+      cloneInput.select();
+      cloneInput.setSelectionRange(0, 99999);
+      try {
+        navigator.clipboard.writeText(cloneInput.value);
+        btnCopyClone.textContent = "Copié !";
+        setTimeout(function () { btnCopyClone.textContent = "Copier"; }, 2000);
+      } catch (_) {
+        document.execCommand("copy");
+        btnCopyClone.textContent = "Copié !";
+        setTimeout(function () { btnCopyClone.textContent = "Copier"; }, 2000);
+      }
+    });
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function loadVersion() {
+    get("/api/app-version")
+      .then((r) => r.json())
+      .then((d) => {
+        versionText.textContent = "v" + (d.version || "—");
+        commitText.textContent = (d.commitHash || "").slice(0, 7) || "—";
+        branchText.textContent = d.branch || "—";
+      })
+      .catch(() => {
+        versionText.textContent = "v—";
+        commitText.textContent = "—";
+        branchText.textContent = "—";
+      });
+  }
+  loadVersion();
+
+  btnDeploy.addEventListener("click", function () {
+    if (!confirm("Mettre à jour le serveur depuis GitHub et redémarrer ? Les changements locaux non poussés seront perdus.")) return;
+    deployStatus.textContent = "Mise à jour en cours…";
+    deployStatus.className = "deploy-status";
+    deployConsole.textContent = "";
+    btnDeploy.disabled = true;
+
+    fetch(API + "/api/deploy/pull", { method: "POST", credentials: "include" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(response.status === 403 ? "Origin non autorisée" : "Erreur " + response.status);
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        function read() {
+          return reader.read().then(({ value, done }) => {
+            if (done) return;
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() || "";
+            for (const chunk of chunks) {
+              const line = chunk.trim();
+              if (line.startsWith("data: ")) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  if (data.message) {
+                    deployConsole.textContent += data.message + "\n";
+                    deployConsole.scrollTop = deployConsole.scrollHeight;
+                  }
+                  if (data.step === "done") {
+                    btnDeploy.disabled = false;
+                    if (data.error) {
+                      deployStatus.textContent = "Erreur lors de la mise à jour.";
+                      deployStatus.className = "deploy-status error";
+                    } else if (data.alreadyUpToDate) {
+                      deployStatus.textContent = "Déjà à jour.";
+                      deployStatus.className = "deploy-status success";
+                      loadVersion();
+                    } else {
+                      deployStatus.textContent = "Mise à jour appliquée. Redémarrage dans " + (data.restartInSeconds || 10) + " s…";
+                      deployStatus.className = "deploy-status success";
+                      const sec = data.restartInSeconds || 10;
+                      setTimeout(function () {
+                        window.location.reload();
+                      }, (sec + 1) * 1000);
+                    }
+                  }
+                } catch (_) {}
+              }
+            }
+            return read();
+          });
+        }
+        return read();
+      })
+      .catch((err) => {
+        deployStatus.textContent = "Erreur : " + (err.message || err);
+        deployStatus.className = "deploy-status error";
+        btnDeploy.disabled = false;
+      });
+  });
+
+  function setResults(text, isJson) {
+    verifyResults.textContent = isJson ? JSON.stringify(text, null, 2) : text;
+  }
+
+  btnVerify.addEventListener("click", function () {
+    setResults("Chargement…");
+    post("/api/system/verify")
+      .then((r) => r.json())
+      .then((d) => setResults(d, true))
+      .catch(() => setResults("Erreur lors de la vérification."));
+  });
+
+  btnCheckDeploy.addEventListener("click", function () {
+    setResults("Chargement…");
+    get("/api/system/check-deployment")
+      .then((r) => r.json())
+      .then((d) => setResults(d, true))
+      .catch(() => setResults("Erreur lors de la vérification du déploiement."));
+  });
+
+  btnLogs.addEventListener("click", function () {
+    setResults("Chargement…");
+    get("/api/system/logs?lines=100")
+      .then((r) => r.json())
+      .then((d) => setResults(d.logs || d.message || "Aucun log."))
+      .catch(() => setResults("Erreur lors de la lecture des logs."));
+  });
+})();
+    </script>
+  </body>
+</html>

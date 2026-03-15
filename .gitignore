@@ -1,5 +1,8 @@
 node_modules/
 data/
+data/ai_config.json
+logs/
+.last_commit_hash
 bin/
 .env
 .env.local

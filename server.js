@@ -1,9 +1,24 @@
 const path = require("path");
 const fs = require("fs");
+const { spawn } = require("child_process");
 const express = require("express");
 const session = require("express-session");
 const initSqlJs = require("sql.js");
 const multer = require("multer");
+
+const pkg = require("./package.json");
+const LAST_COMMIT_HASH_FILE = path.join(__dirname, ".last_commit_hash");
+const LOGS_DIR = path.join(__dirname, "logs");
+const LOG_FILE = path.join(LOGS_DIR, "marienour.log");
+const DEPLOY_RESTART_DELAY_SECONDS = 10;
+const ALLOWED_ORIGINS = [
+  "https://marienour.work",
+  "http://marienour.work",
+  "http://127.0.0.1:3000",
+  "http://localhost:3000",
+  "http://127.0.0.1",
+  "http://localhost",
+];
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -12,8 +27,57 @@ const HOST = process.env.HOST || "127.0.0.1";
 const AUTH_USER = process.env.AUTH_USER || "marienour";
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "1234salibi";
 const DATA_DIR = path.join(__dirname, "data");
+const AI_CONFIG_PATH = path.join(DATA_DIR, "ai_config.json");
 const MARIE_NOUR_DIR = path.join(DATA_DIR, "marie-nour");
 const DB_PATH = path.join(DATA_DIR, "mnwork.sqlite");
+
+const OLLAMA_URL_DEFAULT = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+const OLLAMA_MODEL_DEFAULT = process.env.OLLAMA_MODEL || "llama3.2";
+const OLLAMA_TIMEOUT_MS = (Number(process.env.OLLAMA_TIMEOUT) || 120) * 1000;
+const PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions";
+const AI_PROVIDER_DEFAULT = process.env.AI_PROVIDER || "ollama";
+const SONAR_MODEL_DEFAULT = process.env.SONAR_MODEL || "sonar";
+
+let aiConfigCache = null;
+
+function _load_ai_config() {
+  if (aiConfigCache) return aiConfigCache;
+  const defaults = {
+    provider: AI_PROVIDER_DEFAULT,
+    fallback_enabled: true,
+    ollama_url: OLLAMA_URL_DEFAULT,
+    ollama_model: OLLAMA_MODEL_DEFAULT,
+    sonar_api_key: process.env.PERPLEXITY_API_KEY || "",
+    sonar_model: SONAR_MODEL_DEFAULT,
+  };
+  try {
+    if (fs.existsSync(AI_CONFIG_PATH)) {
+      const raw = fs.readFileSync(AI_CONFIG_PATH, "utf8");
+      const fromFile = JSON.parse(raw);
+      aiConfigCache = { ...defaults, ...fromFile };
+    } else {
+      aiConfigCache = { ...defaults };
+    }
+  } catch (_) {
+    aiConfigCache = { ...defaults };
+  }
+  return aiConfigCache;
+}
+
+function _save_ai_config(config) {
+  const safe = {
+    provider: config.provider || AI_PROVIDER_DEFAULT,
+    fallback_enabled: Boolean(config.fallback_enabled),
+    ollama_url: config.ollama_url || OLLAMA_URL_DEFAULT,
+    ollama_model: config.ollama_model || OLLAMA_MODEL_DEFAULT,
+    sonar_api_key: typeof config.sonar_api_key === "string" ? config.sonar_api_key : _load_ai_config().sonar_api_key,
+    sonar_model: config.sonar_model || SONAR_MODEL_DEFAULT,
+  };
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(AI_CONFIG_PATH, JSON.stringify(safe, null, 2), "utf8");
+  aiConfigCache = safe;
+  return safe;
+}
 const PROFILE_JSON_MAX = 5 * 1024 * 1024; // 5 MB
 
 const EXPORTS_DIR = path.join(MARIE_NOUR_DIR, "exports");
@@ -24,6 +88,52 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(MARIE_NOUR_DIR)) fs.mkdirSync(MARIE_NOUR_DIR, { recursive: true });
 if (!fs.existsSync(EXPORTS_DIR)) fs.mkdirSync(EXPORTS_DIR, { recursive: true });
 if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
+
+function appendLog(message) {
+  try {
+    const line = `[${new Date().toISOString()}] ${message}\n`;
+    fs.appendFileSync(LOG_FILE, line, "utf8");
+  } catch (_) {}
+}
+
+function _schedule_restart(delaySeconds) {
+  const delay = (delaySeconds || DEPLOY_RESTART_DELAY_SECONDS) * 1000;
+  setTimeout(() => {
+    appendLog("Deploy: exiting with code 42 for supervisor restart");
+    process.exit(42);
+  }, delay);
+}
+
+function sendSSE(res, data) {
+  res.write("data: " + JSON.stringify(data) + "\n\n");
+}
+
+function runGitStream(cwd, args, res, step) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("git", args, { cwd });
+    let out = "";
+    proc.stdout.on("data", (chunk) => {
+      const s = chunk.toString("utf8").trim();
+      if (s) {
+        out += s + "\n";
+        sendSSE(res, { step, message: s });
+      }
+    });
+    proc.stderr.on("data", (chunk) => {
+      const s = chunk.toString("utf8").trim();
+      if (s) {
+        out += s + "\n";
+        sendSSE(res, { step, message: s });
+      }
+    });
+    proc.on("close", (code) => {
+      if (code !== 0) return reject(new Error(out || `git exit ${code}`));
+      resolve(out);
+    });
+    proc.on("error", reject);
+  });
+}
 
 let db;
 let SQL;
@@ -177,6 +287,163 @@ async function start() {
   }
 
   app.use(requireAuth);
+
+  app.get("/parametres", (req, res) => {
+    res.sendFile(path.join(__dirname, "parametres.html"));
+  });
+
+  app.get("/api/deploy/health", (req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
+  function getGitInfo() {
+    const cwd = __dirname;
+    let commitHash = "";
+    let branch = "";
+    try {
+      commitHash = require("child_process").execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
+    } catch (_) {}
+    try {
+      branch = require("child_process").execSync("git rev-parse --abbrev-ref HEAD", { cwd, encoding: "utf8" }).trim();
+    } catch (_) {}
+    return { commitHash, branch };
+  }
+
+  app.get("/api/app-version", (req, res) => {
+    const version = process.env.APP_VERSION || pkg.version || "1.0.0";
+    const { commitHash, branch } = getGitInfo();
+    res.json({ version, commitHash, branch });
+  });
+
+  app.post("/api/deploy/pull", (req, res) => {
+    const origin = (req.get("Origin") || req.get("Referer") || "").trim();
+    const allowed = !origin || ALLOWED_ORIGINS.some((o) => origin.startsWith(o));
+    if (!allowed) {
+      return res.status(403).json({ error: "Origin non autorisée" });
+    }
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+
+    const repoRoot = __dirname;
+    const gitDir = path.join(repoRoot, ".git");
+
+    (async () => {
+      try {
+        if (!fs.existsSync(gitDir)) {
+          sendSSE(res, { step: "error", message: "Dépôt Git introuvable (.git)" });
+          sendSSE(res, { step: "done", alreadyUpToDate: false, restartInSeconds: 0, error: true });
+          res.end();
+          return;
+        }
+        sendSSE(res, { step: "log", message: "Vérification du dépôt Git..." });
+        const { commitHash: currentHash } = getGitInfo();
+        if (currentHash) {
+          fs.writeFileSync(LAST_COMMIT_HASH_FILE, currentHash, "utf8");
+        }
+        sendSSE(res, { step: "log", message: "git fetch origin..." });
+        await runGitStream(repoRoot, ["fetch", "origin"], res, "fetch");
+        const beforePull = getGitInfo().commitHash;
+        if (beforePull) {
+          fs.writeFileSync(LAST_COMMIT_HASH_FILE, beforePull, "utf8");
+        }
+        sendSSE(res, { step: "log", message: "git pull --ff-only origin main..." });
+        let pullOk = false;
+        try {
+          await runGitStream(repoRoot, ["pull", "--ff-only", "origin", "main"], res, "pull");
+          pullOk = true;
+        } catch (pullErr) {
+          sendSSE(res, { step: "log", message: "Pull en échec, tentative git reset --hard origin/main..." });
+          try {
+            await runGitStream(repoRoot, ["reset", "--hard", "origin/main"], res, "reset");
+            pullOk = true;
+          } catch (resetErr) {
+            sendSSE(res, { step: "error", message: (resetErr && resetErr.message) || String(resetErr) });
+          }
+        }
+        const { commitHash: afterHash } = getGitInfo();
+        const changed = afterHash && beforePull && afterHash !== beforePull;
+        if (pullOk && changed) {
+          _schedule_restart(DEPLOY_RESTART_DELAY_SECONDS);
+          sendSSE(res, {
+            step: "done",
+            alreadyUpToDate: false,
+            restartInSeconds: DEPLOY_RESTART_DELAY_SECONDS,
+            commitHash: afterHash,
+          });
+        } else if (pullOk) {
+          sendSSE(res, { step: "done", alreadyUpToDate: true, restartInSeconds: 0, commitHash: afterHash });
+        } else {
+          sendSSE(res, { step: "done", alreadyUpToDate: false, restartInSeconds: 0, error: true });
+        }
+      } catch (err) {
+        sendSSE(res, { step: "error", message: (err && err.message) || String(err) });
+        sendSSE(res, { step: "done", alreadyUpToDate: false, restartInSeconds: 0, error: true });
+      }
+      res.end();
+    })();
+  });
+
+  app.get("/api/system/logs", (req, res) => {
+    const lines = Math.min(parseInt(req.query.lines, 10) || 100, 500);
+    if (!fs.existsSync(LOG_FILE)) {
+      return res.json({ logs: "", message: "Logs non configurés ou fichier absent." });
+    }
+    try {
+      const content = fs.readFileSync(LOG_FILE, "utf8");
+      const all = content.split("\n").filter(Boolean);
+      const last = all.slice(-lines).join("\n");
+      res.json({ logs: last });
+    } catch (e) {
+      res.status(500).json({ error: "Erreur lecture logs." });
+    }
+  });
+
+  app.post("/api/system/verify", (req, res) => {
+    const checks = [];
+    const repoRoot = __dirname;
+    const gitDir = path.join(repoRoot, ".git");
+    checks.push({
+      name: "Dépôt Git",
+      ok: fs.existsSync(gitDir),
+      message: fs.existsSync(gitDir) ? "Présent" : "Absent",
+    });
+    const { commitHash, branch } = getGitInfo();
+    checks.push({ name: "Branche", ok: !!branch, message: branch || "Inconnue" });
+    checks.push({ name: "Commit HEAD", ok: !!commitHash, message: commitHash ? commitHash.slice(0, 7) : "Inconnu" });
+    checks.push({
+      name: "server.js",
+      ok: fs.existsSync(path.join(repoRoot, "server.js")),
+      message: fs.existsSync(path.join(repoRoot, "server.js")) ? "Présent" : "Absent",
+    });
+    checks.push({
+      name: "package.json",
+      ok: fs.existsSync(path.join(repoRoot, "package.json")),
+      message: fs.existsSync(path.join(repoRoot, "package.json")) ? "Présent" : "Absent",
+    });
+    checks.push({
+      name: ".last_commit_hash",
+      ok: fs.existsSync(LAST_COMMIT_HASH_FILE),
+      message: fs.existsSync(LAST_COMMIT_HASH_FILE) ? "Présent" : "Optionnel (créé au premier pull)",
+    });
+    res.json({ checks });
+  });
+
+  app.get("/api/system/check-deployment", (req, res) => {
+    const { commitHash, branch } = getGitInfo();
+    let lastSavedHash = null;
+    if (fs.existsSync(LAST_COMMIT_HASH_FILE)) {
+      lastSavedHash = fs.readFileSync(LAST_COMMIT_HASH_FILE, "utf8").trim();
+    }
+    res.json({
+      branch,
+      commitHash: commitHash || null,
+      lastSavedCommitHash: lastSavedHash,
+      repoOk: !!commitHash,
+    });
+  });
+
   app.use(express.static(__dirname));
 
   const storage = multer.diskStorage({
@@ -322,6 +589,7 @@ async function start() {
 
   app.listen(PORT, HOST, () => {
     console.log(`Serveur MNWork démarré sur http://${HOST}:${PORT}`);
+    appendLog(`Serveur démarré sur http://${HOST}:${PORT}`);
   });
 }
 
