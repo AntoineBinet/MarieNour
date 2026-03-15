@@ -351,28 +351,30 @@ function bindGlobalEvents() {
     }
   });
 
-  els.resetProfileBtn.addEventListener("click", () => {
-    const confirmed = window.confirm("Supprimer le profil local, les imports et le suivi des candidatures ?");
-    if (!confirmed) return;
-    clearProfile();
-    userProfile = createDefaultProfile();
-    APP_STATE.activeTab = "moi";
-    APP_STATE.viewMode = "welcome";
-    APP_STATE.onboardingStarted = false;
-    APP_STATE.onboardingStep = 0;
-    APP_STATE.editingApplicationId = null;
-    APP_STATE.importMessage = "";
-    APP_STATE.importLevel = "muted";
-    APP_STATE.briefs = {
-      offers: "",
-      cv: "",
-      letter: "",
-      diagnostic: "",
-      parsing: "",
-      enrichment: ""
-    };
-    renderApp();
-  });
+  if (els.resetProfileBtn) {
+    els.resetProfileBtn.addEventListener("click", () => {
+      const confirmed = window.confirm("Supprimer le profil local, les imports et le suivi des candidatures ?");
+      if (!confirmed) return;
+      clearProfile();
+      userProfile = createDefaultProfile();
+      APP_STATE.activeTab = "moi";
+      APP_STATE.viewMode = "welcome";
+      APP_STATE.onboardingStarted = false;
+      APP_STATE.onboardingStep = 0;
+      APP_STATE.editingApplicationId = null;
+      APP_STATE.importMessage = "";
+      APP_STATE.importLevel = "muted";
+      APP_STATE.briefs = {
+        offers: "",
+        cv: "",
+        letter: "",
+        diagnostic: "",
+        parsing: "",
+        enrichment: ""
+      };
+      renderApp();
+    });
+  }
 
   els.themeToggle.addEventListener("click", () => {
     document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
