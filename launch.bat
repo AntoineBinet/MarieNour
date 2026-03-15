@@ -23,7 +23,7 @@ if not exist "node_modules" (
   call npm install
 )
 
-start "MNWork - Serveur" node server.js
+start "MNWork - Serveur" cmd /c supervise_marienour.bat
 ping 127.0.0.1 -n 3 >nul
 
 set "TUNNEL_LAUNCHED="

@@ -1,0 +1,17 @@
+{
+  "name": "MNWork (Node)",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm",
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "MNWork server",
+      "onAutoForward": "notify"
+    }
+  }
+}
