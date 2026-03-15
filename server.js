@@ -13,7 +13,9 @@ const LOG_FILE = path.join(LOGS_DIR, "marienour.log");
 const DEPLOY_RESTART_DELAY_SECONDS = 10;
 const ALLOWED_ORIGINS = [
   "https://marienour.work",
+  "https://www.marienour.work",
   "http://marienour.work",
+  "http://www.marienour.work",
   "http://127.0.0.1:3000",
   "http://localhost:3000",
   "http://127.0.0.1",
