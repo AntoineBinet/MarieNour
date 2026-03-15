@@ -513,6 +513,7 @@ function renderHomeState() {
 }
 
 function renderTabList() {
+  if (!els.tabList) return;
   els.tabList.innerHTML = "";
   TAB_DEFINITIONS.forEach((tab) => {
     const button = document.createElement("button");
@@ -527,6 +528,7 @@ function renderTabList() {
 }
 
 function renderSummary() {
+  if (!els.liveSummary) return;
   const items = [
     { label: "Identité", value: userProfile.identity.fullName || "Nom non renseigné" },
     { label: "Situation", value: userProfile.situation.currentOrLastTitle || userProfile.situation.status || "Situation non renseignée" },
