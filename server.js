@@ -569,6 +569,48 @@ async function start() {
     throw new Error("Aucun fournisseur IA disponible.");
   }
 
+  function truncateText(value, max = 500) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    return text.length <= max ? text : `${text.slice(0, max)}…`;
+  }
+
+  function uniqueStringList(values, max = 12) {
+    if (!Array.isArray(values)) return [];
+    const cleaned = values
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return [...new Set(cleaned)].slice(0, max);
+  }
+
+  function uniqueObjectList(values, keyFn, max = 12) {
+    if (!Array.isArray(values)) return [];
+    const map = new Map();
+    values.forEach((item) => {
+      const key = keyFn(item);
+      if (!key || map.has(key)) return;
+      map.set(key, item);
+    });
+    return [...map.values()].slice(0, max);
+  }
+
+  function extractJsonObject(text) {
+    const raw = String(text || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (_) {}
+    const first = raw.indexOf("{");
+    const last = raw.lastIndexOf("}");
+    if (first >= 0 && last > first) {
+      const candidate = raw.slice(first, last + 1);
+      try {
+        return JSON.parse(candidate);
+      } catch (_) {}
+    }
+    return null;
+  }
+
   app.get("/api/ai/config", (req, res) => {
     try {
       const cfg = _load_ai_config();
@@ -685,6 +727,244 @@ firstName, lastName, email, phone, summary, skills (tableau de strings), experie
         res.json({ ok: true, provider: "sonar", text: text || "" });
       } catch (err) {
         sendError(res, 500, (err && err.message) || "Erreur recherche de postes.");
+      }
+    })();
+  });
+
+  app.post("/api/ai/profile-news", (req, res) => {
+    const profile = req.body && req.body.profile;
+    if (!profile || typeof profile !== "object") {
+      return sendError(res, 400, "profile requis.");
+    }
+    const cfg = _load_ai_config();
+    const sonarKey = cfg.sonar_api_key || process.env.PERPLEXITY_API_KEY;
+    if (!sonarKey) {
+      return sendError(res, 400, "Veille actualités nécessite Sonar (Perplexity). Configurez une clé API dans Paramètres > Configuration IA.");
+    }
+
+    const identity = profile.identity || {};
+    const writingStyle = profile.writingStyle || {};
+    const jobSearch = profile.jobSearch || {};
+    const targeting = profile.targeting || {};
+    const skillsAndExperience = profile.skillsAndExperience || {};
+    const tracking = profile.tracking || {};
+    const sourceDocuments = Array.isArray(profile.sourceDocuments) ? profile.sourceDocuments : [];
+
+    const targetTitles = uniqueObjectList(
+      Array.isArray(jobSearch.targetTitles) ? jobSearch.targetTitles : [],
+      (item) => `${String(item?.title || "").trim().toLowerCase()}|${String(item?.priority || "").trim().toLowerCase()}`,
+      10
+    )
+      .map((item) => `${String(item.title || "").trim()}${item.priority ? ` (${String(item.priority).trim()})` : ""}`.trim())
+      .filter(Boolean);
+
+    const skillNames = uniqueStringList(Array.isArray(skillsAndExperience.skills) ? skillsAndExperience.skills : [], 16);
+    const experiences = uniqueStringList(Array.isArray(skillsAndExperience.experiences) ? skillsAndExperience.experiences : [], 10);
+    const education = uniqueStringList(Array.isArray(skillsAndExperience.education) ? skillsAndExperience.education : [], 8);
+    const languages = uniqueStringList(Array.isArray(skillsAndExperience.languages) ? skillsAndExperience.languages : [], 8);
+    const locations = uniqueStringList(Array.isArray(jobSearch.locations) ? jobSearch.locations : [], 12);
+    const targetCities = uniqueStringList(Array.isArray(jobSearch.locations) ? jobSearch.locations : [], 12);
+    const preferredSectors = uniqueStringList(Array.isArray(jobSearch.preferredSectors) ? jobSearch.preferredSectors : [], 12);
+    const avoidedSectors = uniqueStringList(Array.isArray(jobSearch.avoidedSectors) ? jobSearch.avoidedSectors : [], 12);
+    const contractTypes = uniqueStringList(Array.isArray(jobSearch.contractTypes) ? jobSearch.contractTypes : [], 8);
+    const keywords = uniqueStringList(Array.isArray(targeting.searchKeywords) ? targeting.searchKeywords : [], 16);
+    const excludedKeywords = uniqueStringList(Array.isArray(targeting.excludeKeywords) ? targeting.excludeKeywords : [], 16);
+    const idealJobBullets = uniqueStringList(Array.isArray(targeting.idealJobBullets) ? targeting.idealJobBullets : [], 12);
+    const avoidJobBullets = uniqueStringList(Array.isArray(targeting.avoidJobBullets) ? targeting.avoidJobBullets : [], 12);
+    const preferredJobSites = uniqueStringList(Array.isArray(targeting.preferredJobSites) ? targeting.preferredJobSites : [], 10);
+    const dreamCompanies = uniqueStringList(Array.isArray(targeting.dreamCompanies) ? targeting.dreamCompanies : [], 10);
+    const recentApplications = Array.isArray(tracking.recentApplications) ? tracking.recentApplications : [];
+
+    const profileContext = {
+      candidate: {
+        full_name: truncateText(identity.fullName, 120),
+        current_city: truncateText(identity.currentCity, 80),
+        current_country: truncateText(identity.currentCountry, 80),
+        headline: truncateText(identity.headline, 160),
+        target_sector: truncateText(identity.targetSector, 160)
+      },
+      writing_style: {
+        tone: truncateText(writingStyle.tone, 50),
+        languages: uniqueStringList(writingStyle.languages, 4),
+        cover_letter_length: truncateText(writingStyle.coverLetterLength, 40)
+      },
+      job_search: {
+        target_titles: targetTitles,
+        preferred_sectors: preferredSectors,
+        avoided_sectors: avoidedSectors,
+        locations: uniqueStringList([...locations, ...targetCities], 14),
+        work_mode: truncateText(jobSearch.workMode, 30),
+        seniority: truncateText(jobSearch.seniority, 40),
+        contract_types: contractTypes,
+        salary_range: jobSearch.salaryRange && typeof jobSearch.salaryRange === "object"
+          ? {
+            min: jobSearch.salaryRange.min ?? null,
+            max: jobSearch.salaryRange.max ?? null,
+            unit: truncateText(jobSearch.salaryRange.unit, 40)
+          }
+          : { min: null, max: null, unit: "" }
+      },
+      targeting: {
+        search_keywords: keywords,
+        exclude_keywords: excludedKeywords,
+        ideal_job_bullets: idealJobBullets,
+        avoid_job_bullets: avoidJobBullets,
+        preferred_job_sites: preferredJobSites,
+        dream_companies: dreamCompanies
+      },
+      profile_assets: {
+        skills: skillNames,
+        experiences,
+        education,
+        languages
+      },
+      tracking_context: {
+        total_applications: Number(tracking.totalApplications || 0),
+        recent_applications: recentApplications.slice(0, 8)
+      },
+      imported_documents: sourceDocuments.slice(0, 6)
+    };
+
+    const hasSignal = Boolean(
+      profileContext.candidate.headline ||
+      profileContext.job_search.target_titles.length ||
+      profileContext.job_search.preferred_sectors.length ||
+      profileContext.targeting.search_keywords.length ||
+      profileContext.profile_assets.skills.length
+    );
+    if (!hasSignal) {
+      return sendError(res, 400, "Profil insuffisant pour une veille ciblée. Renseignez au moins un poste cible, un secteur, des mots-clés ou des compétences.");
+    }
+
+    const prompt = [
+      "Tu fais une veille emploi ultra-ciblée pour Marie-Nour.",
+      "Utilise le contexte profil ci-dessous pour rechercher des ACTUALITÉS récentes (priorité 30 derniers jours, tolérance 90 jours si nécessaire).",
+      "Objectif : trouver des informations utiles pour ajuster le profil, le CV, la lettre et la stratégie de recherche.",
+      "Priorise la France et les zones ciblées dans le profil, puis l'international pertinent si nécessaire.",
+      "",
+      "Contexte profil (JSON) :",
+      JSON.stringify(profileContext, null, 2),
+      "",
+      "Consignes de filtrage :",
+      "- Couvre surtout : tendances recrutement, compétences qui montent, secteurs qui recrutent/ralentissent, actualités d'entreprises cibles, changements réglementaires utiles aux candidats.",
+      "- Évite les news génériques sans impact concret sur la recherche d'emploi.",
+      "- Donne des infos vérifiables avec source et URL.",
+      "",
+      "Réponds UNIQUEMENT avec un JSON valide (pas de markdown, pas d'explications hors JSON) :",
+      "{",
+      '  "items": [',
+      "    {",
+      '      "title": "string",',
+      '      "category": "tendance_marche|competence|secteur|entreprise|reglementation|conseil_candidature",',
+      '      "why_relevant": "string (2-4 phrases concrètes liées au profil)",',
+      '      "impact_on_profile": "string (adaptations CV/profil/recherche à faire)",',
+      '      "actions": ["string", "string"],',
+      '      "source_name": "string",',
+      '      "source_url": "https://...",',
+      '      "published_at": "YYYY-MM-DD ou string",',
+      '      "location": "string",',
+      '      "match_score": 0',
+      "    }",
+      "  ],",
+      '  "global_recommendations": ["string", "string"]',
+      "}",
+      "",
+      "Contraintes : 5 à 8 items maximum, pas d'invention, match_score entre 0 et 100."
+    ].join("\n");
+
+    (async () => {
+      try {
+        const text = await callSonar(
+          [
+            { role: "system", content: "Tu es un analyste veille emploi rigoureux. Tu retournes strictement du JSON valide." },
+            { role: "user", content: prompt }
+          ],
+          { max_tokens: 2600, temperature: 0.1 }
+        );
+
+        const parsed = extractJsonObject(text);
+        const rawItems = parsed && Array.isArray(parsed.items) ? parsed.items : [];
+        const normalizedItems = uniqueObjectList(
+          rawItems
+            .map((item, index) => {
+              if (!item || typeof item !== "object") return null;
+              const title = truncateText(item.title || item.headline || `Actualité ${index + 1}`, 220);
+              const category = truncateText(item.category || "tendance_marche", 60);
+              const whyRelevant = truncateText(item.why_relevant || item.whyRelevant || "", 700);
+              const impact = truncateText(item.impact_on_profile || item.impactOnProfile || "", 500);
+              const actions = uniqueStringList(
+                Array.isArray(item.actions)
+                  ? item.actions
+                  : typeof item.actions === "string"
+                    ? item.actions.split(/[;\n]+/)
+                    : [],
+                5
+              ).map((action) => truncateText(action, 240));
+              const sourceName = truncateText(item.source_name || item.sourceName || "Source non précisée", 120);
+              const sourceUrlCandidate = String(item.source_url || item.sourceUrl || item.url || "").trim();
+              const sourceUrl = /^https?:\/\//i.test(sourceUrlCandidate) ? sourceUrlCandidate : "";
+              const publishedAt = truncateText(item.published_at || item.publishedAt || "", 60);
+              const location = truncateText(item.location || "", 100);
+              const rawScore = item.match_score ?? item.matchScore ?? item.score;
+              let matchScore = null;
+              if (typeof rawScore === "number" && Number.isFinite(rawScore)) {
+                matchScore = Math.max(0, Math.min(100, Math.round(rawScore)));
+              } else if (typeof rawScore === "string") {
+                const found = rawScore.match(/\d{1,3}/);
+                if (found) matchScore = Math.max(0, Math.min(100, Number(found[0])));
+              }
+              if (!title && !whyRelevant) return null;
+              return {
+                title,
+                category,
+                why_relevant: whyRelevant,
+                impact_on_profile: impact,
+                actions,
+                source_name: sourceName,
+                source_url: sourceUrl,
+                published_at: publishedAt,
+                location,
+                match_score: matchScore
+              };
+            })
+            .filter(Boolean),
+          (item) => `${item.title.toLowerCase()}|${item.source_url.toLowerCase()}`,
+          8
+        );
+
+        const globalRecommendations = uniqueStringList(
+          (parsed && (parsed.global_recommendations || parsed.recommendations)) || [],
+          8
+        ).map((value) => truncateText(value, 240));
+
+        const fallbackItems = normalizedItems.length
+          ? normalizedItems
+          : [{
+            title: "Veille Sonar (format libre)",
+            category: "tendance_marche",
+            why_relevant: truncateText(text, 1200) || "Aucune donnée exploitable renvoyée par Sonar.",
+            impact_on_profile: "Relancer la veille avec davantage de mots-clés ciblés dans le profil.",
+            actions: [
+              "Préciser les postes cibles et les secteurs prioritaires",
+              "Ajouter des mots-clés de compétences recherchées"
+            ],
+            source_name: "Sonar",
+            source_url: "",
+            published_at: new Date().toISOString().slice(0, 10),
+            location: "",
+            match_score: null
+          }];
+
+        res.json({
+          ok: true,
+          provider: "sonar",
+          generated_at: new Date().toISOString(),
+          query_context: profileContext,
+          items: fallbackItems,
+          global_recommendations: globalRecommendations
+        });
+      } catch (err) {
+        sendError(res, 500, (err && err.message) || "Erreur veille actualités.");
       }
     })();
   });
