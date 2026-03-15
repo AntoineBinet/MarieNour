@@ -68,6 +68,18 @@
         </div>
       </section>
 
+      <section aria-labelledby="sec-actions">
+        <h2 id="sec-actions">Actions rapides</h2>
+        <p class="muted" style="margin-bottom: var(--space-3);">Exécuter depuis l'app : redémarrage du serveur, push du backup profil ou du code sur Git.</p>
+        <div class="btn-row">
+          <button type="button" class="primary-btn" id="btn-restart">1. Redémarrer le serveur (et tout)</button>
+          <button type="button" class="secondary-btn" id="btn-push-backup">3. Pousser le backup profil sur Git</button>
+          <button type="button" class="secondary-btn" id="btn-push-code">4. Pousser les derniers changements sur Git</button>
+        </div>
+        <div class="deploy-status" id="actions-status" aria-live="polite"></div>
+        <div class="results-box" id="actions-log" aria-live="polite" style="margin-top: var(--space-2); max-height: 12rem;"></div>
+      </section>
+
       <section aria-labelledby="sec-deploy">
         <h2 id="sec-deploy">Mise à jour du serveur</h2>
         <p class="warning">Cette action est irréversible : le serveur récupère la branche <code>main</code> depuis GitHub puis redémarre. Les modifications locales non poussées seront perdues.</p>
@@ -91,7 +103,7 @@
 
       <section aria-labelledby="sec-ai" id="sec-ai-config">
         <h2 id="sec-ai">Configuration IA</h2>
-        <p class="muted" style="margin-bottom: var(--space-4);">Connecter Ollama (local) et/ou Sonar (Perplexity) pour l’extraction de CV et la recherche de postes. Les clés sont stockées dans <code>data/ai_config.json</code> et ne sont pas écrasées par les mises à jour Git.</p>
+        <p class="muted" style="margin-bottom: var(--space-4);">Connecter Ollama (local) et/ou Sonar (Perplexity) pour l'extraction de CV et la recherche de postes. Les clés sont stockées dans <code>data/ai_config.json</code> et ne sont pas écrasées par les mises à jour Git.</p>
         <div class="ai-config-form">
           <div class="field-group">
             <span class="label-inline">Fournisseur principal</span>
@@ -122,7 +134,7 @@
           <div class="field-group">
             <label class="checkbox-label">
               <input type="checkbox" id="ai-fallback" />
-              Activer le fallback automatique (si le fournisseur principal échoue, tenter l’autre)
+              Activer le fallback automatique (si le fournisseur principal échoue, tenter l'autre)
             </label>
           </div>
           <div class="btn-row">
@@ -171,6 +183,81 @@
   const btnCopyClone = document.getElementById("btn-copy-clone");
   const btnResetProfile = document.getElementById("btn-reset-profile");
   const resetStatus = document.getElementById("reset-status");
+  const btnRestart = document.getElementById("btn-restart");
+  const btnPushBackup = document.getElementById("btn-push-backup");
+  const btnPushCode = document.getElementById("btn-push-code");
+  const actionsStatus = document.getElementById("actions-status");
+  const actionsLog = document.getElementById("actions-log");
+
+  function setActionsResult(statusText, logText, isError) {
+    if (actionsStatus) {
+      actionsStatus.textContent = statusText;
+      actionsStatus.className = "deploy-status " + (isError ? "error" : "success");
+    }
+    if (actionsLog) actionsLog.textContent = logText || "";
+  }
+
+  if (btnRestart) {
+    btnRestart.addEventListener("click", function () {
+      if (!confirm("Redémarrer le serveur maintenant ? La page se rechargera après quelques secondes.")) return;
+      setActionsResult("Redémarrage en cours…", "", false);
+      btnRestart.disabled = true;
+      post("/api/system/restart")
+        .then((r) => r.json())
+        .then((d) => {
+          setActionsResult(d.message || "Redémarrage demandé.", "", false);
+          setTimeout(function () { window.location.reload(); }, 3500);
+        })
+        .catch(function () {
+          setActionsResult("Erreur lors du redémarrage.", "", true);
+          btnRestart.disabled = false;
+        });
+    });
+  }
+
+  if (btnPushBackup) {
+    btnPushBackup.addEventListener("click", function () {
+      setActionsResult("Envoi en cours…", "", false);
+      btnPushBackup.disabled = true;
+      post("/api/git/push-backup")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.error) {
+            setActionsResult("Échec : " + (d.error || "erreur inconnue"), d.log || "", true);
+          } else {
+            setActionsResult("Backup profil poussé sur Git.", d.log || "", false);
+          }
+          btnPushBackup.disabled = false;
+        })
+        .catch(function () {
+          setActionsResult("Erreur réseau ou serveur.", "", true);
+          btnPushBackup.disabled = false;
+        });
+    });
+  }
+
+  if (btnPushCode) {
+    btnPushCode.addEventListener("click", function () {
+      if (!confirm("Ajouter tous les changements, committer « Mise à jour » et pousser sur origin main ?")) return;
+      setActionsResult("Envoi en cours…", "", false);
+      btnPushCode.disabled = true;
+      post("/api/git/push-code")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.error) {
+            setActionsResult("Échec : " + (d.error || "erreur inconnue"), d.log || "", true);
+          } else {
+            setActionsResult("Code poussé sur Git.", d.log || "", false);
+            loadVersion();
+          }
+          btnPushCode.disabled = false;
+        })
+        .catch(function () {
+          setActionsResult("Erreur réseau ou serveur.", "", true);
+          btnPushCode.disabled = false;
+        });
+    });
+  }
 
   if (btnCopyClone && cloneInput) {
     btnCopyClone.addEventListener("click", function () {
@@ -365,36 +452,35 @@
 
   if (btnAiSave) {
     btnAiSave.addEventListener("click", function () {
-      const body = {
+      var body = {
         provider: aiProviderOllama && aiProviderOllama.checked ? "ollama" : "sonar",
         fallback_enabled: aiFallback ? aiFallback.checked : true,
-        ollama_url: aiOllamaUrl ? aiOllamaUrl.value.trim() || undefined,
-        ollama_model: aiOllamaModel ? aiOllamaModel.value.trim() || undefined,
+        ollama_url: aiOllamaUrl ? (aiOllamaUrl.value.trim() || undefined) : undefined,
+        ollama_model: aiOllamaModel ? (aiOllamaModel.value.trim() || undefined) : undefined,
         sonar_api_key: aiSonarKey && aiSonarKey.value.trim() ? aiSonarKey.value.trim() : undefined,
         sonar_model: aiSonarModel ? aiSonarModel.value : undefined
       };
       fetch(API + "/api/ai/config", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-        .then((r) => r.json())
-        .then((d) => {
-          aiTestResult.textContent = d.error || "Configuration enregistrée.";
-          aiTestResult.className = "ai-test-result " + (d.error ? "error" : "success");
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (aiTestResult) aiTestResult.textContent = d.error || "Configuration enregistrée.";
+          if (aiTestResult) aiTestResult.className = "ai-test-result " + (d.error ? "error" : "success");
           if (d.ok && aiSonarKey && !body.sonar_api_key) aiSonarKey.value = "";
         })
-        .catch(() => {
-          aiTestResult.textContent = "Erreur lors de l’enregistrement.";
-          aiTestResult.className = "ai-test-result error";
+        .catch(function() {
+          if (aiTestResult) { aiTestResult.textContent = "Erreur lors de l'enregistrement."; aiTestResult.className = "ai-test-result error"; }
         });
     });
   }
 
-  if (btnAiTest) {
+  if (btnAiTest && aiTestResult) {
     btnAiTest.addEventListener("click", function () {
       aiTestResult.textContent = "Test en cours…";
       aiTestResult.className = "ai-test-result";
-      const provider = aiProviderOllama && aiProviderOllama.checked ? "ollama" : "sonar";
-      fetch(API + "/api/ai/test", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider }) })
-        .then((r) => r.json())
-        .then((d) => {
+      var provider = aiProviderOllama && aiProviderOllama.checked ? "ollama" : "sonar";
+      fetch(API + "/api/ai/test", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: provider }) })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
           if (d.ok) {
             aiTestResult.textContent = "Succès (" + d.provider + ") — " + (d.excerpt || d.message || "").slice(0, 120);
             aiTestResult.className = "ai-test-result success";
@@ -403,7 +489,7 @@
             aiTestResult.className = "ai-test-result error";
           }
         })
-        .catch(() => {
+        .catch(function() {
           aiTestResult.textContent = "Erreur réseau ou serveur.";
           aiTestResult.className = "ai-test-result error";
         });

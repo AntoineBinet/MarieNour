@@ -1,6 +1,9 @@
 node_modules/
-data/
-data/ai_config.json
+# data/ ignoré sauf le backup profil (versionné sur Git)
+data/*
+!data/marie-nour/
+data/marie-nour/*
+!data/marie-nour/profile-backup.json
 logs/
 .last_commit_hash
 bin/

@@ -84,6 +84,8 @@ const PROFILE_JSON_MAX = 5 * 1024 * 1024; // 5 MB
 
 const EXPORTS_DIR = path.join(MARIE_NOUR_DIR, "exports");
 const BACKUPS_DIR = path.join(MARIE_NOUR_DIR, "backups");
+/** Fichier de secours versionné (non ignoré par Git) pour ne pas perdre le profil */
+const PROFILE_BACKUP_JSON = path.join(MARIE_NOUR_DIR, "profile-backup.json");
 
 // Créer dossiers au démarrage
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -134,6 +136,19 @@ function runGitStream(cwd, args, res, step) {
       resolve(out);
     });
     proc.on("error", reject);
+  });
+}
+
+/** Exécute une commande git et retourne { stdout, stderr, code }. */
+function runGit(cwd, args) {
+  return new Promise((resolve) => {
+    const proc = spawn("git", args, { cwd });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
+    proc.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+    proc.on("close", (code) => resolve({ stdout, stderr, code }));
+    proc.on("error", (err) => resolve({ stdout: "", stderr: String(err), code: 1 }));
   });
 }
 
@@ -446,6 +461,12 @@ async function start() {
     });
   });
 
+  /** Redémarrage du serveur (code 42 pour le superviseur). */
+  app.post("/api/system/restart", (req, res) => {
+    res.json({ ok: true, message: "Redémarrage dans 2 s…" });
+    _schedule_restart(2);
+  });
+
   app.use(express.static(__dirname));
 
   const storage = multer.diskStorage({
@@ -700,6 +721,9 @@ firstName, lastName, email, phone, summary, skills (tableau de strings), experie
          ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`,
         [raw]
       );
+      try {
+        fs.writeFileSync(PROFILE_BACKUP_JSON, raw, "utf8");
+      } catch (_) {}
       res.json({ ok: true });
     } catch (e) {
       sendError(res, 500, "Erreur sauvegarde profil.");
@@ -712,6 +736,86 @@ firstName, lastName, email, phone, summary, skills (tableau de strings), experie
       res.json({ ok: true });
     } catch (e) {
       sendError(res, 500, "Erreur suppression profil.");
+    }
+  });
+
+  /** Restauration depuis le fichier versionné (profile-backup.json) quand la base et le localStorage sont vides */
+  app.get("/api/profile-from-backup", (req, res) => {
+    try {
+      if (!fs.existsSync(PROFILE_BACKUP_JSON)) {
+        return res.status(404).json({ error: "no_backup_file" });
+      }
+      const raw = fs.readFileSync(PROFILE_BACKUP_JSON, "utf8");
+      const data = JSON.parse(raw);
+      res.json({ data, source: "profile-backup.json" });
+    } catch (e) {
+      sendError(res, 500, "Erreur lecture backup profil.");
+    }
+  });
+
+  /** Git : pousser le backup profil (data/marie-nour/profile-backup.json) sur origin main */
+  app.post("/api/git/push-backup", async (req, res) => {
+    const repoRoot = __dirname;
+    const gitDir = path.join(repoRoot, ".git");
+    if (!fs.existsSync(gitDir)) {
+      return sendError(res, 400, "Dépôt Git introuvable.");
+    }
+    const backupPath = "data/marie-nour/profile-backup.json";
+    if (!fs.existsSync(path.join(repoRoot, backupPath))) {
+      return sendError(res, 400, "Aucun fichier backup profil à pousser. Enregistre d'abord ton profil dans l'app.");
+    }
+    try {
+      const log = [];
+      let r = await runGit(repoRoot, ["add", backupPath]);
+      log.push((r.stdout + r.stderr).trim() || "git add ok");
+      if (r.code !== 0) {
+        return res.json({ ok: false, log: log.join("\n"), error: r.stderr || r.stdout });
+      }
+      r = await runGit(repoRoot, ["commit", "-m", "Backup profil"]);
+      log.push((r.stdout + r.stderr).trim() || "git commit ok");
+      if (r.code !== 0 && !/nothing to commit/.test(r.stdout + r.stderr)) {
+        return res.json({ ok: false, log: log.join("\n"), error: r.stderr || r.stdout });
+      }
+      r = await runGit(repoRoot, ["push", "origin", "main"]);
+      log.push((r.stdout + r.stderr).trim() || "git push ok");
+      if (r.code !== 0) {
+        return res.json({ ok: false, log: log.join("\n"), error: r.stderr || r.stdout });
+      }
+      res.json({ ok: true, log: log.join("\n") });
+    } catch (e) {
+      sendError(res, 500, (e && e.message) || "Erreur Git.");
+    }
+  });
+
+  /** Git : add -A, commit, push (mise à jour code sur origin main) */
+  app.post("/api/git/push-code", async (req, res) => {
+    const repoRoot = __dirname;
+    const gitDir = path.join(repoRoot, ".git");
+    if (!fs.existsSync(gitDir)) {
+      return sendError(res, 400, "Dépôt Git introuvable.");
+    }
+    try {
+      const log = [];
+      let r = await runGit(repoRoot, ["add", "-A"]);
+      log.push((r.stdout + r.stderr).trim() || "git add -A ok");
+      if (r.code !== 0) {
+        return res.json({ ok: false, log: log.join("\n"), error: r.stderr || r.stdout });
+      }
+      r = await runGit(repoRoot, ["status", "--short"]);
+      const hasChanges = (r.stdout + r.stderr).trim().length > 0;
+      r = await runGit(repoRoot, ["commit", "-m", "Mise à jour"]);
+      log.push((r.stdout + r.stderr).trim() || "git commit ok");
+      if (r.code !== 0 && !/nothing to commit/.test(r.stdout + r.stderr)) {
+        return res.json({ ok: false, log: log.join("\n"), error: r.stderr || r.stdout });
+      }
+      r = await runGit(repoRoot, ["push", "origin", "main"]);
+      log.push((r.stdout + r.stderr).trim() || "git push ok");
+      if (r.code !== 0) {
+        return res.json({ ok: false, log: log.join("\n"), error: r.stderr || r.stdout });
+      }
+      res.json({ ok: true, log: log.join("\n"), hadChanges: hasChanges });
+    } catch (e) {
+      sendError(res, 500, (e && e.message) || "Erreur Git.");
     }
   });
 

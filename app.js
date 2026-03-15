@@ -3070,6 +3070,16 @@ async function loadUserProfile() {
   try {
     const res = await fetch(`${API_BASE}/api/profile`, { method: "GET", credentials: "same-origin" });
     if (res.status === 404) {
+      const backupRes = await fetch(`${API_BASE}/api/profile-from-backup`, { method: "GET", credentials: "same-origin" });
+      if (backupRes.ok) {
+        const json = await backupRes.json();
+        const data = json.data != null ? json.data : json;
+        APP_STATE.loadedFromServer = true;
+        APP_STATE.offlineMode = false;
+        APP_STATE.serverReachable = true;
+        APP_STATE.pendingConflict = null;
+        return mergeDeep(createDefaultProfile(), data);
+      }
       APP_STATE.loadedFromServer = true;
       APP_STATE.offlineMode = false;
       APP_STATE.serverReachable = true;
@@ -3115,7 +3125,17 @@ async function loadUserProfile() {
   APP_STATE.offlineMode = true;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createDefaultProfile();
+    if (!raw) {
+      try {
+        const backupRes = await fetch(`${API_BASE}/api/profile-from-backup`, { method: "GET", credentials: "same-origin" });
+        if (backupRes.ok) {
+          const json = await backupRes.json();
+          const data = json.data != null ? json.data : json;
+          return mergeDeep(createDefaultProfile(), data);
+        }
+      } catch (_) {}
+      return createDefaultProfile();
+    }
     return mergeDeep(createDefaultProfile(), JSON.parse(raw));
   } catch (error) {
     console.error("Impossible de charger le profil.", error);
