@@ -327,29 +327,33 @@ function closeDrawer() {
 }
 
 function bindGlobalEvents() {
-  els.primaryEntryBtn.addEventListener("click", () => {
-    if (!hasMinimumIdentity()) {
-      startOnboarding();
-      closeDrawer();
-      return;
-    }
-    APP_STATE.viewMode = "dashboard";
-    APP_STATE.activeTab = "dashboard";
-    closeDrawer();
-    renderApp();
-  });
-
-  els.secondaryEntryBtn.addEventListener("click", () => {
-    if (hasMinimumIdentity()) {
+  if (els.primaryEntryBtn) {
+    els.primaryEntryBtn.addEventListener("click", () => {
+      if (!hasMinimumIdentity()) {
+        startOnboarding();
+        closeDrawer();
+        return;
+      }
       APP_STATE.viewMode = "dashboard";
       APP_STATE.activeTab = "dashboard";
       closeDrawer();
       renderApp();
-    } else {
-      startOnboarding();
-      closeDrawer();
-    }
-  });
+    });
+  }
+
+  if (els.secondaryEntryBtn) {
+    els.secondaryEntryBtn.addEventListener("click", () => {
+      if (hasMinimumIdentity()) {
+        APP_STATE.viewMode = "dashboard";
+        APP_STATE.activeTab = "dashboard";
+        closeDrawer();
+        renderApp();
+      } else {
+        startOnboarding();
+        closeDrawer();
+      }
+    });
+  }
 
   if (els.resetProfileBtn) {
     els.resetProfileBtn.addEventListener("click", () => {
@@ -376,9 +380,11 @@ function bindGlobalEvents() {
     });
   }
 
-  els.themeToggle.addEventListener("click", () => {
-    document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  });
+  if (els.themeToggle) {
+    els.themeToggle.addEventListener("click", () => {
+      document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    });
+  }
 
   if (els.menuDrawerBtn && els.drawerOverlay) {
     els.menuDrawerBtn.addEventListener("click", () => {
@@ -396,9 +402,11 @@ function bindGlobalEvents() {
   });
 
   document.body.addEventListener("click", handleActionClick);
-  els.contentArea.addEventListener("submit", handleContentSubmit);
-  els.contentArea.addEventListener("change", handleContentChange);
-  els.contentArea.addEventListener("input", handleContentInput);
+  if (els.contentArea) {
+    els.contentArea.addEventListener("submit", handleContentSubmit);
+    els.contentArea.addEventListener("change", handleContentChange);
+    els.contentArea.addEventListener("input", handleContentInput);
+  }
 
   if (els.applicationAttachInput) {
     els.applicationAttachInput.addEventListener("change", async (e) => {
