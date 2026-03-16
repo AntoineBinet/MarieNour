@@ -17,6 +17,19 @@ const STORAGE_KEY = "marieNourJobSearchProfile_v3";
 // URL relative pour que l’app fonctionne en local (127.0.0.1) et via le domaine (marienour.work)
 const API_BASE = "";
 const MAX_STORED_IMPORT_TEXT = 24000;
+
+function createEmptyProfileNewsState() {
+  return {
+    status: "idle",
+    error: "",
+    items: [],
+    recommendations: [],
+    generatedAt: "",
+    lastProfileFingerprint: "",
+    autoRequestedFingerprint: ""
+  };
+}
+
 const APP_STATE = {
   activeTab: "dashboard",
   onboardingStarted: false,
@@ -41,7 +54,8 @@ const APP_STATE = {
     enrichment: ""
   },
   cvExtractResult: null,
-  findJobsResult: null
+  findJobsResult: null,
+  profileNews: createEmptyProfileNewsState()
 };
 
 const TAB_DEFINITIONS = [
@@ -376,6 +390,7 @@ function bindGlobalEvents() {
         parsing: "",
         enrichment: ""
       };
+      APP_STATE.profileNews = createEmptyProfileNewsState();
       renderApp();
     });
   }
@@ -583,6 +598,9 @@ function renderCurrentView() {
     }
   }
   els.contentArea.innerHTML = renderConflictBanner() + content;
+  if (APP_STATE.activeTab === "dashboard" && (APP_STATE.viewMode === "dashboard" || APP_STATE.viewMode === "tab")) {
+    maybeAutoRefreshProfileNews();
+  }
 }
 
 function resolveConflictUseServer() {
@@ -746,9 +764,96 @@ function renderDashboard() {
         </article>
       </div>
 
+      ${renderProfileNewsPanel()}
+
       ${renderOffersActionPanel(true)}
       ${renderSearchResultsPanel()}
     </section>
+  `;
+}
+
+function getProfileNewsStatusLabel() {
+  switch (APP_STATE.profileNews.status) {
+    case "loading": return "Actualisation…";
+    case "ready": return "Actualités prêtes";
+    case "error": return "Erreur Sonar";
+    default: return "Veille inactive";
+  }
+}
+
+function formatNewsPublishedAt(value) {
+  if (!value) return "Date non précisée";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleDateString("fr-FR", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function renderProfileNewsPanel() {
+  const state = APP_STATE.profileNews;
+  const profileFingerprint = computeProfileNewsFingerprint();
+  const hasItems = Array.isArray(state.items) && state.items.length > 0;
+  const isStale = Boolean(state.lastProfileFingerprint && state.lastProfileFingerprint !== profileFingerprint);
+  const updatedAtText = state.generatedAt ? `Dernière mise à jour : ${formatNewsPublishedAt(state.generatedAt)}` : "Aucune actualité chargée.";
+  const emptyMessage = hasMinimumIdentity()
+    ? "Aucune actualité pour le moment. Clique sur « Actualiser avec Sonar » pour lancer une veille personnalisée."
+    : "Renseigne d’abord ton identité et au moins un élément de ciblage pour personnaliser les actualités.";
+
+  return `
+    <article class="form-card profile-news-panel" id="profile-news-panel">
+      <div class="dynamic-header">
+        <h3>Actualités ciblées pour ton profil (Sonar)</h3>
+        <div class="inline-actions">
+          <span class="badge">${escapeHtml(getProfileNewsStatusLabel())}</span>
+          <button class="primary-btn" type="button" data-action="refresh-profile-news" ${state.status === "loading" ? "disabled" : ""}>Actualiser avec Sonar</button>
+          <button class="secondary-btn" type="button" data-action="clear-profile-news">Vider</button>
+        </div>
+      </div>
+      <p class="muted">Veille auto-ciblée à partir de ton profil (postes visés, secteurs, compétences, villes, entreprises cibles, contrat, niveau et tendances marché).</p>
+      <p class="small-note">${escapeHtml(updatedAtText)}</p>
+      ${isStale ? `<p class="small-note">Ton profil a changé depuis la dernière veille. Une nouvelle actualisation est recommandée.</p>` : ""}
+      ${state.status === "error" ? `<div class="status-box"><strong>Impossible de charger les actualités :</strong> ${escapeHtml(state.error || "Erreur inconnue.")}</div>` : ""}
+      ${state.status === "loading" ? `<div class="status-box">Recherche Sonar en cours… je filtre les news utiles pour ton profil.</div>` : ""}
+      ${hasItems ? `
+      <div class="summary-grid">
+        ${state.items.map((item, index) => renderProfileNewsItem(item, index)).join("")}
+      </div>
+      ` : `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`}
+      ${state.recommendations.length ? `
+      <div class="list-card">
+        <h4>Actions prioritaires suggérées</h4>
+        <ul class="mini-list">
+          ${state.recommendations.map((recommendation) => `<li>${escapeHtml(recommendation)}</li>`).join("")}
+        </ul>
+      </div>
+      ` : ""}
+    </article>
+  `;
+}
+
+function renderProfileNewsItem(item, index) {
+  const actions = Array.isArray(item.actions) ? item.actions.slice(0, 4) : [];
+  const sourceLabel = [item.sourceName || "Source non précisée", formatNewsPublishedAt(item.publishedAt), item.location || ""].filter(Boolean).join(" · ");
+  const scoreLabel = item.matchScore !== null && item.matchScore !== undefined && item.matchScore !== "" ? `${item.matchScore}/100` : "n/a";
+  const sourceLink = item.sourceUrl
+    ? `<a href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer">Lire la source</a>`
+    : "";
+  return `
+    <article class="status-card">
+      <div class="dynamic-header">
+        <h4>${escapeHtml(item.title || `Actualité ${index + 1}`)}</h4>
+        <span class="tag">${escapeHtml(item.category || "Marché emploi")}</span>
+      </div>
+      <p class="small-note">${escapeHtml(sourceLabel)} · Score profil : ${escapeHtml(scoreLabel)}</p>
+      <p>${escapeHtml(item.whyRelevant || "Pertinence non précisée.")}</p>
+      <p class="muted"><strong>Impact pour ton profil :</strong> ${escapeHtml(item.impactOnProfile || "À analyser.")}</p>
+      ${actions.length ? `
+      <h4>Actions conseillées</h4>
+      <ul class="mini-list">
+        ${actions.map((action) => `<li>${escapeHtml(action)}</li>`).join("")}
+      </ul>
+      ` : ""}
+      ${sourceLink ? `<div class="inline-actions">${sourceLink}</div>` : ""}
+    </article>
   `;
 }
 
@@ -1849,6 +1954,13 @@ function handleActionClick(event) {
         });
       return;
     }
+    case "refresh-profile-news":
+      refreshProfileNews({ manual: true }).catch(() => {});
+      return;
+    case "clear-profile-news":
+      APP_STATE.profileNews = createEmptyProfileNewsState();
+      renderApp();
+      return;
     case "copy-parsing-brief":
       copyBrief(APP_STATE.briefs.parsing);
       return;
@@ -2854,6 +2966,185 @@ function buildShortProfileSummary() {
     `Villes cibles : ${joinOrFallback(uniqueList([...userProfile.identity.targetCities, ...userProfile.jobSearch.locations]))}`,
     `Compétences clés : ${joinOrFallback(userProfile.skillsAndExperience.skills.map((item) => item.name).slice(0, 10))}`
   ].join("\n");
+}
+
+function normalizeStringListForNews(values, limit = 12) {
+  return uniqueList((values || []).map((item) => String(item || "").trim()).filter(Boolean)).slice(0, limit);
+}
+
+function buildProfileNewsRequestPayload() {
+  const targetTitles = (userProfile.jobSearch.targetTitles || [])
+    .map((item) => ({ title: String(item?.title || "").trim(), priority: String(item?.priority || "").trim() }))
+    .filter((item) => item.title)
+    .slice(0, 8);
+  const skillNames = normalizeStringListForNews((userProfile.skillsAndExperience.skills || []).map((item) => item?.name), 16);
+  const experienceTitles = normalizeStringListForNews((userProfile.skillsAndExperience.experiences || []).map((item) => `${item?.title || ""} @ ${item?.company || ""}`.trim()), 10);
+  const education = normalizeStringListForNews((userProfile.skillsAndExperience.education || []).map((item) => `${item?.degree || ""} - ${item?.school || ""}`.trim()), 8);
+  const languages = normalizeStringListForNews((userProfile.skillsAndExperience.languages || []).map((item) => `${item?.name || ""} (${item?.level || ""})`.trim()), 8);
+  const locations = normalizeStringListForNews([...userProfile.identity.targetCities, ...userProfile.jobSearch.locations], 12);
+  const recentApplications = (userProfile.tracking.applications || []).slice(0, 8).map((item) => ({
+    company: String(item.company || "").trim(),
+    title: String(item.title || "").trim(),
+    city: String(item.city || "").trim(),
+    source: String(item.source || "").trim(),
+    status: String(item.status || "").trim(),
+    appliedDate: String(item.appliedDate || "").trim()
+  }));
+  const importedDocs = (userProfile.sourceDocuments.imports || []).slice(0, 6).map((doc) => ({
+    name: String(doc.name || "").trim(),
+    category: String(doc.category || "").trim(),
+    format: String(doc.format || "").trim()
+  }));
+  return {
+    identity: {
+      fullName: String(userProfile.identity.fullName || "").trim(),
+      currentCity: String(userProfile.identity.currentCity || "").trim(),
+      currentCountry: String(userProfile.identity.currentCountry || "").trim(),
+      headline: String(userProfile.situation.currentOrLastTitle || "").trim(),
+      targetSector: String(userProfile.situation.currentOrTargetSector || "").trim()
+    },
+    writingStyle: {
+      tone: String(userProfile.writingStyle.tone || "").trim(),
+      languages: normalizeStringListForNews(userProfile.writingStyle.languages, 4),
+      coverLetterLength: String(userProfile.writingStyle.coverLetterLength || "").trim()
+    },
+    jobSearch: {
+      targetTitles,
+      preferredSectors: normalizeStringListForNews(userProfile.jobSearch.preferredSectors, 12),
+      avoidedSectors: normalizeStringListForNews(userProfile.jobSearch.avoidedSectors, 12),
+      locations,
+      workMode: String(userProfile.jobSearch.workMode || "").trim(),
+      seniority: String(userProfile.jobSearch.seniority || "").trim(),
+      contractTypes: normalizeStringListForNews(userProfile.jobSearch.contractTypes, 8),
+      salaryRange: {
+        min: userProfile.jobSearch.salaryRange?.min ?? null,
+        max: userProfile.jobSearch.salaryRange?.max ?? null,
+        unit: String(userProfile.jobSearch.salaryRange?.unit || "").trim()
+      }
+    },
+    targeting: {
+      searchKeywords: normalizeStringListForNews(userProfile.targeting.searchKeywords, 16),
+      excludeKeywords: normalizeStringListForNews(userProfile.targeting.excludeKeywords, 16),
+      idealJobBullets: normalizeStringListForNews(userProfile.targeting.idealJobBullets, 12),
+      avoidJobBullets: normalizeStringListForNews(userProfile.targeting.avoidJobBullets, 12),
+      preferredJobSites: normalizeStringListForNews(userProfile.targeting.preferredJobSites, 10),
+      dreamCompanies: normalizeStringListForNews((userProfile.targeting.dreamCompanies || []).map((item) => item?.name), 10)
+    },
+    skillsAndExperience: {
+      skills: skillNames,
+      experiences: experienceTitles,
+      education,
+      languages
+    },
+    tracking: {
+      totalApplications: Number(userProfile.tracking.applications?.length || 0),
+      recentApplications
+    },
+    sourceDocuments: importedDocs
+  };
+}
+
+function hasEnoughProfileContextForNews(payload) {
+  return Boolean(
+    payload.identity.fullName ||
+    payload.identity.headline ||
+    payload.jobSearch.targetTitles.length ||
+    payload.jobSearch.preferredSectors.length ||
+    payload.targeting.searchKeywords.length ||
+    payload.skillsAndExperience.skills.length
+  );
+}
+
+function computeProfileNewsFingerprint() {
+  return JSON.stringify(buildProfileNewsRequestPayload());
+}
+
+function normalizeProfileNewsItem(item) {
+  if (!item || typeof item !== "object") return null;
+  const title = truncate(item.title || item.headline || "", 220);
+  const category = truncate(item.category || item.theme || "", 80);
+  const whyRelevant = truncate(item.why_relevant || item.whyRelevant || item.summary || item.resume || "", 500);
+  const impactOnProfile = truncate(item.impact_on_profile || item.impactOnProfile || item.impact || "", 360);
+  const sourceName = truncate(item.source_name || item.sourceName || item.media || "", 120);
+  const sourceUrlCandidate = String(item.source_url || item.sourceUrl || item.url || item.link || "").trim();
+  const sourceUrl = /^https?:\/\//i.test(sourceUrlCandidate) ? sourceUrlCandidate : "";
+  const publishedAt = String(item.published_at || item.publishedAt || item.date || "").trim();
+  const location = truncate(item.location || item.localisation || "", 80);
+  const actionsRaw = Array.isArray(item.actions) ? item.actions : typeof item.actions === "string" ? item.actions.split(/[;\n]+/) : [];
+  const actions = normalizeStringListForNews(actionsRaw, 5).map((value) => truncate(value, 220));
+  const scoreRaw = item.match_score ?? item.matchScore ?? item.score ?? "";
+  let matchScore = null;
+  if (typeof scoreRaw === "number" && Number.isFinite(scoreRaw)) {
+    matchScore = Math.max(0, Math.min(100, Math.round(scoreRaw)));
+  } else if (typeof scoreRaw === "string") {
+    const found = scoreRaw.match(/\d{1,3}/);
+    if (found) matchScore = Math.max(0, Math.min(100, Number(found[0])));
+  }
+  if (!title && !whyRelevant) return null;
+  return {
+    title,
+    category: category || "Marché emploi",
+    whyRelevant: whyRelevant || "Pertinence non précisée.",
+    impactOnProfile: impactOnProfile || "",
+    actions,
+    sourceName,
+    sourceUrl,
+    publishedAt,
+    location,
+    matchScore
+  };
+}
+
+function maybeAutoRefreshProfileNews() {
+  if (APP_STATE.profileNews.status === "loading") return;
+  const payload = buildProfileNewsRequestPayload();
+  if (!hasEnoughProfileContextForNews(payload)) return;
+  const fingerprint = JSON.stringify(payload);
+  const alreadyFresh = APP_STATE.profileNews.items.length && APP_STATE.profileNews.lastProfileFingerprint === fingerprint;
+  if (alreadyFresh) return;
+  if (APP_STATE.profileNews.autoRequestedFingerprint === fingerprint) return;
+  APP_STATE.profileNews.autoRequestedFingerprint = fingerprint;
+  refreshProfileNews({ manual: false, payload, fingerprint }).catch(() => {});
+}
+
+async function refreshProfileNews({ manual = false, payload = null, fingerprint = "" } = {}) {
+  const effectivePayload = payload || buildProfileNewsRequestPayload();
+  const effectiveFingerprint = fingerprint || JSON.stringify(effectivePayload);
+  if (!hasEnoughProfileContextForNews(effectivePayload)) {
+    APP_STATE.profileNews.status = "error";
+    APP_STATE.profileNews.error = "Complète davantage ton profil (poste cible, secteur, mots-clés, compétences) pour lancer une veille pertinente.";
+    if (manual) renderApp();
+    return;
+  }
+
+  APP_STATE.profileNews.status = "loading";
+  APP_STATE.profileNews.error = "";
+  APP_STATE.profileNews.autoRequestedFingerprint = effectiveFingerprint;
+  renderApp();
+
+  try {
+    const response = await fetch(`${API_BASE}/api/ai/profile-news`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile: effectivePayload }),
+      credentials: "include"
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      throw new Error(data.error || "Réponse invalide du serveur.");
+    }
+    const items = Array.isArray(data.items) ? data.items.map(normalizeProfileNewsItem).filter(Boolean) : [];
+    APP_STATE.profileNews.items = items.slice(0, 8);
+    APP_STATE.profileNews.recommendations = normalizeStringListForNews(data.global_recommendations || data.recommendations || [], 8);
+    APP_STATE.profileNews.status = "ready";
+    APP_STATE.profileNews.generatedAt = data.generated_at || new Date().toISOString();
+    APP_STATE.profileNews.lastProfileFingerprint = effectiveFingerprint;
+    APP_STATE.profileNews.error = "";
+  } catch (error) {
+    APP_STATE.profileNews.status = "error";
+    APP_STATE.profileNews.error = error?.message || "Erreur lors de la récupération des actualités Sonar.";
+  }
+  renderApp();
 }
 
 function buildImportedDocsForBrief() {
