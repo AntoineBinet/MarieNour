@@ -9,7 +9,7 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "marienour"
-database_id = "REMPLACER_PAR_ID_D1"
+database_id = "da427d20-5e7c-4e01-a8e5-aaec2ad48fed"
 
 # Stockage des fichiers / photos (Cloudflare R2).
 # Crée-le avec :  wrangler r2 bucket create marienour-media

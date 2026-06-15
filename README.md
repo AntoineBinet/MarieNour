@@ -71,22 +71,28 @@ Ouvre http://localhost:5173. Le **premier login** avec l'email `ADMIN_EMAIL`
 
 ## ☁️ Déploiement Cloudflare
 
-1. **Créer les ressources** (une fois) :
-   ```bash
-   npx wrangler d1 create marienour          # colle l'ID renvoyé dans wrangler.toml (database_id)
-   npx wrangler r2 bucket create marienour-media
-   npx wrangler d1 migrations apply marienour --remote
-   ```
+> ✅ **Déjà fait** : la base **D1 `marienour`** (`database_id` déjà renseigné dans
+> `wrangler.toml`, région WEUR) et le bucket **R2 `marienour-media`** sont créés,
+> et le **schéma est appliqué** sur la base distante. Il ne reste que le projet
+> Pages, les secrets et le domaine.
+
+1. **Créer le projet Pages** : dans le dashboard Cloudflare → *Workers & Pages* →
+   *Create* → *Pages* → connecter le repo GitHub `AntoineBinet/MarieNour`.
+   - Build command : `npm run build`
+   - Output directory : `dist`
+   - Bindings : D1 `DB` → `marienour`, R2 `MEDIA` → `marienour-media`
+   (ou en CLI : `npm run deploy`, avec un `CLOUDFLARE_API_TOKEN` configuré).
 2. **Secrets** (Pages) :
    ```bash
-   npx wrangler pages secret put ADMIN_PASSWORD
-   npx wrangler pages secret put SESSION_SECRET
+   npx wrangler pages secret put ADMIN_PASSWORD   # ton mot de passe maître admin
+   npx wrangler pages secret put SESSION_SECRET   # longue chaîne aléatoire
    ```
    `ADMIN_EMAIL` et `APP_NAME` sont dans `wrangler.toml` ([vars]).
-3. **Déployer** :
-   - soit en connectant le repo GitHub à **Cloudflare Pages** (build command `npm run build`, output `dist`, et bindings D1 `DB` + R2 `MEDIA`),
-   - soit en CLI : `npm run deploy`.
-4. **Domaine** : rattacher `marienour.work` (et `www`) au projet Pages dans le dashboard Cloudflare (le domaine y est déjà géré).
+3. **Domaine** : rattacher `marienour.work` (et `www`) au projet Pages dans le
+   dashboard Cloudflare (le domaine y est déjà géré).
+
+> Pour de futures migrations : ajoute un fichier `migrations/000X_*.sql` puis
+> `npm run db:migrate` (applique sur la base distante via wrangler).
 
 ---
 
