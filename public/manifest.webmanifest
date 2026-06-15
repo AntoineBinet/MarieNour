@@ -1,0 +1,12 @@
+{
+  "name": "marienour — ton atelier",
+  "short_name": "marienour",
+  "description": "Tout garder, planifier et partager au même endroit.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6efe7",
+  "theme_color": "#f6efe7",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
