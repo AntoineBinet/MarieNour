@@ -1,0 +1,25 @@
+name = "marienour"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+# Base de données SQLite (Cloudflare D1).
+# Crée-la avec :  wrangler d1 create marienour
+# puis colle l'ID renvoyé ci-dessous (database_id).
+[[d1_databases]]
+binding = "DB"
+database_name = "marienour"
+database_id = "REMPLACER_PAR_ID_D1"
+
+# Stockage des fichiers / photos (Cloudflare R2).
+# Crée-le avec :  wrangler r2 bucket create marienour-media
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "marienour-media"
+
+# Variables NON secrètes. Les secrets (ADMIN_PASSWORD, SESSION_SECRET)
+# se définissent via `wrangler pages secret put ...` en prod, et dans
+# le fichier .dev.vars en local (voir .dev.vars.example).
+[vars]
+ADMIN_EMAIL = "binet.antoine215@yahoo.com"
+APP_NAME = "marienour"

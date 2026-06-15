@@ -1,0 +1,9 @@
+# Copie ce fichier en .dev.vars (ignoré par git) pour le dev local.
+# En production, utiliser : wrangler pages secret put <NOM>
+
+# Mot de passe du compte admin (toi). Au premier login avec ADMIN_EMAIL,
+# le compte admin est créé automatiquement avec ce mot de passe.
+ADMIN_PASSWORD="change-moi-en-local"
+
+# Secret utilisé pour signer les jetons de session (chaîne aléatoire longue).
+SESSION_SECRET="dev-secret-change-moi"

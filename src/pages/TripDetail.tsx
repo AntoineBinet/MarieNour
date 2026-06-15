@@ -1,0 +1,479 @@
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { api } from "../api";
+import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
+import type { Trip, TripItem, Visibility } from "@shared/types";
+
+const VIS_LABEL: Record<Visibility, string> = {
+  private: "Privé",
+  friends: "Amis",
+  public: "Public",
+};
+
+const KIND_ICON: Record<TripItem["kind"], string> = {
+  activity: "🎯",
+  food: "🍽️",
+  lodging: "🛏️",
+  transport: "🚆",
+  note: "📝",
+};
+
+const KIND_LABEL: Record<TripItem["kind"], string> = {
+  activity: "Activité",
+  food: "Repas",
+  lodging: "Logement",
+  transport: "Transport",
+  note: "Note",
+};
+
+const IDEAS_KEY = "__ideas__";
+
+function formatDateRange(start: string | null, end: string | null): string | null {
+  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+  if (start && end) {
+    return `${new Date(start).toLocaleDateString("fr-FR", opts)} → ${new Date(end).toLocaleDateString("fr-FR", opts)}`;
+  }
+  if (start) return new Date(start).toLocaleDateString("fr-FR", opts);
+  if (end) return new Date(end).toLocaleDateString("fr-FR", opts);
+  return null;
+}
+
+function formatDayTitle(day: string): string {
+  const d = new Date(day);
+  const s = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/* ── Trip edit form ─────────────────────────────────────────────────────── */
+interface TripForm {
+  title: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+  budget: string;
+  currency: string;
+  cover_url: string;
+  notes: string;
+  visibility: Visibility;
+}
+
+function tripToForm(t: Trip): TripForm {
+  return {
+    title: t.title,
+    destination: t.destination ?? "",
+    start_date: t.start_date ?? "",
+    end_date: t.end_date ?? "",
+    budget: t.budget != null ? String(t.budget) : "",
+    currency: t.currency || "EUR",
+    cover_url: t.cover_url ?? "",
+    notes: t.notes ?? "",
+    visibility: t.visibility,
+  };
+}
+
+/* ── Itinerary item form ────────────────────────────────────────────────── */
+interface ItemForm {
+  day_date: string;
+  time: string;
+  title: string;
+  kind: TripItem["kind"];
+  location: string;
+  url: string;
+  notes: string;
+  cost: string;
+}
+
+const EMPTY_ITEM: ItemForm = {
+  day_date: "",
+  time: "",
+  title: "",
+  kind: "activity",
+  location: "",
+  url: "",
+  notes: "",
+  cost: "",
+};
+
+export default function TripDetail() {
+  const { id = "" } = useParams();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const { confirm, confirmNode } = useConfirm();
+
+  const [editing, setEditing] = useState(false);
+  const [tripForm, setTripForm] = useState<TripForm | null>(null);
+  const [addingItem, setAddingItem] = useState(false);
+  const [itemForm, setItemForm] = useState<ItemForm>(EMPTY_ITEM);
+
+  const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => api.trip(id), enabled: !!id });
+  const trip = data?.trip;
+  const items = trip?.items ?? [];
+
+  const updateTrip = useMutation({
+    mutationFn: (b: Partial<Trip>) => api.updateTrip(id, b),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip", id] });
+      qc.invalidateQueries({ queryKey: ["trips"] });
+      toast.push("Voyage mis à jour ✨");
+      setEditing(false);
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const deleteTrip = useMutation({
+    mutationFn: () => api.deleteTrip(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trips"] });
+      toast.push("Voyage supprimé");
+      navigate("/voyages");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const addItem = useMutation({
+    mutationFn: (b: Partial<TripItem>) => api.addTripItem(id, b),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip", id] });
+      toast.push("Étape ajoutée 📍");
+      setAddingItem(false);
+      setItemForm(EMPTY_ITEM);
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const updateItem = useMutation({
+    mutationFn: ({ itemId, b }: { itemId: string; b: Partial<TripItem> }) => api.updateTripItem(id, itemId, b),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["trip", id] }),
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const deleteItem = useMutation({
+    mutationFn: (itemId: string) => api.deleteTripItem(id, itemId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip", id] });
+      toast.push("Étape supprimée");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  if (isLoading) return <Spinner />;
+
+  if (!trip) {
+    return (
+      <div>
+        <Link to="/voyages" className="small">← Voyages</Link>
+        <div className="card" style={{ marginTop: "var(--space-4)" }}>
+          <EmptyState
+            emoji="🗺️"
+            title="Voyage introuvable"
+            hint="Ce voyage n'existe pas ou a été supprimé."
+            action={<Link className="btn btn-primary" to="/voyages">Retour aux voyages</Link>}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const range = formatDateRange(trip.start_date, trip.end_date);
+
+  /* Group items: by day_date (ascending), then an "ideas" group for null day_date. */
+  const groups = new Map<string, TripItem[]>();
+  for (const it of items) {
+    const key = it.day_date ?? IDEAS_KEY;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(it);
+  }
+  const dayKeys = [...groups.keys()].filter((k) => k !== IDEAS_KEY).sort();
+  const orderedKeys = [...dayKeys, ...(groups.has(IDEAS_KEY) ? [IDEAS_KEY] : [])];
+  for (const list of groups.values()) {
+    list.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "") || a.position - b.position);
+  }
+
+  const totalCost = items.reduce((sum, it) => sum + (it.cost ?? 0), 0);
+
+  const openEdit = () => {
+    setTripForm(tripToForm(trip));
+    setEditing(true);
+  };
+
+  const submitTrip = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tripForm) return;
+    if (!tripForm.title.trim()) {
+      toast.push("Le titre est requis", true);
+      return;
+    }
+    updateTrip.mutate({
+      title: tripForm.title.trim(),
+      destination: tripForm.destination.trim() || null,
+      start_date: tripForm.start_date || null,
+      end_date: tripForm.end_date || null,
+      budget: tripForm.budget ? Number(tripForm.budget) : null,
+      currency: tripForm.currency.trim() || "EUR",
+      cover_url: tripForm.cover_url.trim() || null,
+      notes: tripForm.notes.trim() || null,
+      visibility: tripForm.visibility,
+    });
+  };
+
+  const submitItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!itemForm.title.trim()) {
+      toast.push("Le titre de l'étape est requis", true);
+      return;
+    }
+    addItem.mutate({
+      day_date: itemForm.day_date || null,
+      time: itemForm.time || null,
+      title: itemForm.title.trim(),
+      kind: itemForm.kind,
+      location: itemForm.location.trim() || null,
+      url: itemForm.url.trim() || null,
+      notes: itemForm.notes.trim() || null,
+      cost: itemForm.cost ? Number(itemForm.cost) : null,
+    });
+  };
+
+  const askDeleteTrip = async () => {
+    if (await confirm(`Supprimer le voyage « ${trip.title} » et toutes ses étapes ?`)) deleteTrip.mutate();
+  };
+
+  const askDeleteItem = async (it: TripItem) => {
+    if (await confirm(`Supprimer l'étape « ${it.title} » ?`)) deleteItem.mutate(it.id);
+  };
+
+  return (
+    <div>
+      <Link to="/voyages" className="small">← Voyages</Link>
+
+      <div className="page-head row wrap" style={{ justifyContent: "space-between", marginTop: "var(--space-3)" }}>
+        <div>
+          <p className="eyebrow">Voyage · {VIS_LABEL[trip.visibility]}</p>
+          <h1>{trip.title}</h1>
+          <div className="row wrap gap-3" style={{ marginTop: "var(--space-2)" }}>
+            {trip.destination && <span className="muted">📍 {trip.destination}</span>}
+            {range && <span className="muted">🗓 {range}</span>}
+            {trip.budget != null && <span className="chip chip-accent">💰 {trip.budget} {trip.currency}</span>}
+          </div>
+        </div>
+        <div className="row gap-2">
+          <button className="btn btn-soft" onClick={openEdit}>✎ Éditer</button>
+          <button className="btn btn-danger" onClick={askDeleteTrip}>🗑 Supprimer</button>
+        </div>
+      </div>
+
+      {trip.notes && (
+        <div className="card card-pad-sm" style={{ marginBottom: "var(--space-5)", whiteSpace: "pre-wrap" }}>
+          {trip.notes}
+        </div>
+      )}
+
+      <div className="panel-head">
+        <h2>Itinéraire</h2>
+        <button className="btn btn-primary btn-sm" onClick={() => setAddingItem(true)}>＋ Ajouter une étape</button>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            emoji="🧭"
+            title="Itinéraire vide"
+            hint="Ajoute des activités, repas, logements ou transports pour construire ton programme."
+            action={<button className="btn btn-primary" onClick={() => setAddingItem(true)}>＋ Ajouter une étape</button>}
+          />
+        </div>
+      ) : (
+        <div className="col gap-4">
+          {orderedKeys.map((key) => {
+            const groupItems = groups.get(key)!;
+            const isIdeas = key === IDEAS_KEY;
+            return (
+              <div key={key} className="card card-pad-sm">
+                <h3 style={{ marginBottom: "var(--space-3)" }}>
+                  {isIdeas ? "💡 Idées / à caser" : formatDayTitle(key)}
+                </h3>
+                {groupItems.map((it) => (
+                  <div key={it.id} className="li-row">
+                    <span
+                      className={`check${it.done ? " done" : ""}`}
+                      role="checkbox"
+                      aria-checked={it.done}
+                      tabIndex={0}
+                      onClick={() => updateItem.mutate({ itemId: it.id, b: { done: !it.done } })}
+                      onKeyDown={(e) =>
+                        (e.key === "Enter" || e.key === " ") &&
+                        updateItem.mutate({ itemId: it.id, b: { done: !it.done } })
+                      }
+                    >
+                      {it.done ? "✓" : ""}
+                    </span>
+
+                    <span style={{ fontSize: "1.2rem" }} title={KIND_LABEL[it.kind]}>{KIND_ICON[it.kind]}</span>
+
+                    <div className="grow" style={{ minWidth: 0 }}>
+                      <div className="row wrap gap-2">
+                        {it.time && <span className="badge">{it.time}</span>}
+                        <span className={`li-text${it.done ? " done" : ""}`} style={{ fontWeight: 600 }}>
+                          {it.url ? (
+                            <a href={it.url} target="_blank" rel="noreferrer">{it.title}</a>
+                          ) : (
+                            it.title
+                          )}
+                        </span>
+                      </div>
+                      {(it.location || it.notes) && (
+                        <p className="muted small" style={{ marginTop: 2 }}>
+                          {it.location && <>📍 {it.location}</>}
+                          {it.location && it.notes ? " · " : ""}
+                          {it.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    {it.cost != null && (
+                      <span className="chip small">{it.cost} {trip.currency}</span>
+                    )}
+                    <button
+                      className="btn btn-icon btn-danger btn-sm"
+                      onClick={() => askDeleteItem(it)}
+                      aria-label="Supprimer"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          {totalCost > 0 && (
+            <div className="row" style={{ justifyContent: "flex-end" }}>
+              <span className="chip chip-accent">Total estimé · {totalCost} {trip.currency}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Edit trip modal ── */}
+      {editing && tripForm && (
+        <Modal
+          title="Éditer le voyage"
+          onClose={() => setEditing(false)}
+          footer={
+            <>
+              <button className="btn btn-soft" onClick={() => setEditing(false)}>Annuler</button>
+              <button className="btn btn-primary" onClick={submitTrip} disabled={updateTrip.isPending}>
+                {updateTrip.isPending ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={submitTrip}>
+            <Field label="Titre">
+              <input className="input" value={tripForm.title} onChange={(e) => setTripForm({ ...tripForm, title: e.target.value })} autoFocus />
+            </Field>
+            <Field label="Destination">
+              <input className="input" value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} />
+            </Field>
+            <div className="row gap-3 wrap">
+              <div className="grow">
+                <Field label="Date de début">
+                  <input type="date" className="input" value={tripForm.start_date} onChange={(e) => setTripForm({ ...tripForm, start_date: e.target.value })} />
+                </Field>
+              </div>
+              <div className="grow">
+                <Field label="Date de fin">
+                  <input type="date" className="input" value={tripForm.end_date} onChange={(e) => setTripForm({ ...tripForm, end_date: e.target.value })} />
+                </Field>
+              </div>
+            </div>
+            <div className="row gap-3 wrap">
+              <div className="grow">
+                <Field label="Budget">
+                  <input type="number" className="input" value={tripForm.budget} onChange={(e) => setTripForm({ ...tripForm, budget: e.target.value })} min="0" />
+                </Field>
+              </div>
+              <div style={{ width: 120 }}>
+                <Field label="Devise">
+                  <input className="input" value={tripForm.currency} onChange={(e) => setTripForm({ ...tripForm, currency: e.target.value })} />
+                </Field>
+              </div>
+            </div>
+            <Field label="Image de couverture (URL)">
+              <input className="input" value={tripForm.cover_url} onChange={(e) => setTripForm({ ...tripForm, cover_url: e.target.value })} placeholder="https://…" />
+            </Field>
+            <Field label="Notes">
+              <textarea className="textarea" value={tripForm.notes} onChange={(e) => setTripForm({ ...tripForm, notes: e.target.value })} placeholder="Choses à ne pas oublier, réservations…" />
+            </Field>
+            <Field label="Visibilité">
+              <select className="select" value={tripForm.visibility} onChange={(e) => setTripForm({ ...tripForm, visibility: e.target.value as Visibility })}>
+                <option value="private">Privé</option>
+                <option value="friends">Amis</option>
+                <option value="public">Public</option>
+              </select>
+            </Field>
+          </form>
+        </Modal>
+      )}
+
+      {/* ── Add item modal ── */}
+      {addingItem && (
+        <Modal
+          title="Ajouter une étape"
+          onClose={() => setAddingItem(false)}
+          footer={
+            <>
+              <button className="btn btn-soft" onClick={() => setAddingItem(false)}>Annuler</button>
+              <button className="btn btn-primary" onClick={submitItem} disabled={addItem.isPending}>
+                {addItem.isPending ? "Ajout…" : "Ajouter"}
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={submitItem}>
+            <Field label="Titre">
+              <input className="input" value={itemForm.title} onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })} placeholder="Visite du château" autoFocus />
+            </Field>
+            <Field label="Type">
+              <select className="select" value={itemForm.kind} onChange={(e) => setItemForm({ ...itemForm, kind: e.target.value as TripItem["kind"] })}>
+                <option value="activity">🎯 Activité</option>
+                <option value="food">🍽️ Repas</option>
+                <option value="lodging">🛏️ Logement</option>
+                <option value="transport">🚆 Transport</option>
+                <option value="note">📝 Note</option>
+              </select>
+            </Field>
+            <div className="row gap-3 wrap">
+              <div className="grow">
+                <Field label="Jour (laisser vide pour « à caser »)">
+                  <input type="date" className="input" value={itemForm.day_date} onChange={(e) => setItemForm({ ...itemForm, day_date: e.target.value })} />
+                </Field>
+              </div>
+              <div style={{ width: 140 }}>
+                <Field label="Heure">
+                  <input type="time" className="input" value={itemForm.time} onChange={(e) => setItemForm({ ...itemForm, time: e.target.value })} />
+                </Field>
+              </div>
+            </div>
+            <Field label="Lieu">
+              <input className="input" value={itemForm.location} onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })} placeholder="Adresse, quartier…" />
+            </Field>
+            <Field label="Lien (URL)">
+              <input className="input" value={itemForm.url} onChange={(e) => setItemForm({ ...itemForm, url: e.target.value })} placeholder="https://…" />
+            </Field>
+            <Field label="Coût">
+              <input type="number" className="input" value={itemForm.cost} onChange={(e) => setItemForm({ ...itemForm, cost: e.target.value })} placeholder="0" min="0" />
+            </Field>
+            <Field label="Notes">
+              <textarea className="textarea" value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} />
+            </Field>
+          </form>
+        </Modal>
+      )}
+
+      {confirmNode}
+    </div>
+  );
+}
