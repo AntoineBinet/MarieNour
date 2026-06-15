@@ -1,3 +1,6 @@
+# REPLI SERVERLESS (Cloudflare Pages). La PROD tourne sur une VM Oracle + tunnel
+# (cf. CLAUDE.md / deployment/DEPLOY.md) ; ce fichier ne sert que pour le mode
+# serverless de secours (Pages Functions + D1 + R2, déjà provisionnés).
 name = "marienour"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]

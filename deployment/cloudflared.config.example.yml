@@ -1,0 +1,24 @@
+# Exemple de config cloudflared LOCALEMENT gérée pour marienour.
+# Emplacement réel sur la VM : /etc/cloudflared/config.yml
+# (généré automatiquement par deployment/setup-cloudflared.sh — ceci est une
+#  référence pour comprendre / éditer à la main.)
+#
+# Avec la méthode RECOMMANDÉE (tunnel remotely-managed par token, cf. runbook
+# docs/SETUP-CLOUDFLARE-CHROME.md), ce fichier n'existe PAS : l'ingress (les
+# « Public Hostnames ») est géré dans le dashboard Cloudflare Zero Trust.
+
+# UUID du tunnel « marienour-oracle » (remplacé par sa vraie valeur).
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: /etc/cloudflared/00000000-0000-0000-0000-000000000000.json
+
+ingress:
+  # Domaine de prod — tout vers le serveur Node local (port 8002, bind 127.0.0.1).
+  - hostname: marienour.work
+    service: http://localhost:8002
+  - hostname: www.marienour.work
+    service: http://localhost:8002
+  # Pré-prod / test (optionnel).
+  - hostname: marienour-test.marienour.work
+    service: http://localhost:8002
+  # Catch-all obligatoire en fin d'ingress.
+  - service: http_status:404
