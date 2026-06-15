@@ -1,0 +1,66 @@
+# marienour (marienour.work) — unité systemd (VM Oracle Cloud dédiée).
+#
+# Machine SÉPARÉE de Portfolio (ab-azurtech.com) et de Prospup (prospup.work) :
+# ce service n'a AUCUN rapport avec portfolio.service / prospup.service (autre VM,
+# autre user, autre tunnel, autre port). Voir deployment/DEPLOY.md.
+#
+# Installation (faite automatiquement par bootstrap-vm.sh) :
+#   sudo cp deployment/marienour.service /etc/systemd/system/marienour.service
+#   sudo systemctl daemon-reload && sudo systemctl enable marienour
+#
+# Sécurité :
+#   - server/node.ts bind 127.0.0.1 : le port 8002 n'est JAMAIS exposé à Internet.
+#     Seul cloudflared (même VM) y accède. Ne PAS ouvrir 8002 dans la Security
+#     List Oracle (seul SSH/22 reste ouvert).
+#   - Les secrets (ADMIN_PASSWORD, SESSION_SECRET…) vivent dans
+#     /etc/marienour/marienour.env (chmod 600, root:root) — JAMAIS dans cette
+#     unité (lisible via `systemctl show`) ni dans git.
+
+[Unit]
+Description=marienour — marienour.work (Node/Hono + SQLite + R2 local)
+Documentation=https://github.com/AntoineBinet/MarieNour
+After=network-online.target
+Wants=network-online.target
+# Garde-fou anti-boucle de crash : 5 redémarrages max en 200 s, sinon systemd
+# abandonne (statut "failed") au lieu de boucler indéfiniment.
+StartLimitIntervalSec=200
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=marienour
+Group=marienour
+WorkingDirectory=/opt/marienour/app
+
+# ── Secrets (fichier 600 root:root, hors git) ─────────────────────────────
+#   ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET, APP_NAME…
+# Préfixe « - » : fichier optionnel — si absent, le service démarre quand même
+# (mais l'admin ne pourra pas se connecter tant que ADMIN_PASSWORD est vide).
+EnvironmentFile=-/etc/marienour/marienour.env
+
+# ── Config runtime NON sensible ───────────────────────────────────────────
+Environment=MARIENOUR_PORT=8002
+Environment=MARIENOUR_HOST=127.0.0.1
+Environment=NODE_ENV=production
+# Données persistantes (SQLite + médias) hors de l'arbre git, conservées entre MAJ :
+Environment=MARIENOUR_DATA_DIR=/opt/marienour/app/data
+
+ExecStart=/usr/bin/node /opt/marienour/app/dist-server/server.mjs
+
+# ── Cycle de vie ──────────────────────────────────────────────────────────
+# Restart=always : couvre tout crash. La mise à jour passe par
+# deployment/update.sh (git pull + npm ci + build + systemctl restart).
+# Le code 42 est réservé à un futur bouton « Mettre à jour » in-app.
+Restart=always
+RestartSec=5
+SuccessExitStatus=42
+RestartForceExitStatus=42
+TimeoutStopSec=20
+KillSignal=SIGTERM
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=marienour
+
+[Install]
+WantedBy=multi-user.target
