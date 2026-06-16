@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { Field } from "../ui";
@@ -82,6 +82,17 @@ export default function Login() {
           </button>
         </form>
       </div>
+
+      <footer className="muted small center" style={{ marginTop: "var(--space-5)", lineHeight: 1.7 }}>
+        Site créé par Antoine Binet, sous la micro-société AB&nbsp;Azur&nbsp;Tech.
+        <div style={{ marginTop: 4 }}>
+          <Link to="/mentions-legales">Mentions légales</Link>
+          <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>
+          <Link to="/confidentialite">Confidentialité</Link>
+          <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>
+          <a href="mailto:binet.antoine2@gmail.com">binet.antoine2@gmail.com</a>
+        </div>
+      </footer>
     </div>
   );
 }
