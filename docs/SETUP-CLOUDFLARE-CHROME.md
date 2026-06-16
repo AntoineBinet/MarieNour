@@ -184,8 +184,11 @@ Signale tout écran inattendu plutôt que de forcer.
 
 ## Mises à jour ultérieures
 
-Sur la VM : `cd /opt/marienour/app && sudo -u marienour bash deployment/update.sh`
-(git pull + build + restart, sans toucher aux données).
+- **Depuis l'admin** (recommandé) : `/admin` → carte « Mise à jour de
+  l'application ».
+- **En SSH**, en tant qu'utilisateur **ops** (ex. `ubuntu`, pas `marienour`) :
+  `cd /opt/marienour/app && bash deployment/update.sh` (git pull + build +
+  restart, sans toucher aux données).
 
 ## Dépannage rapide
 

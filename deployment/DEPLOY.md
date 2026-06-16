@@ -119,11 +119,22 @@ avec `ADMIN_EMAIL` + `ADMIN_PASSWORD` (le **premier** login crée le compte admi
 
 ## Mises à jour
 
-```bash
-cd /opt/marienour/app && sudo -u marienour bash deployment/update.sh
-```
-→ `git pull` + `npm ci` + `npm run build:all` + `systemctl restart marienour`
-(les données `data/` ne sont jamais touchées).
+Deux options :
+
+- **Bouton in-app** (recommandé) : `/admin` → carte « Mise à jour de
+  l'application » (réservé admin). Fait `git pull` + rebuild puis redémarre via
+  `process.exit(42)` (cf. `server/node-update.ts`).
+- **CLI/SSH** — à lancer en tant qu'utilisateur **ops** (ex. `ubuntu`), **pas**
+  `marienour` (les fichiers appartiennent à `marienour`, mais seul l'ops a le
+  droit de redémarrer le service) :
+
+  ```bash
+  cd /opt/marienour/app && bash deployment/update.sh
+  ```
+
+  → `git pull` + `npm ci` + `npm run build:all` (en tant que `marienour`) +
+  `systemctl restart marienour` (en tant qu'ops). Les données `data/` ne sont
+  jamais touchées.
 
 ## Sauvegarde
 
