@@ -97,10 +97,16 @@ ADMIN_EMAIL=binet.antoine215@yahoo.com ADMIN_PASSWORD=dev SESSION_SECRET=dev npm
 
 - Remote : `https://github.com/AntoineBinet/MarieNour.git` (origin).
 - Le serveur Oracle ne tire que la branche déployée (`main` par défaut) ; un MAJ
-  se fait via `deployment/update.sh` (git pull + build + restart).
-- Pas de bouton « Mettre à jour » in-app pour l'instant (les deux autres en ont
-  un ; côté marienour, MAJ en CLI/SSH). Le service garde `SuccessExitStatus=42`
-  prêt pour un futur restart applicatif.
+  en CLI/SSH se fait via `deployment/update.sh` (git pull + build + restart).
+- **Bouton « Mettre à jour » in-app** (`/admin` → carte « Mise à jour de
+  l'application », réservé admin) : `git pull` → `npm ci` (si le lockfile a
+  changé) → `npm run build:all` → `process.exit(42)` → systemd relance avec le
+  nouveau build (`SuccessExitStatus=42`). Spécifique au runtime **Node** :
+  logique dans [`server/node-update.ts`](server/node-update.ts) (exclu de tsc,
+  bundlé par esbuild), montée dans [`server/node.ts`](server/node.ts) **avant**
+  l'app partagée — endpoints `POST /api/admin/update` et
+  `GET /api/admin/update/status` (session admin requise). Absente du repli
+  serverless Cloudflare Pages (le front affiche alors « indisponible »).
 
 ## Pièges connus
 

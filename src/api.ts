@@ -23,6 +23,19 @@ export class ApiError extends Error {
   }
 }
 
+/** Statut d'une mise à jour in-app (runtime Node / VM uniquement). */
+export interface UpdateStatus {
+  phase: "idle" | "running" | "done" | "error";
+  step: string;
+  startedAt: number | null;
+  finishedAt: number | null;
+  fromCommit: string | null;
+  toCommit: string | null;
+  upToDate: boolean;
+  error: string | null;
+  log: string[];
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const opts: RequestInit = { method, credentials: "include", headers: {} };
   if (body !== undefined) {
@@ -159,4 +172,9 @@ export const api = {
     post<{ ok: true }>(`/admin/users/${id}/reset-password`, { password }),
   adminSetRole: (id: string, role: "admin" | "member") => patch<{ ok: true }>(`/admin/users/${id}`, { role }),
   adminDeleteUser: (id: string) => del<{ ok: true }>(`/admin/users/${id}`),
+
+  // Mise à jour in-app (présente uniquement sur le runtime Node de la VM)
+  adminUpdateStatus: () =>
+    get<{ status: UpdateStatus; current_commit: string | null }>("/admin/update/status"),
+  adminUpdate: () => post<{ ok: boolean; error?: string; status: UpdateStatus }>("/admin/update"),
 };

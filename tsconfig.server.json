@@ -17,5 +17,5 @@
   },
   "include": ["functions", "server", "shared"],
   "//": "Le runtime Node (server/node.ts + server/adapters) utilise des API Node (node:fs, process, Buffer, better-sqlite3) absentes des types Cloudflare Workers : non typé par tsc, mais bundlé par esbuild (npm run build:server) et testé à l'exécution.",
-  "exclude": ["server/node.ts", "server/adapters"]
+  "exclude": ["server/node.ts", "server/node-update.ts", "server/adapters"]
 }
