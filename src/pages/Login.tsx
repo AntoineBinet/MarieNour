@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { Field } from "../ui";
@@ -7,7 +7,12 @@ import { Field } from "../ui";
 export default function Login() {
   const { setUser, user } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const location = useLocation();
+  // Cible de redirection après connexion (ex. une invitation /i/:token).
+  const params = new URLSearchParams(location.search);
+  const redirectTo =
+    params.get("redirect") || (location.state as { from?: string } | null)?.from || "/";
+  const [mode, setMode] = useState<"login" | "register">(params.get("mode") === "register" ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -15,7 +20,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
 
   if (user) {
-    navigate("/", { replace: true });
+    navigate(redirectTo, { replace: true });
   }
 
   const submit = async (e: React.FormEvent) => {
@@ -28,7 +33,7 @@ export default function Login() {
           ? await api.login(email, password)
           : await api.register(email, password, name);
       setUser(res.user);
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Une erreur est survenue");
     } finally {

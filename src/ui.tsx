@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Icon, type IconName } from "./components/Icon";
 
 /* ── Toasts ─────────────────────────────────────────────────────────────── */
 interface Toast { id: number; message: string; error?: boolean; }
@@ -74,10 +75,26 @@ export function Modal({
 /* ── Spinner / Empty ────────────────────────────────────────────────────── */
 export const Spinner = () => <div className="spinner" aria-label="Chargement" />;
 
-export function EmptyState({ emoji, title, hint, action }: { emoji: string; title: string; hint?: string; action?: ReactNode }) {
+export function EmptyState({
+  emoji,
+  icon,
+  title,
+  hint,
+  action,
+}: {
+  emoji?: string;
+  icon?: IconName;
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="empty">
-      <span className="emoji">{emoji}</span>
+      {icon ? (
+        <span className="empty-icon"><Icon name={icon} size={34} strokeWidth={1.6} /></span>
+      ) : (
+        <span className="emoji">{emoji ?? "✨"}</span>
+      )}
       <h3 style={{ marginBottom: 6 }}>{title}</h3>
       {hint && <p className="muted">{hint}</p>}
       {action && <div style={{ marginTop: "var(--space-4)" }}>{action}</div>}

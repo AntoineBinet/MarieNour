@@ -3,13 +3,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
-import type { Trip, Visibility } from "@shared/types";
+import { Icon, type IconName } from "../components/Icon";
+import type { Trip, TripKind, Visibility } from "@shared/types";
 
 const VIS_LABEL: Record<Visibility, string> = {
   private: "Privé",
   friends: "Amis",
   public: "Public",
 };
+
+const TRIP_KINDS: { value: TripKind; label: string; icon: IconName }[] = [
+  { value: "trip", label: "Voyage", icon: "trips" },
+  { value: "roadtrip", label: "Road trip", icon: "car" },
+  { value: "weekend", label: "Week-end", icon: "tent" },
+  { value: "solo", label: "En solo", icon: "compass" },
+];
+const TRIP_KIND_MAP = Object.fromEntries(TRIP_KINDS.map((k) => [k.value, k])) as Record<TripKind, (typeof TRIP_KINDS)[number]>;
 
 function formatDateRange(start: string | null, end: string | null): string | null {
   const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
@@ -40,6 +49,7 @@ interface TripForm {
   currency: string;
   cover_url: string;
   visibility: Visibility;
+  kind: TripKind;
 }
 
 const EMPTY_FORM: TripForm = {
@@ -51,6 +61,7 @@ const EMPTY_FORM: TripForm = {
   currency: "EUR",
   cover_url: "",
   visibility: "private",
+  kind: "trip",
 };
 
 export default function Trips() {
@@ -100,6 +111,7 @@ export default function Trips() {
       currency: form.currency.trim() || "EUR",
       cover_url: form.cover_url.trim() || null,
       visibility: form.visibility,
+      kind: form.kind,
     });
   };
 
@@ -113,10 +125,10 @@ export default function Trips() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Évasions</p>
-          <h1>Voyages ✈️</h1>
-          <p className="muted">Planifie tes escapades, jour par jour, et garde un œil sur le budget.</p>
+          <h1>Voyages</h1>
+          <p className="muted">Voyage, road trip ou week-end — en solo ou en groupe, jusqu'au moindre budget.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouveau voyage</button>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={16} /> Nouveau voyage</button>
       </div>
 
       {isLoading ? (
@@ -157,12 +169,12 @@ export default function Trips() {
                       height: 140,
                       display: "grid",
                       placeItems: "center",
-                      fontSize: "3rem",
+                      color: "#fff",
                       background: "linear-gradient(135deg, var(--accent-soft), var(--sky))",
                       borderRadius: "var(--radius) var(--radius) 0 0",
                     }}
                   >
-                    ✈️
+                    <Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={48} strokeWidth={1.5} />
                   </div>
                 )}
 
@@ -172,12 +184,15 @@ export default function Trips() {
                     <span className="chip">{VIS_LABEL[trip.visibility]}</span>
                   </div>
 
-                  {trip.destination && <p className="muted small">📍 {trip.destination}</p>}
+                  <span className="tag-pill" style={{ alignSelf: "flex-start" }}>
+                    <Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={13} /> {TRIP_KIND_MAP[trip.kind]?.label}
+                  </span>
+                  {trip.destination && <p className="muted small row gap-2"><Icon name="map" size={13} /> {trip.destination}</p>}
                   {range && <p className="small">{range}</p>}
 
                   <div className="row wrap gap-2" style={{ marginTop: "auto", paddingTop: "var(--space-2)" }}>
                     {countdown != null && (
-                      <span className="chip chip-accent">⏳ dans {countdown} {countdown > 1 ? "jours" : "jour"}</span>
+                      <span className="chip chip-accent">dans {countdown} {countdown > 1 ? "jours" : "jour"}</span>
                     )}
                     <span className="spacer" />
                     <button
@@ -185,7 +200,7 @@ export default function Trips() {
                       onClick={(e) => askDelete(e, trip)}
                       aria-label="Supprimer"
                     >
-                      🗑
+                      <Icon name="trash" size={15} />
                     </button>
                   </div>
                 </div>
@@ -217,6 +232,20 @@ export default function Trips() {
                 placeholder="Week-end à Lisbonne"
                 autoFocus
               />
+            </Field>
+            <Field label="Type de séjour">
+              <div className="row gap-2 wrap">
+                {TRIP_KINDS.map((k) => (
+                  <button
+                    type="button"
+                    key={k.value}
+                    className={`btn btn-sm ${form.kind === k.value ? "btn-primary" : "btn-soft"}`}
+                    onClick={() => setForm({ ...form, kind: k.value })}
+                  >
+                    <Icon name={k.icon} size={15} /> {k.label}
+                  </button>
+                ))}
+              </div>
             </Field>
             <Field label="Destination">
               <input

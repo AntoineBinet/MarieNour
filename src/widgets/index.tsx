@@ -1,17 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { Icon } from "../components/Icon";
 import type { WidgetDef } from "@shared/types";
 
 export const WIDGET_CATALOG: WidgetDef[] = [
-  { type: "lists", name: "Listes & checklists", description: "Tes listes en cours et leur avancement.", emoji: "✅" },
-  { type: "notes", name: "Notes récentes", description: "Tes dernières notes et idées.", emoji: "📝" },
-  { type: "trips", name: "Prochain voyage", description: "Compte à rebours du prochain départ.", emoji: "✈️" },
-  { type: "recipes", name: "Recettes favorites", description: "Tes recettes mises en favori.", emoji: "🍳" },
-  { type: "inspiration", name: "Boîte à inspirations", description: "À trier depuis tes réseaux.", emoji: "✨" },
-  { type: "photos", name: "Photos", description: "Tes derniers clichés.", emoji: "📷" },
-  { type: "feed", name: "Fil des amis", description: "Les dernières nouveautés de tes amis.", emoji: "🫶" },
-  { type: "quote", name: "Note épinglée", description: "Un petit mot ou une intention du jour.", emoji: "🌼" },
+  { type: "lists", name: "Listes & checklists", description: "Tes listes en cours et leur avancement.", emoji: "✅", icon: "lists" },
+  { type: "notes", name: "Notes récentes", description: "Tes dernières notes et idées.", emoji: "📝", icon: "notes" },
+  { type: "trips", name: "Prochain voyage", description: "Compte à rebours du prochain départ.", emoji: "✈️", icon: "trips" },
+  { type: "recipes", name: "Recettes favorites", description: "Tes recettes mises en favori.", emoji: "🍳", icon: "recipes" },
+  { type: "inspiration", name: "Boîte à inspirations", description: "À trier depuis tes réseaux.", emoji: "✨", icon: "inspiration" },
+  { type: "photos", name: "Photos", description: "Tes derniers clichés.", emoji: "📷", icon: "photos" },
+  { type: "expenses", name: "Dépenses partagées", description: "Le solde de tes groupes type Tricount.", emoji: "💸", icon: "expenses" },
+  { type: "feed", name: "Fil des amis", description: "Les dernières nouveautés de tes amis.", emoji: "🫶", icon: "feed" },
+  { type: "quote", name: "Note épinglée", description: "Un petit mot ou une intention du jour.", emoji: "🌼", icon: "sparkle" },
 ];
 
 export const WIDGET_DEFS: Record<string, WidgetDef> = Object.fromEntries(WIDGET_CATALOG.map((w) => [w.type, w]));
@@ -158,6 +160,31 @@ function FeedWidget() {
   );
 }
 
+function ExpensesWidget() {
+  const { data, isLoading } = useQuery({ queryKey: ["expense-groups"], queryFn: () => api.expenseGroups() });
+  if (isLoading) return <Loading />;
+  const groups = (data?.groups ?? []).filter((g) => !g.archived);
+  if (!groups.length) return <p className="muted small">Aucun groupe. <Link to="/depenses">Démarrer un Tricount →</Link></p>;
+  const fmt = (n: number, cur: string) => n.toLocaleString("fr-FR", { style: "currency", currency: cur || "EUR" });
+  return (
+    <WBody>
+      <div className="col gap-2">
+        {groups.slice(0, 4).map((g) => {
+          const bal = g.my_balance ?? 0;
+          const col = Math.abs(bal) < 0.01 ? "var(--muted)" : bal > 0 ? "var(--ok)" : "var(--danger)";
+          return (
+            <Link key={g.id} to="/depenses" className="row gap-2" style={{ color: "inherit", textDecoration: "none" }}>
+              <Icon name="expenses" size={16} />
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.title}</span>
+              <strong style={{ color: col }}>{fmt(bal, g.currency)}</strong>
+            </Link>
+          );
+        })}
+      </div>
+    </WBody>
+  );
+}
+
 function QuoteWidget({ config }: { config: Record<string, unknown> }) {
   const text = (config?.text as string) || "Aujourd'hui, je crée quelque chose de beau. ✨";
   return (
@@ -175,6 +202,7 @@ export function WidgetContent({ type, config }: { type: string; config: Record<s
     case "recipes": return <RecipesWidget />;
     case "inspiration": return <InspirationWidget />;
     case "photos": return <PhotosWidget />;
+    case "expenses": return <ExpensesWidget />;
     case "feed": return <FeedWidget />;
     case "quote": return <QuoteWidget config={config} />;
     default: return <p className="muted small">Widget inconnu</p>;

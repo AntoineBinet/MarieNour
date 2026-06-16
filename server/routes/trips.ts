@@ -2,12 +2,15 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { bool, cleanVisibility, now, numOrNull, str, uid } from "../util";
-import type { Trip, TripItem } from "@shared/types";
+import type { Trip, TripItem, TripKind, TripParticipant } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 app.use("*", requireAuth);
 
 const KINDS = ["activity", "food", "lodging", "transport", "note"];
+const TRIP_KINDS: TripKind[] = ["trip", "roadtrip", "weekend", "solo"];
+const PART_ROLES = ["owner", "editor", "traveller"];
+const cleanTripKind = (v: unknown): TripKind => (TRIP_KINDS.includes(v as TripKind) ? (v as TripKind) : "trip");
 
 function toTrip(r: Record<string, unknown>): Trip {
   return {
@@ -21,6 +24,7 @@ function toTrip(r: Record<string, unknown>): Trip {
     budget: (r.budget as number) ?? null,
     currency: (r.currency as string) ?? "EUR",
     visibility: cleanVisibility(r.visibility),
+    kind: cleanTripKind(r.kind),
     created_at: r.created_at as number,
     updated_at: r.updated_at as number,
   };
@@ -40,7 +44,33 @@ function toTripItem(r: Record<string, unknown>): TripItem {
     cost: (r.cost as number) ?? null,
     done: bool(r.done),
     position: r.position as number,
+    votes: (r.vote_count as number) ?? 0,
+    voted_by_me: !!(r.my_vote as number),
   };
+}
+
+function toParticipant(r: Record<string, unknown>, meId: string): TripParticipant {
+  return {
+    id: r.id as string,
+    user_id: (r.user_id as string) ?? null,
+    name: r.name as string,
+    role: (PART_ROLES.includes(r.role as string) ? r.role : "traveller") as TripParticipant["role"],
+    color: (r.color as string) ?? null,
+    handle: (r.u_handle as string) ?? null,
+    avatar_url: (r.u_avatar as string) ?? null,
+    is_me: r.user_id === meId,
+  };
+}
+
+async function loadParticipants(c: { env: AppEnv["Bindings"] }, tripId: string, meId: string): Promise<TripParticipant[]> {
+  const res = await c.env.DB.prepare(
+    `SELECT p.*, u.handle AS u_handle, u.avatar_url AS u_avatar
+     FROM trip_participants p LEFT JOIN users u ON u.id = p.user_id
+     WHERE p.trip_id = ? ORDER BY p.created_at ASC`,
+  )
+    .bind(tripId)
+    .all<Record<string, unknown>>();
+  return (res.results ?? []).map((r) => toParticipant(r, meId));
 }
 
 async function ownsTrip(c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }, id: string): Promise<boolean> {
@@ -56,17 +86,93 @@ app.get("/", async (c) => {
 });
 
 app.get("/:id", async (c) => {
+  const me = c.var.user!.id;
   const id = c.req.param("id");
   const trip = await c.env.DB.prepare("SELECT * FROM trips WHERE id = ? AND user_id = ?")
-    .bind(id, c.var.user!.id)
+    .bind(id, me)
     .first<Record<string, unknown>>();
   if (!trip) return c.json({ error: "Voyage introuvable" }, 404);
   const items = await c.env.DB.prepare(
-    "SELECT * FROM trip_items WHERE trip_id = ? ORDER BY COALESCE(day_date, '9999') ASC, COALESCE(time, '99:99') ASC, position ASC",
+    `SELECT ti.*,
+       (SELECT COUNT(*) FROM trip_item_votes v WHERE v.item_id = ti.id) AS vote_count,
+       (SELECT COUNT(*) FROM trip_item_votes v WHERE v.item_id = ti.id AND v.user_id = ?) AS my_vote
+     FROM trip_items ti
+     WHERE ti.trip_id = ?
+     ORDER BY COALESCE(ti.day_date, '9999') ASC, COALESCE(ti.time, '99:99') ASC, ti.position ASC`,
   )
-    .bind(id)
+    .bind(me, id)
     .all<Record<string, unknown>>();
-  return c.json({ trip: { ...toTrip(trip), items: (items.results ?? []).map(toTripItem) } });
+  const participants = await loadParticipants(c, id, me);
+  const group = await c.env.DB.prepare("SELECT id FROM expense_groups WHERE trip_id = ? ORDER BY created_at ASC LIMIT 1")
+    .bind(id)
+    .first<{ id: string }>();
+  return c.json({
+    trip: {
+      ...toTrip(trip),
+      items: (items.results ?? []).map(toTripItem),
+      participants,
+      participant_count: participants.length,
+      expense_group_id: group?.id ?? null,
+    },
+  });
+});
+
+// ── Participants (inscrits ou invités sans compte) ───────────────────────────
+app.get("/:id/participants", async (c) => {
+  const id = c.req.param("id");
+  if (!(await ownsTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
+  return c.json({ participants: await loadParticipants(c, id, c.var.user!.id) });
+});
+
+app.post("/:id/participants", async (c) => {
+  const id = c.req.param("id");
+  if (!(await ownsTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  const name = str(body.name, 80).trim();
+  const userId = str(body.user_id, 60) || null;
+  if (!name && !userId) return c.json({ error: "Nom requis" }, 400);
+  const role = PART_ROLES.includes(body.role) ? body.role : "traveller";
+  // Évite les doublons d'un même utilisateur inscrit.
+  if (userId) {
+    const dup = await c.env.DB.prepare("SELECT 1 FROM trip_participants WHERE trip_id = ? AND user_id = ?").bind(id, userId).first();
+    if (dup) return c.json({ error: "Déjà participant" }, 409);
+  }
+  const pid = uid();
+  await c.env.DB.prepare(
+    "INSERT INTO trip_participants (id, trip_id, user_id, name, role, color, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)",
+  )
+    .bind(pid, id, userId, name || "Invité", role, now())
+    .run();
+  return c.json({ id: pid });
+});
+
+app.delete("/:id/participants/:pid", async (c) => {
+  const id = c.req.param("id");
+  if (!(await ownsTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
+  await c.env.DB.prepare("DELETE FROM trip_participants WHERE id = ? AND trip_id = ?").bind(c.req.param("pid"), id).run();
+  return c.json({ ok: true });
+});
+
+// ── Vote sur une étape / idée (le groupe décide) ─────────────────────────────
+app.post("/:id/items/:itemId/vote", async (c) => {
+  const me = c.var.user!.id;
+  const id = c.req.param("id");
+  const itemId = c.req.param("itemId");
+  if (!(await ownsTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
+  const item = await c.env.DB.prepare("SELECT 1 FROM trip_items WHERE id = ? AND trip_id = ?").bind(itemId, id).first();
+  if (!item) return c.json({ error: "Étape introuvable" }, 404);
+  const existing = await c.env.DB.prepare("SELECT id FROM trip_item_votes WHERE item_id = ? AND user_id = ?")
+    .bind(itemId, me)
+    .first<{ id: string }>();
+  if (existing) {
+    await c.env.DB.prepare("DELETE FROM trip_item_votes WHERE id = ?").bind(existing.id).run();
+  } else {
+    await c.env.DB.prepare("INSERT INTO trip_item_votes (id, item_id, user_id, created_at) VALUES (?, ?, ?, ?)")
+      .bind(uid(), itemId, me, now())
+      .run();
+  }
+  const count = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM trip_item_votes WHERE item_id = ?").bind(itemId).first<{ n: number }>();
+  return c.json({ voted: !existing, votes: count?.n ?? 0 });
 });
 
 app.post("/", async (c) => {
@@ -75,8 +181,8 @@ app.post("/", async (c) => {
   const id = uid();
   const ts = now();
   await c.env.DB.prepare(
-    `INSERT INTO trips (id, user_id, title, destination, start_date, end_date, cover_url, notes, budget, currency, visibility, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO trips (id, user_id, title, destination, start_date, end_date, cover_url, notes, budget, currency, visibility, kind, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -90,9 +196,16 @@ app.post("/", async (c) => {
       numOrNull(body.budget),
       str(body.currency, 8) || "EUR",
       cleanVisibility(body.visibility),
+      cleanTripKind(body.kind),
       ts,
       ts,
     )
+    .run();
+  // Le créateur est d'office le premier participant (organisateur).
+  await c.env.DB.prepare(
+    "INSERT INTO trip_participants (id, trip_id, user_id, name, role, color, created_at) VALUES (?, ?, ?, ?, 'owner', NULL, ?)",
+  )
+    .bind(uid(), id, me, c.var.user!.display_name, ts)
     .run();
   return c.json({ id });
 });
@@ -119,6 +232,7 @@ app.patch("/:id", async (c) => {
   setIf("budget", "budget", (v) => numOrNull(v));
   setIf("currency", "currency", (v) => str(v, 8));
   setIf("visibility", "visibility", (v) => cleanVisibility(v));
+  setIf("kind", "kind", (v) => cleanTripKind(v));
   if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
   fields.push("updated_at = ?");
   values.push(now(), id, me);

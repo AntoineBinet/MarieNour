@@ -55,7 +55,12 @@ besoin l'exige, l'abstraire dans un adaptateur.
 index.html, src/            → front React 18 + Vite (build → dist/)
 server/app.ts               → app Hono (basePath /api), monte les routes
 server/routes/*.ts          → auth, friends, widgets, lists, notes, trips,
-                              recipes, inspiration, media, social, admin
+                              recipes, inspiration, media, social, admin,
+                              expenses (Tricount), polls (sondages),
+                              invites (QR codes), onboarding (seed de démarrage)
+src/components/Icon.tsx      → jeu d'icônes SVG « maison » (remplace les emojis)
+src/components/QrCode.tsx    → QR en SVG (lib qrcode-generator, hors-ligne)
+src/components/InviteQr.tsx  → bouton « Inviter par QR » (ami / voyage / groupe)
 server/{auth,access,util}.ts→ sessions (cookie httpOnly, PBKDF2 Web Crypto), ACL
 server/node.ts              → entrée Node (VM) : env + static + SPA + listen :8002
 server/adapters/{d1,r2}.ts  → bindings locaux (SQLite / fichiers)

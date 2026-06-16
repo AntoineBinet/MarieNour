@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
-import type { Trip, TripItem, Visibility } from "@shared/types";
+import { Icon, type IconName } from "../components/Icon";
+import { InviteQr } from "../components/InviteQr";
+import type { Trip, TripItem, TripKind, TripParticipant, Visibility } from "@shared/types";
 
 const VIS_LABEL: Record<Visibility, string> = {
   private: "Privé",
@@ -11,12 +13,20 @@ const VIS_LABEL: Record<Visibility, string> = {
   public: "Public",
 };
 
-const KIND_ICON: Record<TripItem["kind"], string> = {
-  activity: "🎯",
-  food: "🍽️",
-  lodging: "🛏️",
-  transport: "🚆",
-  note: "📝",
+const TRIP_KINDS: { value: TripKind; label: string; icon: IconName }[] = [
+  { value: "trip", label: "Voyage", icon: "trips" },
+  { value: "roadtrip", label: "Road trip", icon: "car" },
+  { value: "weekend", label: "Week-end", icon: "tent" },
+  { value: "solo", label: "En solo", icon: "compass" },
+];
+const TRIP_KIND_MAP = Object.fromEntries(TRIP_KINDS.map((k) => [k.value, k])) as Record<TripKind, (typeof TRIP_KINDS)[number]>;
+
+const KIND_ICON: Record<TripItem["kind"], IconName> = {
+  activity: "compass",
+  food: "fork",
+  lodging: "bed",
+  transport: "car",
+  note: "notes",
 };
 
 const KIND_LABEL: Record<TripItem["kind"], string> = {
@@ -56,6 +66,7 @@ interface TripForm {
   cover_url: string;
   notes: string;
   visibility: Visibility;
+  kind: TripKind;
 }
 
 function tripToForm(t: Trip): TripForm {
@@ -69,7 +80,38 @@ function tripToForm(t: Trip): TripForm {
     cover_url: t.cover_url ?? "",
     notes: t.notes ?? "",
     visibility: t.visibility,
+    kind: t.kind ?? "trip",
   };
+}
+
+/* ── Pastille participant ───────────────────────────────────────────────── */
+function ParticipantChip({ p, onRemove }: { p: TripParticipant; onRemove?: () => void }) {
+  const initial = (p.name || "?").trim().charAt(0).toUpperCase();
+  return (
+    <span
+      className="row gap-2"
+      style={{ background: "var(--surface-2)", borderRadius: 999, padding: "0.2rem 0.2rem 0.2rem 0.55rem" }}
+      title={p.user_id ? `@${p.handle ?? ""}` : "Invité (sans compte)"}
+    >
+      <span
+        style={{
+          width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center",
+          background: p.user_id ? "var(--accent-soft)" : "var(--border-strong)", color: "#fff",
+          fontSize: "0.72rem", fontWeight: 700,
+        }}
+      >
+        {p.avatar_url ? <img src={p.avatar_url} alt="" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} /> : initial}
+      </span>
+      <span className="small" style={{ fontWeight: 600 }}>{p.name}{p.is_me ? " (toi)" : ""}</span>
+      {p.role === "owner" && <span className="badge">Orga</span>}
+      {!p.user_id && <span className="badge">Invité</span>}
+      {onRemove && p.role !== "owner" && (
+        <button className="btn btn-icon btn-soft btn-sm" style={{ width: 24, height: 24 }} onClick={onRemove} aria-label="Retirer">
+          <Icon name="trash" size={13} />
+        </button>
+      )}
+    </span>
+  );
 }
 
 /* ── Itinerary item form ────────────────────────────────────────────────── */
@@ -106,10 +148,48 @@ export default function TripDetail() {
   const [tripForm, setTripForm] = useState<TripForm | null>(null);
   const [addingItem, setAddingItem] = useState(false);
   const [itemForm, setItemForm] = useState<ItemForm>(EMPTY_ITEM);
+  const [guestName, setGuestName] = useState("");
 
   const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => api.trip(id), enabled: !!id });
   const trip = data?.trip;
   const items = trip?.items ?? [];
+  const participants = trip?.participants ?? [];
+
+  const invalidateTrip = () => qc.invalidateQueries({ queryKey: ["trip", id] });
+
+  const addParticipant = useMutation({
+    mutationFn: (name: string) => api.addTripParticipant(id, { name }),
+    onSuccess: () => {
+      invalidateTrip();
+      setGuestName("");
+      toast.push("Participant ajouté 🧳");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+  const removeParticipant = useMutation({
+    mutationFn: (pid: string) => api.removeTripParticipant(id, pid),
+    onSuccess: invalidateTrip,
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+  const voteItem = useMutation({
+    mutationFn: (itemId: string) => api.voteTripItem(id, itemId),
+    onSuccess: invalidateTrip,
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+  const createGroup = useMutation({
+    mutationFn: () =>
+      api.createExpenseGroup({
+        title: trip?.title || "Voyage",
+        trip_id: id,
+        members: participants.filter((p) => !p.is_me).map((p) => p.name),
+      }),
+    onSuccess: () => {
+      invalidateTrip();
+      toast.push("Tricount du voyage créé 💸");
+      navigate("/depenses");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
 
   const updateTrip = useMutation({
     mutationFn: (b: Partial<Trip>) => api.updateTrip(id, b),
@@ -215,6 +295,7 @@ export default function TripDetail() {
       cover_url: tripForm.cover_url.trim() || null,
       notes: tripForm.notes.trim() || null,
       visibility: tripForm.visibility,
+      kind: tripForm.kind,
     });
   };
 
@@ -250,17 +331,59 @@ export default function TripDetail() {
 
       <div className="page-head row wrap" style={{ justifyContent: "space-between", marginTop: "var(--space-3)" }}>
         <div>
-          <p className="eyebrow">Voyage · {VIS_LABEL[trip.visibility]}</p>
+          <p className="eyebrow">{TRIP_KIND_MAP[trip.kind]?.label ?? "Voyage"} · {VIS_LABEL[trip.visibility]}</p>
           <h1>{trip.title}</h1>
           <div className="row wrap gap-3" style={{ marginTop: "var(--space-2)" }}>
-            {trip.destination && <span className="muted">📍 {trip.destination}</span>}
-            {range && <span className="muted">🗓 {range}</span>}
-            {trip.budget != null && <span className="chip chip-accent">💰 {trip.budget} {trip.currency}</span>}
+            <span className="tag-pill"><Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={13} /> {TRIP_KIND_MAP[trip.kind]?.label}</span>
+            {trip.destination && <span className="muted row gap-2"><Icon name="map" size={14} /> {trip.destination}</span>}
+            {range && <span className="muted row gap-2"><Icon name="calendar" size={14} /> {range}</span>}
+            {trip.budget != null && <span className="chip chip-accent"><Icon name="wallet" size={13} /> {trip.budget} {trip.currency}</span>}
           </div>
         </div>
         <div className="row gap-2">
-          <button className="btn btn-soft" onClick={openEdit}>✎ Éditer</button>
-          <button className="btn btn-danger" onClick={askDeleteTrip}>🗑 Supprimer</button>
+          <button className="btn btn-soft" onClick={openEdit}><Icon name="edit" size={15} /> Éditer</button>
+          <button className="btn btn-danger" onClick={askDeleteTrip}><Icon name="trash" size={15} /> Supprimer</button>
+        </div>
+      </div>
+
+      {/* ── Participants & partage ──────────────────────────────────────── */}
+      <div className="card card-pad-sm" style={{ marginBottom: "var(--space-5)" }}>
+        <div className="panel-head" style={{ marginBottom: "var(--space-3)" }}>
+          <h3 className="row gap-2"><Icon name="users" size={17} /> Voyageurs {participants.length > 0 && <span className="chip">{participants.length}</span>}</h3>
+          <InviteQr kind="trip" targetId={id} variant="sm">Inviter</InviteQr>
+        </div>
+        <div className="row wrap gap-2">
+          {participants.map((p) => (
+            <ParticipantChip key={p.id} p={p} onRemove={() => removeParticipant.mutate(p.id)} />
+          ))}
+        </div>
+        <form
+          className="row gap-2"
+          style={{ marginTop: "var(--space-3)" }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (guestName.trim()) addParticipant.mutate(guestName.trim());
+          }}
+        >
+          <input
+            className="input"
+            style={{ maxWidth: 240 }}
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            placeholder="Ajouter un voyageur (même sans compte)…"
+          />
+          <button className="btn btn-soft btn-sm" type="submit" disabled={addParticipant.isPending}>
+            <Icon name="plus" size={15} /> Ajouter
+          </button>
+        </form>
+        <div className="row gap-2 wrap" style={{ marginTop: "var(--space-3)" }}>
+          {trip.expense_group_id ? (
+            <Link className="btn btn-soft btn-sm" to="/depenses"><Icon name="expenses" size={15} /> Voir les dépenses partagées</Link>
+          ) : (
+            <button className="btn btn-soft btn-sm" onClick={() => createGroup.mutate()} disabled={createGroup.isPending}>
+              <Icon name="expenses" size={15} /> {createGroup.isPending ? "Création…" : "Créer un Tricount pour ce voyage"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -310,7 +433,9 @@ export default function TripDetail() {
                       {it.done ? "✓" : ""}
                     </span>
 
-                    <span style={{ fontSize: "1.2rem" }} title={KIND_LABEL[it.kind]}>{KIND_ICON[it.kind]}</span>
+                    <span title={KIND_LABEL[it.kind]} style={{ color: "var(--accent-ink)", display: "inline-flex" }}>
+                      <Icon name={KIND_ICON[it.kind]} size={18} />
+                    </span>
 
                     <div className="grow" style={{ minWidth: 0 }}>
                       <div className="row wrap gap-2">
@@ -336,11 +461,18 @@ export default function TripDetail() {
                       <span className="chip small">{it.cost} {trip.currency}</span>
                     )}
                     <button
+                      className={`btn btn-sm ${it.voted_by_me ? "btn-primary" : "btn-soft"}`}
+                      onClick={() => voteItem.mutate(it.id)}
+                      title="Voter pour cette étape (décision de groupe)"
+                    >
+                      <Icon name="heart" size={14} filled={it.voted_by_me} /> {it.votes ?? 0}
+                    </button>
+                    <button
                       className="btn btn-icon btn-danger btn-sm"
                       onClick={() => askDeleteItem(it)}
                       aria-label="Supprimer"
                     >
-                      🗑
+                      <Icon name="trash" size={15} />
                     </button>
                   </div>
                 ))}
@@ -373,6 +505,20 @@ export default function TripDetail() {
           <form onSubmit={submitTrip}>
             <Field label="Titre">
               <input className="input" value={tripForm.title} onChange={(e) => setTripForm({ ...tripForm, title: e.target.value })} autoFocus />
+            </Field>
+            <Field label="Type de séjour">
+              <div className="row gap-2 wrap">
+                {TRIP_KINDS.map((k) => (
+                  <button
+                    type="button"
+                    key={k.value}
+                    className={`btn btn-sm ${tripForm.kind === k.value ? "btn-primary" : "btn-soft"}`}
+                    onClick={() => setTripForm({ ...tripForm, kind: k.value })}
+                  >
+                    <Icon name={k.icon} size={15} /> {k.label}
+                  </button>
+                ))}
+              </div>
             </Field>
             <Field label="Destination">
               <input className="input" value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} />

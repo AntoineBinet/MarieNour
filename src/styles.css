@@ -170,7 +170,8 @@ a:hover { text-decoration: underline; }
 }
 .nav-link:hover { background: var(--surface-2); text-decoration: none; }
 .nav-link.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-weight: 600; }
-.nav-link .ic { font-size: 1.1rem; width: 1.4rem; text-align: center; }
+.nav-link .ic { font-size: 1.1rem; width: 1.4rem; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.nav-link.active .ic { color: var(--accent-ink); }
 .nav-section { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 0.7rem; margin-top: var(--space-2); }
 
 .main { display: flex; flex-direction: column; min-width: 0; }
@@ -223,6 +224,27 @@ a:hover { text-decoration: underline; }
 /* ── Empty states / loaders ───────────────────────────────────────────── */
 .empty { text-align: center; padding: var(--space-7) var(--space-4); color: var(--muted); }
 .empty .emoji { font-size: 2.6rem; display: block; margin-bottom: var(--space-3); }
+.empty-icon {
+  display: inline-grid; place-items: center; width: 64px; height: 64px; margin: 0 auto var(--space-3);
+  border-radius: 20px; color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* ── Soldes (dépenses partagées) ──────────────────────────────────────── */
+.amount-pos { color: var(--ok); font-weight: 700; }
+.amount-neg { color: var(--danger); font-weight: 700; }
+.amount-zero { color: var(--muted); font-weight: 600; }
+
+/* ── Barre de progression / vote ──────────────────────────────────────── */
+.bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.3s ease; }
+
+/* ── Pastille de type (voyage, catégorie…) ────────────────────────────── */
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0.2rem 0.6rem; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600; background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-ink);
+}
 .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: var(--space-6) auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
