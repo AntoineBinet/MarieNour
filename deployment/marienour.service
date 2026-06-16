@@ -48,9 +48,10 @@ Environment=MARIENOUR_DATA_DIR=/opt/marienour/app/data
 ExecStart=/usr/bin/node /opt/marienour/app/dist-server/server.mjs
 
 # ── Cycle de vie ──────────────────────────────────────────────────────────
-# Restart=always : couvre tout crash. La mise à jour passe par
-# deployment/update.sh (git pull + npm ci + build + systemctl restart).
-# Le code 42 est réservé à un futur bouton « Mettre à jour » in-app.
+# Restart=always : couvre tout crash. Mise à jour soit en CLI via
+# deployment/update.sh (git pull + npm ci + build + systemctl restart), soit
+# via le bouton « Mettre à jour » de l'admin in-app : il reconstruit puis sort
+# en 42 (RestartForceExitStatus=42) → systemd relance avec le nouveau build.
 Restart=always
 RestartSec=5
 SuccessExitStatus=42

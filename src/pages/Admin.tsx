@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
@@ -48,6 +48,118 @@ function fmtDate(ts: number) {
   // les timestamps sont en secondes côté API
   const d = new Date(ts < 1e12 ? ts * 1000 : ts);
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/* ── Mise à jour de l'application (VM Node uniquement) ─────────────────────── */
+function MaintenanceCard() {
+  const toast = useToast();
+  // startedAt de la mise à jour qu'on suit (null = aucune en cours côté UI).
+  const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
+
+  const statusQ = useQuery({
+    queryKey: ["admin-update-status"],
+    queryFn: () => api.adminUpdateStatus(),
+    refetchInterval: runStartedAt !== null ? 2000 : false,
+    retry: false,
+  });
+
+  const status = statusQ.data?.status;
+  const commit = statusQ.data?.current_commit;
+  // 404 = endpoint absent (repli serverless ou dev sans serveur Node).
+  const unsupported = statusQ.isError && (statusQ.error as { status?: number } | undefined)?.status === 404;
+
+  // Détecte la fin de NOTRE run (même startedAt renvoyé par le POST) — robuste
+  // au redémarrage : le statut persisté garde le même startedAt.
+  useEffect(() => {
+    if (runStartedAt === null || !status) return;
+    if (status.startedAt !== runStartedAt) return;
+    if (status.phase === "done") {
+      setRunStartedAt(null);
+      toast.push(status.upToDate ? "Déjà à jour ✓" : "Mise à jour appliquée 🎉");
+    } else if (status.phase === "error") {
+      setRunStartedAt(null);
+      toast.push(status.error || "Échec de la mise à jour", true);
+    }
+  }, [runStartedAt, status, toast]);
+
+  const update = useMutation({
+    mutationFn: () => api.adminUpdate(),
+    onSuccess: (r) => {
+      if (!r.ok || !r.status?.startedAt) {
+        toast.push(r.error || "Impossible de démarrer la mise à jour", true);
+        return;
+      }
+      setRunStartedAt(r.status.startedAt);
+      statusQ.refetch();
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const running = runStartedAt !== null;
+  const applied = Boolean(status?.phase === "done" && !status.upToDate && status.finishedAt && !running);
+
+  return (
+    <section className="card" style={{ marginBottom: "var(--space-6)" }}>
+      <div className="panel-head">
+        <h2>Mise à jour de l'application 🚀</h2>
+      </div>
+
+      {unsupported ? (
+        <p className="muted small">
+          La mise à jour in-app n'est disponible que sur l'hébergement Node (VM Oracle).
+        </p>
+      ) : (
+        <>
+          <p className="muted" style={{ marginBottom: "var(--space-4)" }}>
+            Récupère la dernière version depuis GitHub, reconstruit le site, puis redémarre le
+            service. Équivalent du bouton « Mettre à jour » de Portfolio / Prospup.
+            {commit && (
+              <>
+                {" "}Version en ligne&nbsp;: <code>{commit}</code>.
+              </>
+            )}
+          </p>
+
+          <div className="row gap-2 wrap" style={{ alignItems: "center" }}>
+            <button className="btn btn-primary" onClick={() => update.mutate()} disabled={running || update.isPending}>
+              {running ? "Mise à jour en cours…" : "Mettre à jour"}
+            </button>
+            {running && <Spinner />}
+            {running && status?.step && <span className="muted small">{status.step}</span>}
+            {applied && (
+              <button className="btn btn-soft" onClick={() => window.location.reload()}>
+                Recharger pour appliquer
+              </button>
+            )}
+          </div>
+
+          {status && (status.phase === "running" || status.phase === "error") && status.log.length > 0 && (
+            <pre
+              style={{
+                marginTop: "var(--space-4)",
+                maxHeight: 200,
+                overflow: "auto",
+                background: "var(--bg-2, rgba(0,0,0,.04))",
+                borderRadius: "var(--radius, 10px)",
+                padding: "var(--space-3)",
+                fontSize: "0.74rem",
+                lineHeight: 1.5,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {status.log.slice(-40).join("\n")}
+            </pre>
+          )}
+
+          {status?.phase === "error" && status.error && (
+            <p className="small" style={{ color: "var(--danger)", marginTop: "var(--space-3)" }}>
+              {status.error}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
 }
 
 export default function Admin() {
@@ -161,6 +273,9 @@ export default function Admin() {
           ))}
         </div>
       )}
+
+      {/* ── Mise à jour de l'application ─────────────────────────────── */}
+      <MaintenanceCard />
 
       {/* ── Utilisateurs ─────────────────────────────────────────────── */}
       <section className="card">

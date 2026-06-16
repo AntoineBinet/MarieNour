@@ -14,6 +14,8 @@ import { join } from "node:path";
 import { createApp } from "./app";
 import { createD1 } from "./adapters/d1";
 import { createR2 } from "./adapters/r2";
+import { attachUser, requireAdmin } from "./auth";
+import { getCurrentCommit, getStatus, startUpdate } from "./node-update";
 
 const ROOT = process.cwd();
 const PORT = Number(process.env.MARIENOUR_PORT || process.env.PORT || 8002);
@@ -43,6 +45,20 @@ const indexHtml = hasBuild
   : "<!doctype html><meta charset=utf-8><title>marienour</title><p>Front non buildé : lance <code>npm run build</code>.</p>";
 
 const root = new Hono();
+
+// 0) Mise à jour in-app — routes SPÉCIFIQUES au runtime Node (git pull + build +
+//    restart via exit 42). Enregistrées AVANT l'app partagée pour avoir la
+//    priorité, et protégées par session admin (attachUser → requireAdmin).
+//    Elles n'existent pas sur le repli serverless (Cloudflare Pages).
+root.post("/api/admin/update", attachUser, requireAdmin, (c) => {
+  const r = startUpdate();
+  if (!r.started) return c.json({ ok: false, error: r.reason, status: getStatus() }, 409);
+  return c.json({ ok: true, status: getStatus() });
+});
+root.get("/api/admin/update/status", attachUser, requireAdmin, async (c) =>
+  c.json({ status: getStatus(), current_commit: await getCurrentCommit() }),
+);
+
 // 1) API Hono (montée avec son basePath /api).
 root.route("/", createApp());
 // 2) 404 JSON pour toute route /api inconnue (sinon le repli SPA renverrait du HTML).
