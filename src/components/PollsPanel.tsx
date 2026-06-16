@@ -286,7 +286,7 @@ export default function PollsPanel() {
     onSuccess: () => {
       invalidate();
       setCreating(false);
-      toast.push("Sondage créé 🗳️");
+      toast.push("Sondage créé");
     },
     onError: onErr,
   });
@@ -339,7 +339,7 @@ export default function PollsPanel() {
         <Spinner />
       ) : polls.length === 0 ? (
         <EmptyState
-          emoji="🗳️"
+          icon="polls"
           title="Aucun sondage"
           hint="Lance une question à tes amis pour décider ensemble."
           action={

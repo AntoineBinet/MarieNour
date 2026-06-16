@@ -162,7 +162,7 @@ export default function TripDetail() {
     onSuccess: () => {
       invalidateTrip();
       setGuestName("");
-      toast.push("Participant ajouté 🧳");
+      toast.push("Participant ajouté");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -185,7 +185,7 @@ export default function TripDetail() {
       }),
     onSuccess: () => {
       invalidateTrip();
-      toast.push("Tricount du voyage créé 💸");
+      toast.push("Tricount du voyage créé");
       navigate("/depenses");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -196,7 +196,7 @@ export default function TripDetail() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trip", id] });
       qc.invalidateQueries({ queryKey: ["trips"] });
-      toast.push("Voyage mis à jour ✨");
+      toast.push("Voyage mis à jour");
       setEditing(false);
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -216,7 +216,7 @@ export default function TripDetail() {
     mutationFn: (b: Partial<TripItem>) => api.addTripItem(id, b),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trip", id] });
-      toast.push("Étape ajoutée 📍");
+      toast.push("Étape ajoutée");
       setAddingItem(false);
       setItemForm(EMPTY_ITEM);
     },
@@ -243,10 +243,10 @@ export default function TripDetail() {
   if (!trip) {
     return (
       <div>
-        <Link to="/voyages" className="small">← Voyages</Link>
+        <Link to="/voyages" className="small row gap-2"><Icon name="arrowLeft" size={15} /> Voyages</Link>
         <div className="card" style={{ marginTop: "var(--space-4)" }}>
           <EmptyState
-            emoji="🗺️"
+            icon="map"
             title="Voyage introuvable"
             hint="Ce voyage n'existe pas ou a été supprimé."
             action={<Link className="btn btn-primary" to="/voyages">Retour aux voyages</Link>}
@@ -327,7 +327,7 @@ export default function TripDetail() {
 
   return (
     <div>
-      <Link to="/voyages" className="small">← Voyages</Link>
+      <Link to="/voyages" className="small row gap-2"><Icon name="arrowLeft" size={15} /> Voyages</Link>
 
       <div className="page-head row wrap" style={{ justifyContent: "space-between", marginTop: "var(--space-3)" }}>
         <div>
@@ -395,16 +395,16 @@ export default function TripDetail() {
 
       <div className="panel-head">
         <h2>Itinéraire</h2>
-        <button className="btn btn-primary btn-sm" onClick={() => setAddingItem(true)}>＋ Ajouter une étape</button>
+        <button className="btn btn-primary btn-sm" onClick={() => setAddingItem(true)}><Icon name="plus" size={15} /> Ajouter une étape</button>
       </div>
 
       {items.length === 0 ? (
         <div className="card">
           <EmptyState
-            emoji="🧭"
+            icon="compass"
             title="Itinéraire vide"
             hint="Ajoute des activités, repas, logements ou transports pour construire ton programme."
-            action={<button className="btn btn-primary" onClick={() => setAddingItem(true)}>＋ Ajouter une étape</button>}
+            action={<button className="btn btn-primary" onClick={() => setAddingItem(true)}><Icon name="plus" size={15} /> Ajouter une étape</button>}
           />
         </div>
       ) : (
@@ -414,8 +414,8 @@ export default function TripDetail() {
             const isIdeas = key === IDEAS_KEY;
             return (
               <div key={key} className="card card-pad-sm">
-                <h3 style={{ marginBottom: "var(--space-3)" }}>
-                  {isIdeas ? "💡 Idées / à caser" : formatDayTitle(key)}
+                <h3 className="row gap-2" style={{ marginBottom: "var(--space-3)" }}>
+                  {isIdeas ? <><Icon name="lightbulb" size={16} /> Idées / à caser</> : formatDayTitle(key)}
                 </h3>
                 {groupItems.map((it) => (
                   <div key={it.id} className="li-row">
@@ -430,7 +430,7 @@ export default function TripDetail() {
                         updateItem.mutate({ itemId: it.id, b: { done: !it.done } })
                       }
                     >
-                      {it.done ? "✓" : ""}
+                      {it.done ? <Icon name="check" size={13} /> : ""}
                     </span>
 
                     <span title={KIND_LABEL[it.kind]} style={{ color: "var(--accent-ink)", display: "inline-flex" }}>
@@ -449,8 +449,8 @@ export default function TripDetail() {
                         </span>
                       </div>
                       {(it.location || it.notes) && (
-                        <p className="muted small" style={{ marginTop: 2 }}>
-                          {it.location && <>📍 {it.location}</>}
+                        <p className="muted small row gap-1" style={{ marginTop: 2 }}>
+                          {it.location && <><Icon name="pin" size={13} /> {it.location}</>}
                           {it.location && it.notes ? " · " : ""}
                           {it.notes}
                         </p>
@@ -584,11 +584,11 @@ export default function TripDetail() {
             </Field>
             <Field label="Type">
               <select className="select" value={itemForm.kind} onChange={(e) => setItemForm({ ...itemForm, kind: e.target.value as TripItem["kind"] })}>
-                <option value="activity">🎯 Activité</option>
-                <option value="food">🍽️ Repas</option>
-                <option value="lodging">🛏️ Logement</option>
-                <option value="transport">🚆 Transport</option>
-                <option value="note">📝 Note</option>
+                <option value="activity">Activité</option>
+                <option value="food">Repas</option>
+                <option value="lodging">Logement</option>
+                <option value="transport">Transport</option>
+                <option value="note">Note</option>
               </select>
             </Field>
             <div className="row gap-3 wrap">

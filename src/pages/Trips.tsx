@@ -80,7 +80,7 @@ export default function Trips() {
     mutationFn: (b: Partial<Trip>) => api.createTrip(b),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trips"] });
-      toast.push("Voyage créé ✈️");
+      toast.push("Voyage créé");
       setCreating(false);
       setForm(EMPTY_FORM);
     },
@@ -136,10 +136,10 @@ export default function Trips() {
       ) : trips.length === 0 ? (
         <div className="card">
           <EmptyState
-            emoji="🧳"
+            icon="luggage"
             title="Aucun voyage pour l'instant"
             hint="Crée ton premier voyage pour commencer à planifier ton itinéraire."
-            action={<button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouveau voyage</button>}
+            action={<button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouveau voyage</button>}
           />
         </div>
       ) : (

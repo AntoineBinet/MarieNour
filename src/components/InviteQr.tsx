@@ -45,7 +45,7 @@ export function InviteQr({ kind, targetId, memberId, label, variant = "soft", ch
     if (!invite) return;
     try {
       await navigator.clipboard.writeText(invite.url);
-      toast.push("Lien copié ✨");
+      toast.push("Lien copié");
     } catch {
       toast.push("Copie impossible", true);
     }

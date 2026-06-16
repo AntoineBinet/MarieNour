@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
-import Icon from "../components/Icon";
+import { Icon } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
 import type {
   ExpenseGroup,
@@ -72,7 +72,7 @@ export default function Expenses() {
     mutationFn: (b: { title: string; currency?: string; members?: string[] }) => api.createExpenseGroup(b),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["expense-groups"] });
-      toast.push("Groupe créé 💸");
+      toast.push("Groupe créé");
       setCreating(false);
       setForm({ title: "", currency: "EUR", members: "" });
       if (res?.id) setSelectedId(res.id);
@@ -131,7 +131,7 @@ export default function Expenses() {
       ) : groups.length === 0 ? (
         <div className="card">
           <EmptyState
-            emoji="💸"
+            icon="expenses"
             title="Aucun groupe de dépenses"
             hint="Crée un groupe pour partager les frais d'un voyage, d'une coloc ou d'une soirée."
             action={
@@ -288,7 +288,7 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
     mutationFn: (b: Parameters<typeof api.addExpense>[1]) => api.addExpense(id, b),
     onSuccess: () => {
       invalidate();
-      toast.push("Dépense ajoutée 🧾");
+      toast.push("Dépense ajoutée");
       setAddingExpense(false);
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -318,7 +318,7 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
     mutationFn: (b: { from_id: string; to_id: string; amount: number }) => api.settleExpense(id, b),
     onSuccess: () => {
       invalidate();
-      toast.push("Remboursement enregistré ✅");
+      toast.push("Remboursement enregistré");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -397,10 +397,10 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
     return (
       <div>
         <button className="btn btn-soft btn-sm" onClick={onBack}>
-          ← Dépenses
+          <Icon name="arrowLeft" size={15} /> Dépenses
         </button>
         <div className="card" style={{ marginTop: "var(--space-4)" }}>
-          <EmptyState emoji="💸" title="Groupe introuvable" hint="Ce groupe n'existe pas ou a été supprimé." />
+          <EmptyState icon="expenses" title="Groupe introuvable" hint="Ce groupe n'existe pas ou a été supprimé." />
         </div>
       </div>
     );
@@ -411,7 +411,7 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
   return (
     <div>
       <button className="btn btn-soft btn-sm" onClick={onBack}>
-        ← Dépenses
+        <Icon name="arrowLeft" size={15} /> Dépenses
       </button>
 
       <div
@@ -502,7 +502,7 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
       {(group.expenses ?? []).length === 0 ? (
         <div className="card">
           <EmptyState
-            emoji="🧾"
+            icon="notes"
             title="Aucune dépense"
             hint="Ajoute une première dépense pour commencer le partage."
             action={

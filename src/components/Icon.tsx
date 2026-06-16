@@ -50,7 +50,45 @@ export type IconName =
   | "bell"
   | "settings"
   | "search"
-  | "luggage";
+  | "luggage"
+  | "coins"
+  | "bank"
+  | "target"
+  | "repeat"
+  | "pin"
+  | "image"
+  | "music"
+  | "fire"
+  | "palette"
+  | "mirror"
+  | "trophy"
+  | "chart"
+  | "key"
+  | "lock"
+  | "rocket"
+  | "leaf"
+  | "flower"
+  | "chat"
+  | "bookmark"
+  | "grid"
+  | "archive"
+  | "filter"
+  | "close"
+  | "arrowLeft"
+  | "arrowRight"
+  | "dots"
+  | "eye"
+  | "download"
+  | "building"
+  | "piggybank"
+  | "transfer"
+  | "tag"
+  | "clock"
+  | "info"
+  | "lightbulb"
+  | "globe"
+  | "wand"
+  | "trend";
 
 const P: Record<IconName, JSX.Element> = {
   home: <path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" />,
@@ -266,6 +304,188 @@ const P: Record<IconName, JSX.Element> = {
       <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M10 11v5M14 11v5M9 20v1M15 20v1" />
     </>
   ),
+  coins: (
+    <>
+      <ellipse cx="9" cy="7" rx="5.5" ry="2.6" />
+      <path d="M3.5 7v4c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6V7" />
+      <path d="M9 13.6v3.8c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6v-6" />
+      <ellipse cx="14.5" cy="11.4" rx="5.5" ry="2.6" />
+    </>
+  ),
+  bank: (
+    <>
+      <path d="M12 3 3 8h18L12 3Z" />
+      <path d="M5 11v6M9.5 11v6M14.5 11v6M19 11v6M3.5 20h17" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+    </>
+  ),
+  repeat: <path d="M4 9a5 5 0 0 1 5-5h7l-2.5-2.5M20 15a5 5 0 0 1-5 5H8l2.5 2.5M16 4l2.5 2.5M8 20l-2.5-2.5" />,
+  pin: (
+    <>
+      <path d="M12 21v-7" />
+      <path d="M8 3h8l-1 4 2.5 3.5h-11L8 7 8 3Z" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <circle cx="9" cy="9.5" r="1.6" />
+      <path d="m4 17 5-4.5 4 3.2 3-2.7 4 3.5" />
+    </>
+  ),
+  music: (
+    <>
+      <path d="M9 18V5l11-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="17" cy="16" r="3" />
+    </>
+  ),
+  fire: <path d="M12 3c.5 3-1.5 4.5-3 6.5C7.3 11.8 6 13.6 6 16a6 6 0 0 0 12 0c0-1.8-.8-3.3-1.8-4.6-.3 1-.9 1.7-1.7 2.1.6-2.6-.6-4.8-2.5-6.5-.5 1.3-1 2-2 2.5.3-2.6-.3-4.5 0-7Z" />,
+  palette: (
+    <>
+      <path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-.9 2-1.8 0-.5-.2-.9-.5-1.2-.3-.4-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-3.9-4-7-9-7Z" />
+      <circle cx="7.5" cy="11.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="8" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  mirror: (
+    <>
+      <ellipse cx="12" cy="9" rx="6" ry="7" />
+      <path d="M12 16v5M9 21h6" />
+    </>
+  ),
+  trophy: (
+    <>
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+      <path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M10 13.5V17M14 13.5V17M8 20h8M9 17h6v3H9z" />
+    </>
+  ),
+  chart: (
+    <>
+      <path d="M4 4v16h16" />
+      <path d="M8 16v-4M12 16V8M16 16v-6" />
+    </>
+  ),
+  key: (
+    <>
+      <circle cx="8" cy="8" r="4" />
+      <path d="m11 11 8 8M16 16l2-2M19 19l1.5-1.5" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="10" rx="2.5" />
+      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+    </>
+  ),
+  rocket: (
+    <>
+      <path d="M12 3c3 1.5 5 4.5 5 8.5 0 2-.5 3.5-1 4.5H8c-.5-1-1-2.5-1-4.5C7 7.5 9 4.5 12 3Z" />
+      <circle cx="12" cy="9.5" r="1.6" />
+      <path d="M9 16c-1.5.5-2.5 2-2.5 4 2 0 3.5-1 4-2M15 16c1.5.5 2.5 2 2.5 4-2 0-3.5-1-4-2" />
+    </>
+  ),
+  leaf: (
+    <>
+      <path d="M5 19c0-8 6-13 14-13 0 8-5 14-13 14-1 0-1-1-1-1Z" />
+      <path d="M5 19c3-4 6-6 10-7" />
+    </>
+  ),
+  flower: (
+    <>
+      <circle cx="12" cy="12" r="2.4" />
+      <path d="M12 9.6V5a2.4 2.4 0 0 1 0 4.6M12 14.4V19a2.4 2.4 0 0 0 0-4.6M9.6 12H5a2.4 2.4 0 0 0 4.6 0M14.4 12H19a2.4 2.4 0 0 1-4.6 0" />
+    </>
+  ),
+  chat: <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v8a1.5 1.5 0 0 1-1.5 1.5H9l-4 4v-4H5.5A1.5 1.5 0 0 1 4 13.5Z" />,
+  bookmark: <path d="M6 4h12v17l-6-4-6 4Z" />,
+  grid: (
+    <>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+    </>
+  ),
+  archive: (
+    <>
+      <rect x="3.5" y="4" width="17" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
+    </>
+  ),
+  filter: <path d="M4 5h16l-6.5 8v5l-3 2v-7L4 5Z" />,
+  close: <path d="M6 6l12 12M18 6 6 18" />,
+  arrowLeft: <path d="M19 12H5m0 0 6-6m-6 6 6 6" />,
+  arrowRight: <path d="M5 12h14m0 0-6-6m6 6-6 6" />,
+  dots: (
+    <>
+      <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  download: <path d="M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M4 20h16" />,
+  building: (
+    <>
+      <rect x="5" y="3" width="14" height="18" rx="1.5" />
+      <path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3" />
+    </>
+  ),
+  piggybank: (
+    <>
+      <path d="M15 6c3 0 5.5 2.4 5.5 5.5 0 1.6-.7 3-1.8 4l.3 3h-2.3l-.5-1.6c-.6.2-1.4.3-2.2.3H10l-1.5 1.3H7l-.4-2.4C5 18.4 4 16.6 4 14.5 4 10.9 7.6 8 12 8h3" />
+      <path d="M3.5 12.5H5M15.5 11h.01M8 8.5 7 5.5" />
+    </>
+  ),
+  transfer: <path d="M4 8h13l-3-3M20 16H7l3 3" />,
+  tag: (
+    <>
+      <path d="M4 4h7l9 9-7 7-9-9V4Z" />
+      <circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5M12 8h.01" />
+    </>
+  ),
+  lightbulb: (
+    <>
+      <path d="M9 17h6M9.5 20h5M8 13a5 5 0 1 1 8 0c-.8 1-1.5 1.7-1.5 2.5V16h-5v-.5c0-.8-.7-1.5-1.5-2.5Z" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.5 2.3 2.5 14.7 0 17M12 3.5c-2.5 2.3-2.5 14.7 0 17" />
+    </>
+  ),
+  wand: (
+    <>
+      <path d="M5 19 16 8M14 6l1-2 1 2 2 1-2 1-1 2-1-2-2-1 2-1ZM6.5 11.5 5 11l1.5-.5L7 9l.5 1.5L9 11l-1.5.5L7 13Z" />
+    </>
+  ),
+  trend: <path d="M4 16l5-5 3 3 7-7m0 0h-4.5m4.5 0v4.5" />,
 };
 
 export interface IconProps {

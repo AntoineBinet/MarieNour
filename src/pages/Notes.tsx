@@ -11,6 +11,7 @@ import {
   SwatchRow,
   NOTE_COLORS,
 } from "../ui";
+import { Icon } from "../components/Icon";
 import type { Note, Visibility } from "@shared/types";
 
 const VISIBILITIES: { value: Visibility; label: string }[] = [
@@ -54,7 +55,7 @@ function NoteForm({ initial, onClose }: { initial?: Note; onClose: () => void })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["notes"] });
-      toast.push(initial ? "Note mise à jour ✨" : "Note créée ✨");
+      toast.push(initial ? "Note mise à jour" : "Note créée");
       onClose();
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -141,7 +142,7 @@ function NoteCard({
             onTogglePin();
           }}
         >
-          {note.pinned ? "📌" : "📍"}
+          <Icon name="pin" size={16} filled={note.pinned} />
         </button>
       </div>
 
@@ -163,7 +164,7 @@ function NoteCard({
             onEdit();
           }}
         >
-          ✎
+          <Icon name="edit" size={15} />
         </button>
         <button
           className="btn btn-icon btn-danger btn-sm"
@@ -174,7 +175,7 @@ function NoteCard({
             onDelete();
           }}
         >
-          🗑
+          <Icon name="trash" size={15} />
         </button>
       </div>
     </div>
@@ -201,7 +202,7 @@ export default function Notes() {
     mutationFn: (note: Note) => api.updateNote(note.id, { pinned: !note.pinned }),
     onSuccess: (_d, note) => {
       qc.invalidateQueries({ queryKey: ["notes"] });
-      toast.push(note.pinned ? "Note détachée" : "Note épinglée 📌");
+      toast.push(note.pinned ? "Note détachée" : "Note épinglée");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -228,7 +229,7 @@ export default function Notes() {
           <h1>Notes & idées</h1>
           <p className="muted">Capture tout ce qui te passe par la tête, épingle l'essentiel.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle note</button>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouvelle note</button>
       </div>
 
       <div className="row" style={{ marginBottom: "var(--space-5)" }}>
@@ -244,12 +245,12 @@ export default function Notes() {
         <Spinner />
       ) : notes.length === 0 ? (
         <EmptyState
-          emoji="🗒️"
+          icon="notes"
           title={q ? "Aucune note trouvée" : "Pas encore de notes"}
           hint={q ? "Essaie un autre mot-clé." : "Note une idée, un rappel ou une envie en un clic."}
           action={
             !q ? (
-              <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Créer ma première note</button>
+              <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Créer ma première note</button>
             ) : undefined
           }
         />

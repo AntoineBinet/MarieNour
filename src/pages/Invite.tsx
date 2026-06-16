@@ -35,7 +35,7 @@ export default function Invite() {
     mutationFn: () => api.acceptInvite(token),
     onSuccess: (res) => {
       setDone(true);
-      toast.push("Invitation acceptée ✨");
+      toast.push("Invitation acceptée");
       setTimeout(() => navigate(KIND_DEST[res.kind] ?? "/", { replace: true }), 900);
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -96,7 +96,9 @@ export default function Invite() {
                 onClick={() => accept.mutate()}
                 disabled={accept.isPending || done}
               >
-                {done ? "C'est fait ✓" : accept.isPending ? "…" : "Accepter l'invitation"}
+                {done ? (
+                  <span className="row gap-2"><Icon name="check" size={15} /> C'est fait</span>
+                ) : accept.isPending ? "…" : "Accepter l'invitation"}
               </button>
             )}
           </>

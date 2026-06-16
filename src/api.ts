@@ -5,6 +5,13 @@ import type {
   ExpenseGroup,
   ExpenseGroupDetail,
   FeedItem,
+  FinanceAccount,
+  FinanceCategory,
+  FinanceGoal,
+  FinanceOverview,
+  FinancePartner,
+  FinanceRecurring,
+  FinanceTransaction,
   Friendship,
   Inspiration,
   Invite,
@@ -224,6 +231,45 @@ export const api = {
   settleExpense: (id: string, b: { from_id: string; to_id: string; amount: number; note?: string }) =>
     post<{ id: string }>(`/expenses/${id}/settle`, b),
   deleteSettlement: (id: string, settlementId: string) => del<{ ok: true }>(`/expenses/${id}/settle/${settlementId}`),
+
+  // Finances personnelles (budget)
+  financeOverview: (month?: string, owner?: string) => {
+    const p = new URLSearchParams();
+    if (month) p.set("month", month);
+    if (owner) p.set("owner", owner);
+    const q = p.toString();
+    return get<{ overview: FinanceOverview }>(`/finance/overview${q ? `?${q}` : ""}`);
+  },
+  financeAccounts: () => get<{ accounts: FinanceAccount[] }>("/finance/accounts"),
+  createAccount: (b: Partial<FinanceAccount>) => post<{ id: string }>("/finance/accounts", b),
+  updateAccount: (id: string, b: Partial<FinanceAccount>) => patch<{ ok: true }>(`/finance/accounts/${id}`, b),
+  deleteAccount: (id: string) => del<{ ok: true }>(`/finance/accounts/${id}`),
+  financeCategories: () => get<{ categories: FinanceCategory[] }>("/finance/categories"),
+  createCategory: (b: Partial<FinanceCategory>) => post<{ id: string }>("/finance/categories", b),
+  updateCategory: (id: string, b: Partial<FinanceCategory>) => patch<{ ok: true }>(`/finance/categories/${id}`, b),
+  deleteCategory: (id: string) => del<{ ok: true }>(`/finance/categories/${id}`),
+  financeTransactions: (opts?: { month?: string; account?: string; category?: string; type?: string; q?: string; owner?: string }) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(opts ?? {})) if (v) p.set(k, v);
+    const q = p.toString();
+    return get<{ transactions: FinanceTransaction[] }>(`/finance/transactions${q ? `?${q}` : ""}`);
+  },
+  createTransaction: (b: Partial<FinanceTransaction> & { owner?: string }) => post<{ id: string }>("/finance/transactions", b),
+  updateTransaction: (id: string, b: Partial<FinanceTransaction>) => patch<{ ok: true }>(`/finance/transactions/${id}`, b),
+  deleteTransaction: (id: string) => del<{ ok: true }>(`/finance/transactions/${id}`),
+  financeRecurring: () => get<{ recurring: FinanceRecurring[] }>("/finance/recurring"),
+  createRecurring: (b: Partial<FinanceRecurring>) => post<{ id: string }>("/finance/recurring", b),
+  updateRecurring: (id: string, b: Partial<FinanceRecurring>) => patch<{ ok: true }>(`/finance/recurring/${id}`, b),
+  deleteRecurring: (id: string) => del<{ ok: true }>(`/finance/recurring/${id}`),
+  runRecurring: (id: string) => post<{ id: string }>(`/finance/recurring/${id}/run`),
+  financeGoals: () => get<{ goals: FinanceGoal[] }>("/finance/goals"),
+  createGoal: (b: Partial<FinanceGoal>) => post<{ id: string }>("/finance/goals", b),
+  updateGoal: (id: string, b: Partial<FinanceGoal>) => patch<{ ok: true }>(`/finance/goals/${id}`, b),
+  contributeGoal: (id: string, amount: number) => post<{ ok: true }>(`/finance/goals/${id}/contribute`, { amount }),
+  deleteGoal: (id: string) => del<{ ok: true }>(`/finance/goals/${id}`),
+  financePartners: () => get<{ partners: FinancePartner[] }>("/finance/partners"),
+  addFinancePartner: (user_id: string, can_edit: boolean) => post<{ ok: true }>("/finance/partners", { user_id, can_edit }),
+  removeFinancePartner: (user_id: string) => del<{ ok: true }>(`/finance/partners/${user_id}`),
 
   // Onboarding (contenu de démarrage)
   seedStarter: () => post<{ ok: true; created: Record<string, number> }>("/onboarding/seed"),

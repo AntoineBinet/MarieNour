@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
+import { Icon } from "../components/Icon";
+import type { IconName } from "../components/Icon";
 import type { Board, Inspiration, Visibility } from "@shared/types";
 
 const VIS_LABEL: Record<Visibility, string> = {
@@ -10,16 +12,16 @@ const VIS_LABEL: Record<Visibility, string> = {
   public: "Public",
 };
 
-const SOURCES: { value: string; emoji: string; label: string }[] = [
-  { value: "instagram", emoji: "📸", label: "Instagram" },
-  { value: "tiktok", emoji: "🎵", label: "TikTok" },
-  { value: "pinterest", emoji: "📌", label: "Pinterest" },
-  { value: "youtube", emoji: "▶️", label: "YouTube" },
-  { value: "web", emoji: "🌐", label: "Web" },
+const SOURCES: { value: string; icon: IconName; label: string }[] = [
+  { value: "instagram", icon: "camera", label: "Instagram" },
+  { value: "tiktok", icon: "music", label: "TikTok" },
+  { value: "pinterest", icon: "pin", label: "Pinterest" },
+  { value: "youtube", icon: "globe", label: "YouTube" },
+  { value: "web", icon: "globe", label: "Web" },
 ];
 
-function sourceEmoji(source: string): string {
-  return SOURCES.find((s) => s.value === source)?.emoji ?? "🌐";
+function sourceIcon(source: string): IconName {
+  return SOURCES.find((s) => s.value === source)?.icon ?? "globe";
 }
 function sourceLabel(source: string): string {
   return SOURCES.find((s) => s.value === source)?.label ?? source;
@@ -41,11 +43,11 @@ function InspoCard({
       <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         {ins.title && <strong style={{ fontFamily: "var(--font-display)" }}>{ins.title}</strong>}
         <div className="row gap-2 wrap">
-          <span className="chip">{sourceEmoji(ins.source)} {sourceLabel(ins.source)}</span>
+          <span className="chip"><Icon name={sourceIcon(ins.source)} size={14} /> {sourceLabel(ins.source)}</span>
         </div>
         {ins.note && <p className="muted small">{ins.note}</p>}
         {ins.url && (
-          <a href={ins.url} target="_blank" rel="noreferrer" className="small">🔗 Ouvrir</a>
+          <a href={ins.url} target="_blank" rel="noreferrer" className="small"><Icon name="link" size={14} /> Ouvrir</a>
         )}
         {actions && <div className="row gap-2 wrap" style={{ marginTop: "var(--space-2)" }}>{actions}</div>}
       </div>
@@ -72,7 +74,7 @@ function KeepModal({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inspirations"] });
       qc.invalidateQueries({ queryKey: ["boards"] });
-      toast.push("Inspiration gardée 💖");
+      toast.push("Inspiration gardée");
       onClose();
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -137,7 +139,7 @@ function BoardForm({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["boards"] });
-      toast.push(initial ? "Tableau mis à jour ✨" : "Tableau créé ✨");
+      toast.push(initial ? "Tableau mis à jour" : "Tableau créé");
       onClose();
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -215,14 +217,14 @@ function BoardView({
         </div>
 
         <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
-          <button className="btn btn-danger" onClick={onDelete}>🗑️ Supprimer</button>
-          <button className="btn btn-soft" onClick={onEdit}>✎ Éditer</button>
+          <button className="btn btn-danger" onClick={onDelete}><Icon name="trash" size={15} /> Supprimer</button>
+          <button className="btn btn-soft" onClick={onEdit}><Icon name="edit" size={15} /> Éditer</button>
         </div>
 
         {isLoading ? (
           <Spinner />
         ) : items.length === 0 ? (
-          <EmptyState emoji="🖼️" title="Tableau vide" hint="Garde des inspirations ici depuis l'onglet « À trier »." />
+          <EmptyState icon="image" title="Tableau vide" hint="Garde des inspirations ici depuis l'onglet « À trier »." />
         ) : (
           <div className="masonry">
             {items.map((ins) => (
@@ -266,7 +268,7 @@ function InboxTab() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inspirations"] });
-      toast.push("Ajouté à la boîte 📥");
+      toast.push("Ajouté à la boîte");
       setUrl(""); setTitle(""); setImageUrl(""); setNote("");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -276,7 +278,7 @@ function InboxTab() {
     mutationFn: (id: string) => api.updateInspiration(id, { status: "done" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inspirations"] });
-      toast.push("Marqué comme fait ✓");
+      toast.push("Marqué comme fait");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -311,10 +313,10 @@ function InboxTab() {
         </div>
         <div className="col gap-3">
           <div className="row gap-3 wrap">
-            <input className="input grow" style={{ minWidth: 200 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="🔗 Lien (Instagram, TikTok, Pinterest…)" />
+            <input className="input grow" style={{ minWidth: 200 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Lien (Instagram, TikTok, Pinterest…)" />
             <select className="select" style={{ width: "auto" }} value={source} onChange={(e) => setSource(e.target.value)}>
               {SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </div>
@@ -325,7 +327,7 @@ function InboxTab() {
           <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une note pour te souvenir pourquoi ça t'a plu…" />
           <div className="row" style={{ justifyContent: "flex-end" }}>
             <button className="btn btn-primary" onClick={submit} disabled={add.isPending}>
-              {add.isPending ? "…" : "＋ Ajouter à la boîte"}
+              {add.isPending ? "…" : "Ajouter à la boîte"}
             </button>
           </div>
         </div>
@@ -334,7 +336,7 @@ function InboxTab() {
       {isLoading ? (
         <Spinner />
       ) : items.length === 0 ? (
-        <EmptyState emoji="📥" title="Boîte vide" hint="Colle un lien ci-dessus pour commencer à trier tes coups de cœur." />
+        <EmptyState icon="archive" title="Boîte vide" hint="Colle un lien ci-dessus pour commencer à trier tes coups de cœur." />
       ) : (
         <div className="masonry">
           {items.map((ins) => (
@@ -343,9 +345,9 @@ function InboxTab() {
               ins={ins}
               actions={
                 <>
-                  <button className="btn btn-soft btn-sm" onClick={() => setKeeping(ins)}>💖 Garder</button>
-                  <button className="btn btn-soft btn-sm" onClick={() => done.mutate(ins.id)}>✓ Fait</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => askDelete(ins)}>🗑️</button>
+                  <button className="btn btn-soft btn-sm" onClick={() => setKeeping(ins)}><Icon name="heart" size={14} /> Garder</button>
+                  <button className="btn btn-soft btn-sm" onClick={() => done.mutate(ins.id)}><Icon name="check" size={14} /> Fait</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => askDelete(ins)}><Icon name="trash" size={14} /></button>
                 </>
               }
             />
@@ -392,17 +394,17 @@ function BoardsTab() {
   return (
     <div>
       <div className="row wrap" style={{ justifyContent: "flex-end", marginBottom: "var(--space-5)" }}>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouveau tableau</button>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouveau tableau</button>
       </div>
 
       {isLoading ? (
         <Spinner />
       ) : boards.length === 0 ? (
         <EmptyState
-          emoji="🗂️"
+          icon="archive"
           title="Aucun tableau"
           hint="Crée un moodboard pour regrouper tes inspirations par thème."
-          action={<button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouveau tableau</button>}
+          action={<button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouveau tableau</button>}
         />
       ) : (
         <div className="grid-cards">
@@ -412,7 +414,7 @@ function BoardsTab() {
                 {b.cover_url ? (
                   <img src={b.cover_url} alt={b.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: "2.4rem", background: "var(--surface-2)" }}>🗂️</div>
+                  <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "var(--muted)", background: "var(--surface-2)" }}><Icon name="archive" size={40} /></div>
                 )}
               </div>
               <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
@@ -452,7 +454,7 @@ export default function Inspiration() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Tes idées</p>
-          <h1>Inspiration ✨</h1>
+          <h1>Inspiration</h1>
           <p className="muted">Trie tes coups de cœur et compose tes moodboards.</p>
         </div>
       </div>
@@ -462,13 +464,13 @@ export default function Inspiration() {
           className={`btn ${tab === "inbox" ? "btn-primary" : "btn-soft"}`}
           onClick={() => setTab("inbox")}
         >
-          📥 À trier
+          <Icon name="archive" size={15} /> À trier
         </button>
         <button
           className={`btn ${tab === "boards" ? "btn-primary" : "btn-soft"}`}
           onClick={() => setTab("boards")}
         >
-          🗂️ Mes tableaux
+          <Icon name="grid" size={15} /> Mes tableaux
         </button>
       </div>
 

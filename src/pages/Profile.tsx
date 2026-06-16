@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Spinner, Field, useToast } from "../ui";
+import { Icon } from "../components/Icon";
 import { useAuth } from "../auth";
 
 /* ── Accents disponibles ─────────────────────────────────────────────────── */
@@ -31,7 +32,7 @@ export default function Profile() {
       }),
     onSuccess: (res) => {
       setUser(res.user);
-      toast.push("Profil mis à jour ✨");
+      toast.push("Profil mis à jour");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -40,7 +41,7 @@ export default function Profile() {
     mutationFn: (accent: string) => api.updateMe({ accent }),
     onSuccess: (res) => {
       setUser(res.user);
-      toast.push("Couleur appliquée 🎨");
+      toast.push("Couleur appliquée");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -70,7 +71,7 @@ export default function Profile() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Toi</p>
-          <h1>Mon profil 🪞</h1>
+          <h1 className="row gap-2">Mon profil <Icon name="mirror" size={22} /></h1>
           <p className="muted">Personnalise la façon dont les autres te voient.</p>
         </div>
         {user.role === "admin" && (
@@ -142,7 +143,7 @@ export default function Profile() {
                     }}
                   />
                   {a.label}
-                  {selected && " ✓"}
+                  {selected && <Icon name="check" size={14} />}
                 </button>
               );
             })}

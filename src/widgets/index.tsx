@@ -97,7 +97,7 @@ function RecipesWidget() {
       <div className="col gap-2">
         {show.map((r) => (
           <Link key={r.id} to="/recettes" className="row gap-2" style={{ color: "inherit", textDecoration: "none" }}>
-            <span>{r.favorite ? "⭐" : "🍽️"}</span><span style={{ flex: 1 }}>{r.title}</span>
+            <Icon name={r.favorite ? "star" : "fork"} size={15} /><span style={{ flex: 1 }}>{r.title}</span>
           </Link>
         ))}
       </div>
@@ -151,7 +151,7 @@ function FeedWidget() {
       <div className="col gap-2">
         {feed.map((f) => (
           <Link key={`${f.entity_type}-${f.entity_id}`} to="/feed" className="row gap-2" style={{ color: "inherit", textDecoration: "none" }}>
-            <span>🫶</span>
+            <Icon name="feed" size={15} />
             <span className="small" style={{ flex: 1 }}><strong>{f.author.display_name}</strong> · {f.title}</span>
           </Link>
         ))}
@@ -186,7 +186,7 @@ function ExpensesWidget() {
 }
 
 function QuoteWidget({ config }: { config: Record<string, unknown> }) {
-  const text = (config?.text as string) || "Aujourd'hui, je crée quelque chose de beau. ✨";
+  const text = (config?.text as string) || "Aujourd'hui, je crée quelque chose de beau.";
   return (
     <WBody>
       <p style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", lineHeight: 1.4 }}>{text}</p>

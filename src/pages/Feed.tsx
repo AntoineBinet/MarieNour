@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Spinner, EmptyState, useToast } from "../ui";
+import { Icon } from "../components/Icon";
+import type { IconName } from "../components/Icon";
 import type { Comment, FeedItem } from "@shared/types";
 
 /* ── Temps relatif en français ──────────────────────────────────────────── */
@@ -21,16 +23,16 @@ function timeAgo(ts: number): string {
 }
 
 /* ── Libellés des types de contenu ──────────────────────────────────────── */
-const ENTITY_LABELS: Record<string, { emoji: string; label: string }> = {
-  note: { emoji: "🗒️", label: "Note" },
-  recipe: { emoji: "🍲", label: "Recette" },
-  trip: { emoji: "✈️", label: "Voyage" },
-  board: { emoji: "🗂️", label: "Tableau" },
-  inspiration: { emoji: "✨", label: "Inspiration" },
-  media: { emoji: "📸", label: "Photo" },
-  list: { emoji: "✅", label: "Liste" },
+const ENTITY_LABELS: Record<string, { icon: IconName; label: string }> = {
+  note: { icon: "notes", label: "Note" },
+  recipe: { icon: "recipes", label: "Recette" },
+  trip: { icon: "plane", label: "Voyage" },
+  board: { icon: "archive", label: "Tableau" },
+  inspiration: { icon: "sparkle", label: "Inspiration" },
+  media: { icon: "camera", label: "Photo" },
+  list: { icon: "check", label: "Liste" },
 };
-const entityMeta = (t: string) => ENTITY_LABELS[t] ?? { emoji: "📌", label: t };
+const entityMeta = (t: string): { icon: IconName; label: string } => ENTITY_LABELS[t] ?? { icon: "pin", label: t };
 
 /* ── Avatar ─────────────────────────────────────────────────────────────── */
 function Avatar({ url, name }: { url: string | null; name: string }) {
@@ -53,11 +55,11 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
         display: "grid",
         placeItems: "center",
         background: "var(--surface-2)",
-        fontSize: "1.2rem",
+        color: "var(--ink-2)",
       }}
       aria-hidden
     >
-      🌸
+      <Icon name="flower" size={20} />
     </div>
   );
 }
@@ -98,7 +100,7 @@ function CommentsSection({ item }: { item: FeedItem }) {
       {isLoading ? (
         <Spinner />
       ) : comments.length === 0 ? (
-        <p className="muted small">Aucun commentaire pour l'instant. Lance la conversation 💬</p>
+        <p className="muted small">Aucun commentaire pour l'instant. Lance la conversation.</p>
       ) : (
         comments.map((c) => (
           <div key={c.id} className="row gap-2" style={{ alignItems: "flex-start" }}>
@@ -191,7 +193,7 @@ function FeedCard({ item }: { item: FeedItem }) {
           </div>
           <span className="muted small">{timeAgo(item.created_at)}</span>
         </div>
-        <span className="chip" style={{ flex: "none" }}>{meta.emoji} {meta.label}</span>
+        <span className="chip row gap-1" style={{ flex: "none", alignItems: "center" }}><Icon name={meta.icon} size={14} /> {meta.label}</span>
       </div>
 
       {item.title && (
@@ -217,18 +219,20 @@ function FeedCard({ item }: { item: FeedItem }) {
 
       <div className="row gap-2" style={{ marginTop: "var(--space-4)" }}>
         <button
-          className="btn btn-soft btn-sm"
+          className="btn btn-soft btn-sm row gap-1"
+          style={{ alignItems: "center" }}
           onClick={() => like.mutate()}
           aria-label={item.liked_by_me ? "Je n'aime plus" : "J'aime"}
         >
-          {item.liked_by_me ? "❤️" : "🤍"} {item.like_count}
+          <Icon name="heart" size={15} filled={item.liked_by_me} /> {item.like_count}
         </button>
         <button
-          className={`btn btn-sm ${showComments ? "btn-primary" : "btn-soft"}`}
+          className={`btn btn-sm row gap-1 ${showComments ? "btn-primary" : "btn-soft"}`}
+          style={{ alignItems: "center" }}
           onClick={() => setShowComments((v) => !v)}
           aria-expanded={showComments}
         >
-          💬 {item.comment_count}
+          <Icon name="chat" size={15} /> {item.comment_count}
         </button>
       </div>
 
@@ -247,7 +251,7 @@ export default function Feed() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Tes amis</p>
-          <h1>Le fil 🫶</h1>
+          <h1>Le fil</h1>
           <p className="muted">Ce que tes amis partagent en ce moment.</p>
         </div>
       </div>
@@ -256,7 +260,7 @@ export default function Feed() {
         <Spinner />
       ) : feed.length === 0 ? (
         <EmptyState
-          emoji="🍃"
+          icon="leaf"
           title="Ton fil est calme"
           hint="Quand tes amis partageront des recettes, voyages ou inspirations, tu les verras ici."
           action={<Link className="btn btn-primary" to="/amis">Ajouter des amis</Link>}

@@ -50,8 +50,8 @@ function SortableWidget({
               <option value="md">M</option>
               <option value="lg">L</option>
             </select>
-            <button className="btn btn-icon btn-soft btn-sm" {...attributes} {...listeners} aria-label="Déplacer">⠿</button>
-            <button className="btn btn-icon btn-danger btn-sm" onClick={() => onRemove(widget.id)} aria-label="Retirer">✕</button>
+            <button className="btn btn-icon btn-soft btn-sm" {...attributes} {...listeners} aria-label="Déplacer"><Icon name="dots" size={15} /></button>
+            <button className="btn btn-icon btn-danger btn-sm" onClick={() => onRemove(widget.id)} aria-label="Retirer"><Icon name="close" size={15} /></button>
           </div>
         ) : null}
       </div>
@@ -80,7 +80,7 @@ export default function Dashboard() {
     mutationFn: (type: string) => api.addWidget(type),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["widgets"] });
-      toast.push("Widget ajouté ✨");
+      toast.push("Widget ajouté");
     },
   });
   const remove = useMutation({
@@ -98,7 +98,7 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       qc.invalidateQueries();
-      toast.push("Ton espace est prêt 🌿");
+      toast.push("Ton espace est prêt");
     },
   });
 
@@ -125,7 +125,7 @@ export default function Dashboard() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Ton atelier</p>
-          <h1>{greeting}, {user?.display_name} 🌿</h1>
+          <h1>{greeting}, {user?.display_name}</h1>
           <p className="muted">Tout ce que tu gardes, planifies et partages, au même endroit.</p>
         </div>
         <div className="row gap-2">

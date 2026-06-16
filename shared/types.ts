@@ -331,3 +331,108 @@ export interface ExpenseGroupDetail extends ExpenseGroup {
   balances: MemberBalance[];
   settle_plan: SettlePlanStep[];
 }
+
+/* ── Gestion de budget personnel (« Mes finances ») ───────────────────────── */
+export type AccountKind = "checking" | "savings" | "cash" | "card" | "investment";
+export type CategoryKind = "expense" | "income";
+export type TxType = "expense" | "income" | "transfer";
+export type Cadence = "weekly" | "monthly" | "yearly";
+
+export interface FinanceAccount {
+  id: string;
+  name: string;
+  kind: AccountKind;
+  currency: string;
+  start_balance: number;
+  icon: string;
+  color: string;
+  archived: boolean;
+  position: number;
+  balance: number; // start_balance + flux des transactions
+}
+
+export interface FinanceCategory {
+  id: string;
+  name: string;
+  kind: CategoryKind;
+  icon: string;
+  color: string;
+  monthly_budget: number | null;
+  position: number;
+  archived: boolean;
+  spent?: number; // dépensé ce mois (rempli par l'aperçu)
+}
+
+export interface FinanceTransaction {
+  id: string;
+  account_id: string;
+  category_id: string | null;
+  type: TxType;
+  amount: number;
+  date: string;
+  payee: string | null;
+  note: string | null;
+  transfer_account_id: string | null;
+  recurring_id: string | null;
+  created_at: number;
+}
+
+export interface FinanceRecurring {
+  id: string;
+  account_id: string;
+  category_id: string | null;
+  type: TxType;
+  amount: number;
+  label: string;
+  cadence: Cadence;
+  next_date: string;
+  active: boolean;
+}
+
+export interface FinanceGoal {
+  id: string;
+  name: string;
+  target_amount: number;
+  saved_amount: number;
+  target_date: string | null;
+  account_id: string | null;
+  icon: string;
+  color: string;
+}
+
+export interface FinancePartner {
+  user: PublicUser;
+  can_edit: boolean;
+  direction: "shared_by_me" | "shared_with_me";
+}
+
+export interface BudgetLine {
+  category: FinanceCategory;
+  budget: number;
+  spent: number;
+}
+
+export interface CategorySpend {
+  category_id: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  amount: number;
+}
+
+export interface FinanceOverview {
+  currency: string;
+  net_worth: number;
+  accounts: FinanceAccount[];
+  month: string; // 'YYYY-MM'
+  month_income: number;
+  month_expense: number;
+  prev_month_expense: number;
+  budget_total: number;
+  budget_spent: number;
+  budgets: BudgetLine[];
+  by_category: CategorySpend[]; // dépenses du mois par catégorie
+  goals: FinanceGoal[];
+  recent: FinanceTransaction[];
+  upcoming: FinanceRecurring[];
+}
