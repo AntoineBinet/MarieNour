@@ -46,6 +46,12 @@
 }
 
 [data-theme="dark"] {
+  /* Accent retravaillé pour le fond sombre : teinte vive + « encre » claire et
+     lisible (l'encre claire sert au texte/icônes colorés, partout dans l'app). */
+  --accent: #db7d5c;
+  --accent-soft: #6f4334;
+  --accent-ink: #f0b196;
+
   --bg: #1d1916;
   --bg-2: #221d19;
   --surface: #2a2420;
@@ -55,6 +61,16 @@
   --ink: #f3ece2;
   --ink-2: #cdbfb0;
   --muted: #9b8d7d;
+
+  /* Pastels en versions sombres harmonieuses (cartes de notes, pastilles…)
+     pour rester lisibles avec le texte clair. */
+  --sand: #3a322a;
+  --sage: #2f3a2e;
+  --sky: #2b3742;
+  --blush: #3f2e2f;
+  --lilac: #352f40;
+  --butter: #3c3422;
+
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
@@ -63,6 +79,13 @@
 [data-accent="sage"] { --accent: #6f8a5f; --accent-soft: #a8c096; --accent-ink: #4a5e3f; }
 [data-accent="ocean"] { --accent: #3f7d8a; --accent-soft: #8fbac4; --accent-ink: #2a5560; }
 [data-accent="berry"] { --accent: #b04a63; --accent-soft: #d99aab; --accent-ink: #7c3144; }
+
+/* Variantes sombres des accents : « encre » claire pour rester lisible.
+   Placées après les règles [data-accent] pour gagner en spécificité. */
+[data-theme="dark"][data-accent="plum"] { --accent: #b27ca4; --accent-soft: #543049; --accent-ink: #e7bdda; }
+[data-theme="dark"][data-accent="sage"] { --accent: #8fab7d; --accent-soft: #3f5036; --accent-ink: #c4d9b3; }
+[data-theme="dark"][data-accent="ocean"] { --accent: #5ea4b3; --accent-soft: #2f4d56; --accent-ink: #abd6e0; }
+[data-theme="dark"][data-accent="berry"] { --accent: #d07288; --accent-soft: #5c2e3b; --accent-ink: #edaebd; }
 
 * { box-sizing: border-box; }
 

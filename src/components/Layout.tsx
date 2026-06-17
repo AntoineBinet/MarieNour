@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { Icon, type IconName } from "./Icon";
 import { IntroTour } from "./IntroTour";
+import { applyTheme, currentTheme, type Theme } from "../theme";
 
 const NAV: { section: string | null; items: { to: string; label: string; ic: IconName; end?: boolean }[] }[] = [
   { section: null, items: [{ to: "/", label: "Accueil", ic: "home", end: true }] },
@@ -41,13 +42,12 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [theme, setTheme] = useState(document.documentElement.getAttribute("data-theme") || "light");
+  const [theme, setTheme] = useState<Theme>(currentTheme());
 
   const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
+    const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("mn_theme", next);
+    applyTheme(next);
   };
 
   const close = () => setOpen(false);
