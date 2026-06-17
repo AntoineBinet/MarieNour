@@ -16,7 +16,7 @@ const STEPS: Step[] = [
   {
     icon: "sparkle",
     title: "Bienvenue dans ton atelier",
-    body: "marienour réunit tout ce que tu veux garder, planifier et partager — un seul endroit, beau et simple, pensé d'abord pour toi.",
+    body: "MarieNour réunit tout ce que tu veux garder, planifier et partager — un seul endroit, beau et simple, pensé d'abord pour toi.",
   },
   {
     icon: "grid",

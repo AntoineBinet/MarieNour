@@ -25,4 +25,4 @@ bucket_name = "marienour-media"
 # le fichier .dev.vars en local (voir .dev.vars.example).
 [vars]
 ADMIN_EMAIL = "binet.antoine215@yahoo.com"
-APP_NAME = "marienour"
+APP_NAME = "MarieNour"

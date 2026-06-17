@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm, SwatchRow } from "../ui";
@@ -129,11 +129,22 @@ export default function Finance() {
   const [month, setMonth] = useState<string>(currentMonth());
   const [owner, setOwner] = useState<string>(""); // "" = moi ; sinon id du partenaire
 
+  const [quickAdd, setQuickAdd] = useState(false);
+
   const partnersQ = useQuery({ queryKey: ["finance", "partners"], queryFn: () => api.financePartners() });
   const partners = partnersQ.data?.partners ?? [];
   const sharedWithMe = partners.filter((p) => p.direction === "shared_with_me");
   const activePartner = owner ? sharedWithMe.find((p) => p.user.id === owner) : undefined;
   const canEdit = !owner || !!activePartner?.can_edit;
+
+  // Comptes & catégories (servent au démarrage guidé + à l'ajout rapide).
+  const accountsQ = useQuery({ queryKey: ["finance", "accounts"], queryFn: () => api.financeAccounts() });
+  const categoriesQ = useQuery({ queryKey: ["finance", "categories"], queryFn: () => api.financeCategories() });
+  const accounts = accountsQ.data?.accounts ?? [];
+  const categories = categoriesQ.data?.categories ?? [];
+  // Premier lancement (mon espace, rien de configuré) → carte de démarrage.
+  const needsSetup =
+    canEdit && !owner && !accountsQ.isLoading && !categoriesQ.isLoading && accounts.length === 0 && categories.length === 0;
 
   return (
     <div>
@@ -145,20 +156,29 @@ export default function Finance() {
           </h1>
           <p className="muted">Comptes, dépenses, budgets et objectifs — au même endroit.</p>
         </div>
-        {sharedWithMe.length > 0 && (
-          <div className="row gap-2" style={{ alignItems: "center" }}>
-            <Icon name="eye" size={16} className="muted" />
-            <select className="select" value={owner} onChange={(e) => setOwner(e.target.value)} style={{ minWidth: 160 }}>
-              <option value="">Espace : Moi</option>
-              {sharedWithMe.map((p) => (
-                <option key={p.user.id} value={p.user.id}>
-                  Espace : {p.user.display_name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="row gap-2 wrap" style={{ alignItems: "center" }}>
+          {sharedWithMe.length > 0 && (
+            <div className="row gap-2" style={{ alignItems: "center" }}>
+              <Icon name="eye" size={16} className="muted" />
+              <select className="select" value={owner} onChange={(e) => setOwner(e.target.value)} style={{ minWidth: 160 }}>
+                <option value="">Espace : Moi</option>
+                {sharedWithMe.map((p) => (
+                  <option key={p.user.id} value={p.user.id}>
+                    Espace : {p.user.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {canEdit && !needsSetup && (
+            <button className="btn btn-primary" onClick={() => setQuickAdd(true)}>
+              <Icon name="plus" size={16} /> Ajouter
+            </button>
+          )}
+        </div>
       </div>
+
+      {needsSetup && <FinanceStarter />}
 
       {owner && !canEdit && (
         <p className="muted small row gap-2" style={{ marginBottom: "var(--space-3)" }}>
@@ -201,6 +221,43 @@ export default function Finance() {
       {tab === "goals" && <GoalsTab canEdit={canEdit} owner={owner} />}
       {tab === "recurring" && <RecurringTab canEdit={canEdit} owner={owner} />}
       {tab === "partners" && <PartnersTab partners={partners} loading={partnersQ.isLoading} />}
+
+      {quickAdd && (
+        <TxModal tx={null} accounts={accounts} categories={categories} owner={owner} onClose={() => setQuickAdd(false)} />
+      )}
+    </div>
+  );
+}
+
+/* Carte de démarrage : crée en 1 clic un compte + des catégories courantes. */
+function FinanceStarter() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const seed = useMutation({
+    mutationFn: () => api.seedFinanceDefaults(),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["finance"] });
+      toast.push(`Prêt ! ${r.created.categories} catégories créées`);
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+  return (
+    <div className="card" style={{ marginBottom: "var(--space-4)", background: "color-mix(in srgb, var(--accent) 8%, var(--surface))" }}>
+      <div className="row gap-3 wrap" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <div className="row gap-3" style={{ alignItems: "center", minWidth: 0 }}>
+          <span style={{ flexShrink: 0 }}><Icon name="sparkle" size={22} style={{ color: "var(--accent-ink)" }} /></span>
+          <div style={{ minWidth: 0 }}>
+            <strong style={{ display: "block" }}>Démarre ton budget en un clic</strong>
+            <span className="muted small">
+              On crée un compte courant et des catégories courantes (courses, logement, transport…). Tu pourras tout
+              renommer ensuite.
+            </span>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={() => seed.mutate()} disabled={seed.isPending}>
+          <Icon name="rocket" size={16} /> {seed.isPending ? "Configuration…" : "Configurer mon budget"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -727,7 +784,24 @@ function TxModal({
       : { ...emptyTxForm(), account_id: accounts[0]?.id ?? "" },
   );
 
+  // Dès qu'un compte existe (ex. après le démarrage guidé), on le présélectionne.
+  useEffect(() => {
+    if (tx) return;
+    setForm((f) => (f.account_id || !accounts[0] ? f : { ...f, account_id: accounts[0].id }));
+  }, [accounts, tx]);
+
   const catsForType = categories.filter((c) => (form.type === "income" ? c.kind === "income" : c.kind === "expense"));
+  const noAccounts = !tx && accounts.length === 0;
+
+  // Démarrage guidé directement dans la modale si rien n'est encore configuré.
+  const seed = useMutation({
+    mutationFn: () => api.seedFinanceDefaults(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["finance"] });
+      toast.push("Budget configuré ✓");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
 
   const save = useMutation({
     mutationFn: async (b: Partial<FinanceTransaction> & { owner?: string }) => {
@@ -745,7 +819,7 @@ function TxModal({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = Number(form.amount);
-    if (!Number.isFinite(amount) || amount <= 0) return toast.push("Montant invalide", true);
+    if (!Number.isFinite(amount) || amount <= 0) return toast.push("Indique un montant", true);
     if (!form.account_id) return toast.push("Choisis un compte", true);
     if (form.type === "transfer" && !form.transfer_account_id) return toast.push("Choisis le compte de destination", true);
     save.mutate({
@@ -760,9 +834,30 @@ function TxModal({
     });
   };
 
+  // Premier lancement : rien à remplir tant qu'il n'y a pas de compte.
+  if (noAccounts) {
+    return (
+      <Modal
+        title="Nouvelle opération"
+        onClose={onClose}
+        footer={<button className="btn btn-soft" onClick={onClose}>Fermer</button>}
+      >
+        <div className="center col gap-3" style={{ padding: "var(--space-3) 0" }}>
+          <Icon name="wallet" size={34} strokeWidth={1.5} style={{ color: "var(--accent-ink)" }} />
+          <p className="muted" style={{ margin: 0 }}>
+            Avant ta première opération, créons ton compte et quelques catégories courantes — ça prend une seconde.
+          </p>
+          <button className="btn btn-primary" onClick={() => seed.mutate()} disabled={seed.isPending}>
+            <Icon name="rocket" size={16} /> {seed.isPending ? "Configuration…" : "Configurer mon budget"}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
-      title={tx ? "Modifier la transaction" : "Nouvelle transaction"}
+      title={tx ? "Modifier l'opération" : "Nouvelle opération"}
       onClose={onClose}
       footer={
         <>
@@ -774,8 +869,8 @@ function TxModal({
       }
     >
       <form onSubmit={submit}>
-        {/* Toggle type */}
-        <div className="row gap-2" style={{ marginBottom: "var(--space-3)" }}>
+        {/* 1. Type d'opération */}
+        <div className="row gap-2" style={{ marginBottom: "var(--space-4)" }}>
           {(["expense", "income", "transfer"] as TxType[]).map((tt) => (
             <button
               key={tt}
@@ -789,43 +884,82 @@ function TxModal({
           ))}
         </div>
 
-        <div className="row gap-3 wrap">
-          <div style={{ width: 140 }}>
-            <Field label="Montant">
-              <input className="input" type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" autoFocus />
-            </Field>
+        {/* 2. Montant (mis en avant) */}
+        <Field label="Montant">
+          <div className="row gap-2" style={{ alignItems: "stretch" }}>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              placeholder="0.00"
+              autoFocus
+              style={{ fontSize: "1.5rem", fontWeight: 700, flex: 1, textAlign: "right" }}
+            />
+            <input
+              className="input"
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              style={{ width: 160 }}
+            />
           </div>
-          <div style={{ width: 170 }}>
-            <Field label="Date">
-              <input className="input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </Field>
-          </div>
-        </div>
-
-        <Field label={form.type === "transfer" ? "Depuis le compte" : "Compte"}>
-          <select className="select" value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })}>
-            <option value="">—</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
         </Field>
 
+        {/* 3. Catégorie en pastilles (rapide) — sauf virement */}
         {form.type === "transfer" ? (
-          <Field label="Vers le compte">
-            <select className="select" value={form.transfer_account_id} onChange={(e) => setForm({ ...form, transfer_account_id: e.target.value })}>
-              <option value="">—</option>
-              {accounts.filter((a) => a.id !== form.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </Field>
+          <div className="row gap-3 wrap">
+            <div className="grow">
+              <Field label="Depuis le compte">
+                <select className="select" value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })}>
+                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </Field>
+            </div>
+            <div className="grow">
+              <Field label="Vers le compte">
+                <select className="select" value={form.transfer_account_id} onChange={(e) => setForm({ ...form, transfer_account_id: e.target.value })}>
+                  <option value="">—</option>
+                  {accounts.filter((a) => a.id !== form.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </Field>
+            </div>
+          </div>
         ) : (
           <Field label="Catégorie">
-            <select className="select" value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
-              <option value="">Sans catégorie</option>
-              {catsForType.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <div className="row wrap gap-2">
+              {catsForType.map((c) => {
+                const sel = form.category_id === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={sel ? "btn btn-primary btn-sm" : "btn btn-soft btn-sm"}
+                    onClick={() => setForm({ ...form, category_id: sel ? "" : c.id })}
+                  >
+                    <Icon name={(c.icon as IconName) || "tag"} size={14} /> {c.name}
+                  </button>
+                );
+              })}
+              {catsForType.length === 0 && (
+                <span className="muted small">Aucune catégorie — ajoute-en dans l'onglet Budgets.</span>
+              )}
+            </div>
+          </Field>
+        )}
+
+        {/* 4. Compte (caché si un seul) + libellé + note */}
+        {form.type !== "transfer" && accounts.length > 1 && (
+          <Field label="Compte">
+            <select className="select" value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })}>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </Field>
         )}
 
-        <Field label="Bénéficiaire / libellé">
+        <Field label="Libellé (facultatif)">
           <input className="input" value={form.payee} onChange={(e) => setForm({ ...form, payee: e.target.value })} placeholder="Supermarché, salaire…" />
         </Field>
         <Field label="Note (facultatif)">

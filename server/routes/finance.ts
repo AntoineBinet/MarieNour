@@ -557,6 +557,63 @@ app.delete("/categories/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+/* ── Démarrage en 1 clic ──────────────────────────────────────────────────
+ * Crée un compte courant (si aucun) et un jeu de catégories courantes (si
+ * aucune) pour que l'utilisateur puisse saisir une dépense tout de suite.
+ * Idempotent : ne fait rien sur ce qui existe déjà. */
+const DEFAULT_CATEGORIES: { name: string; kind: "expense" | "income"; icon: string; color: string }[] = [
+  { name: "Courses", kind: "expense", icon: "tag", color: "sage" },
+  { name: "Logement", kind: "expense", icon: "home", color: "sand" },
+  { name: "Transport", kind: "expense", icon: "car", color: "sky" },
+  { name: "Restaurants", kind: "expense", icon: "fork", color: "blush" },
+  { name: "Loisirs", kind: "expense", icon: "confetti", color: "lilac" },
+  { name: "Santé", kind: "expense", icon: "heart", color: "blush" },
+  { name: "Abonnements", kind: "expense", icon: "repeat", color: "butter" },
+  { name: "Shopping", kind: "expense", icon: "gift", color: "lilac" },
+  { name: "Voyages", kind: "expense", icon: "plane", color: "sky" },
+  { name: "Salaire", kind: "income", icon: "coins", color: "sage" },
+  { name: "Autres revenus", kind: "income", icon: "wallet", color: "sky" },
+];
+
+app.post("/seed-defaults", async (c) => {
+  const me = c.var.user!.id;
+  const ts = now();
+  const created = { accounts: 0, categories: 0 };
+
+  const accCount = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM finance_accounts WHERE user_id = ?")
+    .bind(me)
+    .first<{ n: number }>();
+  if ((accCount?.n ?? 0) === 0) {
+    await c.env.DB.prepare(
+      `INSERT INTO finance_accounts (id, user_id, name, kind, currency, start_balance, icon, color, archived, position, created_at, updated_at)
+       VALUES (?, ?, 'Compte courant', 'checking', 'EUR', 0, 'wallet', 'sand', 0, 0, ?, ?)`,
+    )
+      .bind(uid(), me, ts, ts)
+      .run();
+    created.accounts = 1;
+  }
+
+  const catCount = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM finance_categories WHERE user_id = ?")
+    .bind(me)
+    .first<{ n: number }>();
+  if ((catCount?.n ?? 0) === 0) {
+    let posExpense = 0;
+    let posIncome = 0;
+    for (const cat of DEFAULT_CATEGORIES) {
+      const pos = cat.kind === "income" ? posIncome++ : posExpense++;
+      await c.env.DB.prepare(
+        `INSERT INTO finance_categories (id, user_id, name, kind, icon, color, monthly_budget, position, archived, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 0, ?, ?)`,
+      )
+        .bind(uid(), me, cat.name, cat.kind, cat.icon, cat.color, pos, ts, ts)
+        .run();
+      created.categories++;
+    }
+  }
+
+  return c.json({ ok: true, created });
+});
+
 /* ── Transactions ───────────────────────────────────────────────────────── */
 app.get("/transactions", async (c) => {
   const space = await resolveOwner(c, c.req.query("owner"));

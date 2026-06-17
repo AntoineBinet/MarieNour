@@ -64,6 +64,39 @@ const EMPTY_FORM: TripForm = {
   kind: "trip",
 };
 
+/* ── Badge « créateur » d'un voyage partagé (mis en avant) ───────────────── */
+function OwnerBadge({ owner }: { owner: NonNullable<Trip["owner"]> }) {
+  const initial = (owner.display_name || "?").trim().charAt(0).toUpperCase();
+  return (
+    <div
+      className="row gap-2"
+      style={{
+        alignItems: "center",
+        alignSelf: "flex-start",
+        background: "var(--accent-soft)",
+        color: "var(--accent-ink)",
+        borderRadius: 999,
+        padding: "0.2rem 0.7rem 0.2rem 0.2rem",
+      }}
+    >
+      <span
+        style={{
+          width: 24, height: 24, borderRadius: "50%", overflow: "hidden", flex: "none",
+          display: "grid", placeItems: "center", background: "var(--accent)", color: "#fff",
+          fontSize: "0.72rem", fontWeight: 700,
+        }}
+      >
+        {owner.avatar_url ? (
+          <img src={owner.avatar_url} alt="" style={{ width: 24, height: 24, objectFit: "cover" }} />
+        ) : (
+          initial
+        )}
+      </span>
+      <span className="small" style={{ fontWeight: 600 }}>Partagé par {owner.display_name}</span>
+    </div>
+  );
+}
+
 export default function Trips() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -120,6 +153,78 @@ export default function Trips() {
     if (await confirm(`Supprimer le voyage « ${trip.title} » ?`)) remove.mutate(trip.id);
   };
 
+  const owned = trips.filter((t) => t.is_owner !== false);
+  const shared = trips.filter((t) => t.is_owner === false);
+
+  const renderCard = (trip: Trip) => {
+    const countdown = daysUntil(trip.start_date);
+    const range = formatDateRange(trip.start_date, trip.end_date);
+    const isShared = trip.is_owner === false;
+    return (
+      <div
+        key={trip.id}
+        className="card card-pad-sm"
+        style={{ cursor: "pointer", padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
+        onClick={() => navigate(`/voyages/${trip.id}`)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === "Enter" && navigate(`/voyages/${trip.id}`)}
+      >
+        {trip.cover_url ? (
+          <img
+            src={trip.cover_url}
+            alt={trip.title}
+            style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: "var(--radius) var(--radius) 0 0" }}
+          />
+        ) : (
+          <div
+            style={{
+              height: 140,
+              display: "grid",
+              placeItems: "center",
+              color: "#fff",
+              background: "linear-gradient(135deg, var(--accent-soft), var(--sky))",
+              borderRadius: "var(--radius) var(--radius) 0 0",
+            }}
+          >
+            <Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={48} strokeWidth={1.5} />
+          </div>
+        )}
+
+        <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1 }}>
+          <div className="row wrap" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+            <h3 style={{ flex: 1 }}>{trip.title}</h3>
+            <span className="chip">{VIS_LABEL[trip.visibility]}</span>
+          </div>
+
+          {isShared && trip.owner && <OwnerBadge owner={trip.owner} />}
+
+          <span className="tag-pill" style={{ alignSelf: "flex-start" }}>
+            <Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={13} /> {TRIP_KIND_MAP[trip.kind]?.label}
+          </span>
+          {trip.destination && <p className="muted small row gap-2"><Icon name="map" size={13} /> {trip.destination}</p>}
+          {range && <p className="small">{range}</p>}
+
+          <div className="row wrap gap-2" style={{ marginTop: "auto", paddingTop: "var(--space-2)" }}>
+            {countdown != null && (
+              <span className="chip chip-accent">dans {countdown} {countdown > 1 ? "jours" : "jour"}</span>
+            )}
+            <span className="spacer" />
+            {!isShared && (
+              <button
+                className="btn btn-icon btn-danger btn-sm"
+                onClick={(e) => askDelete(e, trip)}
+                aria-label="Supprimer"
+              >
+                <Icon name="trash" size={15} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
@@ -143,70 +248,24 @@ export default function Trips() {
           />
         </div>
       ) : (
-        <div className="grid-cards">
-          {trips.map((trip) => {
-            const countdown = daysUntil(trip.start_date);
-            const range = formatDateRange(trip.start_date, trip.end_date);
-            return (
-              <div
-                key={trip.id}
-                className="card card-pad-sm"
-                style={{ cursor: "pointer", padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
-                onClick={() => navigate(`/voyages/${trip.id}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && navigate(`/voyages/${trip.id}`)}
-              >
-                {trip.cover_url ? (
-                  <img
-                    src={trip.cover_url}
-                    alt={trip.title}
-                    style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: "var(--radius) var(--radius) 0 0" }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      height: 140,
-                      display: "grid",
-                      placeItems: "center",
-                      color: "#fff",
-                      background: "linear-gradient(135deg, var(--accent-soft), var(--sky))",
-                      borderRadius: "var(--radius) var(--radius) 0 0",
-                    }}
-                  >
-                    <Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={48} strokeWidth={1.5} />
-                  </div>
-                )}
+        <div className="col gap-5">
+          {owned.length > 0 && (
+            <section>
+              {shared.length > 0 && (
+                <div className="panel-head"><h2 className="row gap-2"><Icon name="trips" size={18} /> Mes voyages</h2></div>
+              )}
+              <div className="grid-cards">{owned.map(renderCard)}</div>
+            </section>
+          )}
 
-                <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1 }}>
-                  <div className="row wrap" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <h3 style={{ flex: 1 }}>{trip.title}</h3>
-                    <span className="chip">{VIS_LABEL[trip.visibility]}</span>
-                  </div>
-
-                  <span className="tag-pill" style={{ alignSelf: "flex-start" }}>
-                    <Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={13} /> {TRIP_KIND_MAP[trip.kind]?.label}
-                  </span>
-                  {trip.destination && <p className="muted small row gap-2"><Icon name="map" size={13} /> {trip.destination}</p>}
-                  {range && <p className="small">{range}</p>}
-
-                  <div className="row wrap gap-2" style={{ marginTop: "auto", paddingTop: "var(--space-2)" }}>
-                    {countdown != null && (
-                      <span className="chip chip-accent">dans {countdown} {countdown > 1 ? "jours" : "jour"}</span>
-                    )}
-                    <span className="spacer" />
-                    <button
-                      className="btn btn-icon btn-danger btn-sm"
-                      onClick={(e) => askDelete(e, trip)}
-                      aria-label="Supprimer"
-                    >
-                      <Icon name="trash" size={15} />
-                    </button>
-                  </div>
-                </div>
+          {shared.length > 0 && (
+            <section>
+              <div className="panel-head">
+                <h2 className="row gap-2"><Icon name="users" size={18} /> Partagé avec moi <span className="chip">{shared.length}</span></h2>
               </div>
-            );
-          })}
+              <div className="grid-cards">{shared.map(renderCard)}</div>
+            </section>
+          )}
         </div>
       )}
 

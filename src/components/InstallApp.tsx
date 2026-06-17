@@ -31,7 +31,7 @@ export default function InstallApp() {
   const install = async () => {
     const ok = await promptInstall();
     setOpen(false);
-    if (ok) toast.push("C'est parti, marienour s'installe ✓");
+    if (ok) toast.push("C'est parti, MarieNour s'installe ✓");
   };
 
   return (
@@ -44,7 +44,7 @@ export default function InstallApp() {
         <Modal title="Installer l'app" onClose={() => setOpen(false)}>
           <div className="col gap-4">
             <p className="muted" style={{ margin: 0 }}>
-              Ajoute marienour à ton écran d'accueil pour l'ouvrir comme une vraie
+              Ajoute MarieNour à ton écran d'accueil pour l'ouvrir comme une vraie
               application — en plein écran, et même hors-ligne. C'est gratuit et ça
               ne passe par aucun store.
             </p>

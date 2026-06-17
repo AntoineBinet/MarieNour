@@ -92,6 +92,16 @@ export interface Trip {
   participants?: TripParticipant[];
   participant_count?: number;
   expense_group_id?: string | null;
+  is_owner?: boolean; // false = voyage partagé (je suis participant, pas créateur)
+  owner?: TripOwner | null; // créateur du voyage (mis en avant côté « Partagé »)
+}
+
+/** Aperçu du créateur d'un voyage partagé (avatar + nom). */
+export interface TripOwner {
+  id: string;
+  display_name: string;
+  handle: string | null;
+  avatar_url: string | null;
 }
 
 export interface TripItem {
@@ -321,6 +331,27 @@ export interface EventDetail extends EventSummary {
   agenda: EventAgendaItem[];
   bring: EventBringItem[];
   expense_group_id: string | null;
+}
+
+/* ── Notifications (cloche en haut de l'app) ──────────────────────────────── */
+// Flux dérivé des données existantes (demandes d'amis, invitations à un voyage /
+// événement, événements à venir). Chaque notif a une clé stable pour pouvoir
+// être « écartée » (table notification_dismissals).
+export type NotificationType =
+  | "friend_request" // quelqu'un veut t'ajouter en ami
+  | "event_invite" // tu es invité·e à un événement (RSVP en attente)
+  | "event_upcoming" // un événement auquel tu participes approche
+  | "trip_shared"; // on t'a partagé un voyage
+
+export interface AppNotification {
+  key: string; // clé stable, ex. "friend:<id>" / "trip:<id>" / "event-soon:<id>"
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  icon: string;
+  link: string; // route in-app vers l'élément concerné
+  actor: PublicUser | null; // émetteur (pour l'avatar), si pertinent
+  created_at: number;
 }
 
 /* ── Invitations / QR ─────────────────────────────────────────────────────── */

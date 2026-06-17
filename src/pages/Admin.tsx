@@ -223,7 +223,7 @@ export default function Admin() {
   }
 
   const stats = statsQ.data?.stats ?? {};
-  const appName = statsQ.data?.app_name ?? "marienour";
+  const appName = statsQ.data?.app_name ?? "MarieNour";
   const users = (usersQ.data?.users ?? []) as unknown as AdminUser[];
 
   const askDelete = async (u: AdminUser) => {

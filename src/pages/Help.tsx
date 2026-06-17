@@ -68,11 +68,11 @@ const TOPICS: Topic[] = [
     cat: "start",
     icon: "rocket",
     title: "Installer l'application sur ton téléphone",
-    summary: "Ajoute marienour à ton écran d'accueil, comme une vraie app.",
+    summary: "Ajoute MarieNour à ton écran d'accueil, comme une vraie app.",
     keywords: "installer pwa application téléphone écran accueil hors-ligne offline ajouter android iphone ios",
     body: (
       <>
-        <p className="muted">marienour est une application installable (PWA) : un accès plein écran, rapide, et qui fonctionne même hors connexion.</p>
+        <p className="muted">MarieNour est une application installable (PWA) : un accès plein écran, rapide, et qui fonctionne même hors connexion.</p>
         <ul>
           <li><strong>iPhone / iPad (Safari)</strong> : touche le bouton Partager, puis « Sur l'écran d'accueil ».</li>
           <li><strong>Android (Chrome)</strong> : utilise le bouton <strong>Installer</strong> de la barre latérale, ou le menu ⋮ → « Installer l'application ».</li>
@@ -110,7 +110,7 @@ const TOPICS: Topic[] = [
     cta: "Choisir ma couleur",
     body: (
       <>
-        <p className="muted">marienour s'adapte à tes envies et à la lumière de la pièce.</p>
+        <p className="muted">MarieNour s'adapte à tes envies et à la lumière de la pièce.</p>
         <ul>
           <li>Bascule <strong>Clair / Sombre</strong> depuis le bas de la barre latérale (par défaut, l'app suit ton système).</li>
           <li>Dans <strong>Mon profil</strong>, choisis ta <strong>couleur d'accent</strong> : Terracotta, Prune, Sauge, Océan ou Baie.</li>
@@ -293,7 +293,7 @@ const TOPICS: Topic[] = [
     cta: "Ouvrir les dépenses",
     body: (
       <>
-        <p className="muted">Qui a payé quoi&nbsp;? Qui doit combien&nbsp;? marienour calcule tout pour toi.</p>
+        <p className="muted">Qui a payé quoi&nbsp;? Qui doit combien&nbsp;? MarieNour calcule tout pour toi.</p>
         <ul>
           <li>Crée un <strong>groupe</strong> et ajoute les participants (même non-inscrits, via QR / lien).</li>
           <li>Saisis les dépenses&nbsp;: les <strong>soldes</strong> se mettent à jour automatiquement.</li>
@@ -332,7 +332,7 @@ const TOPICS: Topic[] = [
     cta: "Ouvrir mes amis",
     body: (
       <>
-        <p className="muted">Le cœur semi-social de marienour : tes proches, et des décisions prises à plusieurs.</p>
+        <p className="muted">Le cœur semi-social de MarieNour : tes proches, et des décisions prises à plusieurs.</p>
         <ul>
           <li>Ajoute des amis (QR / lien) et gère tes invitations.</li>
           <li>Lance un <strong>sondage</strong> pour trancher un choix de groupe en un instant.</li>
@@ -373,7 +373,7 @@ const TOPICS: Topic[] = [
     cta: "Lire la politique",
     body: (
       <>
-        <p className="muted">marienour est gratuit, sans publicité et ne revend jamais tes données.</p>
+        <p className="muted">MarieNour est gratuit, sans publicité et ne revend jamais tes données.</p>
         <ul>
           <li>Mots de passe <strong>hachés</strong> (PBKDF2), échanges chiffrés (TLS), un seul cookie de session.</li>
           <li>Tu choisis précisément ce que tu partages et avec qui.</li>
@@ -388,12 +388,12 @@ const TOPICS: Topic[] = [
     id: "faq-free",
     cat: "faq",
     icon: "heart",
-    title: "marienour est-il vraiment gratuit ?",
+    title: "MarieNour est-il vraiment gratuit ?",
     summary: "Oui, et ça le restera.",
     keywords: "gratuit prix payant abonnement publicité pub",
     body: (
       <p className="muted">
-        Oui. marienour est et restera <strong>100&nbsp;% gratuit</strong>&nbsp;: aucun abonnement, aucune publicité,
+        Oui. MarieNour est et restera <strong>100&nbsp;% gratuit</strong>&nbsp;: aucun abonnement, aucune publicité,
         aucune revente de données. C'est un projet personnel d'AB&nbsp;Azur&nbsp;Tech, fourni « en l'état ».
         Pense simplement à exporter tes contenus importants de temps en temps.
       </p>
@@ -423,7 +423,7 @@ const TOPICS: Topic[] = [
     keywords: "hors-ligne offline pwa installer connexion internet avion",
     body: (
       <p className="muted">
-        Installée sur ton écran d'accueil (PWA), marienour s'ouvre et reste consultable même <strong>sans
+        Installée sur ton écran d'accueil (PWA), MarieNour s'ouvre et reste consultable même <strong>sans
         connexion</strong>. Tes modifications se synchronisent dès que le réseau revient.
       </p>
     ),
@@ -454,7 +454,7 @@ const TOPICS: Topic[] = [
     keywords: "supprimer compte effacer données départ résiliation",
     body: (
       <p className="muted">
-        Tu peux quitter marienour quand tu veux. Écris à <a href={`mailto:${CONTACT}`}>{CONTACT}</a> pour demander la
+        Tu peux quitter MarieNour quand tu veux. Écris à <a href={`mailto:${CONTACT}`}>{CONTACT}</a> pour demander la
         suppression de ton compte&nbsp;: tes données personnelles sont alors effacées, comme décrit dans la politique
         de confidentialité.
       </p>
@@ -536,7 +536,7 @@ export default function Help() {
         <span className="help-hero-icon"><Icon name="lightbulb" size={34} strokeWidth={1.5} /></span>
         <span className="landing-eyebrow"><Icon name="sparkle" size={13} /> Centre d'aide</span>
         <h1 style={{ marginTop: "var(--space-3)" }}>Comment pouvons-nous t'aider&nbsp;?</h1>
-        <p className="muted">Tout ce qu'il faut savoir pour tirer le meilleur de marienour.</p>
+        <p className="muted">Tout ce qu'il faut savoir pour tirer le meilleur de MarieNour.</p>
 
         <div className="help-search">
           <span className="help-search-ic"><Icon name="search" size={18} /></span>

@@ -4,6 +4,7 @@ import { useAuth } from "../auth";
 import { Icon, type IconName } from "./Icon";
 import { IntroTour } from "./IntroTour";
 import InstallApp from "./InstallApp";
+import NotificationBell from "./NotificationBell";
 import { applyTheme, currentTheme, type Theme } from "../theme";
 
 const NAV: { section: string | null; items: { to: string; label: string; ic: IconName; end?: boolean }[] }[] = [
@@ -60,7 +61,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <aside className={`sidebar${open ? " open" : ""}`}>
         <div className="brand">
           <img src="/favicon.svg" alt="" className="brand-logo" />
-          <span className="brand-name">marienour</span>
+          <span className="brand-name">MarieNour</span>
         </div>
 
         <nav className="nav">
@@ -132,9 +133,10 @@ export default function Layout({ children }: { children: ReactNode }) {
       <div className="main">
         <header className="topbar">
           <button className="btn btn-soft btn-icon menu-btn" onClick={() => setOpen((o) => !o)} aria-label="Menu"><Icon name="menu" size={18} /></button>
+          <NotificationBell />
           <div className="brand topbar-brand">
             <img src="/favicon.svg" alt="" className="brand-logo" style={{ width: 28, height: 28 }} />
-            <span className="brand-name" style={{ fontSize: "1.05rem" }}>marienour</span>
+            <span className="brand-name" style={{ fontSize: "1.05rem" }}>MarieNour</span>
           </div>
           <div className="grow" />
         </header>
@@ -149,7 +151,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <Link to="/mentions-legales">Mentions légales</Link>
             </div>
             <div className="app-footer-meta">
-              marienour — service gratuit de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, sans pub ni revente de données.
+              MarieNour — service gratuit de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, sans pub ni revente de données.
             </div>
           </footer>
         </main>
