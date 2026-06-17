@@ -46,7 +46,7 @@ async function rawNotifications(c: { env: AppEnv["Bindings"]; var: AppEnv["Varia
 
   // ── Demandes d'amis reçues (en attente) ──────────────────────────────────
   const friendReqs = await c.env.DB.prepare(
-    `SELECT f.id AS fid, f.created_at AS created_at, ${PUB.split(", ").map((x) => `u.${x}`).join(", ")}
+    `SELECT f.id AS fid, f.created_at AS req_created_at, ${PUB.split(", ").map((x) => `u.${x}`).join(", ")}
      FROM friendships f JOIN users u ON u.id = f.requester_id
      WHERE f.addressee_id = ? AND f.status = 'pending'`,
   )
@@ -62,7 +62,7 @@ async function rawNotifications(c: { env: AppEnv["Bindings"]; var: AppEnv["Varia
       icon: "friends",
       link: "/amis",
       actor,
-      created_at: r.created_at as number,
+      created_at: (r.req_created_at as number) ?? now(),
     });
   }
 
