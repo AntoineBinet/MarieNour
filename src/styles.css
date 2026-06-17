@@ -388,6 +388,30 @@ body { overscroll-behavior-y: none; }
 .landing-why-card { padding: var(--space-4); }
 .landing-footer { padding: var(--space-6) var(--space-4) calc(env(safe-area-inset-bottom, 0px) + var(--space-5)); line-height: 1.7; }
 
+/* ── Pied de page in-app (sous le contenu de chaque page) ─────────────── */
+.app-footer {
+  margin-top: var(--space-7); padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  text-align: center; color: var(--muted); font-size: 0.78rem;
+}
+.app-footer-links { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 8px; }
+.app-footer-links a { color: var(--muted); }
+.app-footer-links a:hover { color: var(--accent-ink); text-decoration: underline; }
+.app-footer-links .sep { opacity: 0.45; }
+.app-footer-meta { max-width: 52ch; line-height: 1.5; }
+
+/* ── Navigation entre documents légaux ────────────────────────────────── */
+.legal-nav {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 8px 16px; margin: var(--space-5) 0; padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border); font-size: 0.82rem; font-weight: 600;
+}
+.legal-nav + .legal-nav { margin-top: var(--space-6); border-bottom: none; padding-bottom: 0; }
+.legal-nav a { color: var(--muted); }
+.legal-nav a:hover { color: var(--accent-ink); text-decoration: underline; }
+.legal-nav-current { color: var(--accent-ink); }
+
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
 /* ════════════════════════════════════════════════════════════════════════

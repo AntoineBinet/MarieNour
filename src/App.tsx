@@ -3,7 +3,7 @@ import { useAuth } from "./auth";
 import { Spinner } from "./ui";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
-import { Mentions, Confidentialite } from "./pages/Legal";
+import { Mentions, Confidentialite, CGU } from "./pages/Legal";
 import Dashboard from "./pages/Dashboard";
 import Lists from "./pages/Lists";
 import Notes from "./pages/Notes";
@@ -35,6 +35,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/i/:token" element={<Invite />} />
       <Route path="/mentions-legales" element={<Mentions />} />
+      <Route path="/cgu" element={<CGU />} />
       <Route path="/confidentialite" element={<Confidentialite />} />
       <Route
         path="/*"
