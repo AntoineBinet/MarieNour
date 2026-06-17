@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth";
 import { Spinner } from "./ui";
 import Layout from "./components/Layout";
+import PwaUpdatePrompt from "./components/PwaUpdatePrompt";
 import Login from "./pages/Login";
 import { Mentions, Confidentialite, CGU } from "./pages/Legal";
 import Dashboard from "./pages/Dashboard";
@@ -33,7 +34,9 @@ function Protected({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <PwaUpdatePrompt />
+      <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/i/:token" element={<Invite />} />
       <Route path="/mentions-legales" element={<Mentions />} />
@@ -68,6 +71,7 @@ export default function App() {
           </Protected>
         }
       />
-    </Routes>
+      </Routes>
+    </>
   );
 }

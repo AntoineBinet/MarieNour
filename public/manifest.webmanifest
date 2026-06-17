@@ -2,11 +2,24 @@
   "name": "marienour — ton atelier",
   "short_name": "marienour",
   "description": "Tout garder, planifier et partager au même endroit.",
+  "id": "/",
+  "scope": "/",
   "start_url": "/",
   "display": "standalone",
+  "lang": "fr",
+  "dir": "ltr",
   "background_color": "#f6efe7",
   "theme_color": "#f6efe7",
+  "categories": ["productivity", "lifestyle"],
   "icons": [
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Listes", "url": "/listes" },
+    { "name": "Voyages", "url": "/voyages" },
+    { "name": "Recettes", "url": "/recettes" }
   ]
 }
