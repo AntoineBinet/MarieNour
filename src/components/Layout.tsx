@@ -94,6 +94,10 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="spacer" />
 
         <div className="col gap-2">
+          <NavLink to="/aide" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
+            <span className="ic"><Icon name="lightbulb" size={19} /></span>
+            Aide &amp; support
+          </NavLink>
           <NavLink to="/profil" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
             <span className="ic">
               {user?.avatar_url ? (

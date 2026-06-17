@@ -23,6 +23,7 @@ import Profile from "./pages/Profile";
 import PublicProfile from "./pages/PublicProfile";
 import Admin from "./pages/Admin";
 import Invite from "./pages/Invite";
+import Help from "./pages/Help";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -62,6 +63,7 @@ export default function App() {
                 <Route path="/finances" element={<Finance />} />
                 <Route path="/feed" element={<Feed />} />
                 <Route path="/amis" element={<Friends />} />
+                <Route path="/aide" element={<Help />} />
                 <Route path="/profil" element={<Profile />} />
                 <Route path="/u/:handle" element={<PublicProfile />} />
                 <Route path="/admin" element={<Admin />} />

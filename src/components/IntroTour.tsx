@@ -1,6 +1,7 @@
 // Petit tutoriel d'accueil affiché à chaque connexion, tant que l'utilisateur
 // n'a pas coché « Ne plus afficher l'introduction » (mémorisé en local).
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "./Icon";
 
 const HIDE_KEY = "mn_hide_intro";
@@ -40,6 +41,7 @@ const STEPS: Step[] = [
 ];
 
 export function IntroTour() {
+  const navigate = useNavigate();
   const [hidden, setHidden] = useState(() => {
     try {
       return localStorage.getItem(HIDE_KEY) === "1";
@@ -115,6 +117,19 @@ export function IntroTour() {
             </button>
           )}
         </div>
+
+        {last && (
+          <button
+            type="button"
+            className="intro-help-link"
+            onClick={() => {
+              close();
+              navigate("/aide");
+            }}
+          >
+            <Icon name="lightbulb" size={14} /> Besoin d'un coup de main ? Voir le centre d'aide
+          </button>
+        )}
       </div>
     </div>
   );
