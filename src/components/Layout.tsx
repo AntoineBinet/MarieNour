@@ -60,7 +60,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <aside className={`sidebar${open ? " open" : ""}`}>
         <div className="brand">
           <img src="/favicon.svg" alt="" className="brand-logo" />
-          <span className="brand-name">marienour</span>
+          <span className="brand-name">MarieNour</span>
         </div>
 
         <nav className="nav">
@@ -134,7 +134,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <button className="btn btn-soft btn-icon menu-btn" onClick={() => setOpen((o) => !o)} aria-label="Menu"><Icon name="menu" size={18} /></button>
           <div className="brand topbar-brand">
             <img src="/favicon.svg" alt="" className="brand-logo" style={{ width: 28, height: 28 }} />
-            <span className="brand-name" style={{ fontSize: "1.05rem" }}>marienour</span>
+            <span className="brand-name" style={{ fontSize: "1.05rem" }}>MarieNour</span>
           </div>
           <div className="grow" />
         </header>
@@ -149,7 +149,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <Link to="/mentions-legales">Mentions légales</Link>
             </div>
             <div className="app-footer-meta">
-              marienour — service gratuit de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, sans pub ni revente de données.
+              MarieNour — service gratuit de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, sans pub ni revente de données.
             </div>
           </footer>
         </main>

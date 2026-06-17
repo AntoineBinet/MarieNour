@@ -171,7 +171,7 @@ if [[ ! -f /etc/marienour/marienour.env ]]; then
 ADMIN_EMAIL=binet.antoine215@yahoo.com
 ADMIN_PASSWORD=
 SESSION_SECRET=
-APP_NAME=marienour
+APP_NAME=MarieNour
 EOF
   fi
   warn "Édite /etc/marienour/marienour.env (ADMIN_PASSWORD + SESSION_SECRET) avant de démarrer."

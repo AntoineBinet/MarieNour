@@ -20,7 +20,7 @@ app.post("/seed", async (c) => {
   const listId = uid();
   await c.env.DB.prepare(
     `INSERT INTO lists (id, user_id, title, emoji, color, kind, archived, visibility, position, created_at, updated_at)
-     VALUES (?, ?, 'Premiers pas sur marienour', '🌿', 'sage', 'checklist', 0, 'private', 0, ?, ?)`,
+     VALUES (?, ?, 'Premiers pas sur MarieNour', '🌿', 'sage', 'checklist', 0, 'private', 0, ?, ?)`,
   )
     .bind(listId, me, ts, ts)
     .run();

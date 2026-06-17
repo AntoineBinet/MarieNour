@@ -57,7 +57,7 @@ function LegalShell({
           <Link className="btn btn-soft" to="/">← Retour à l'application</Link>
         </div>
         <p className="muted small center" style={{ marginTop: "var(--space-4)" }}>
-          marienour est un service de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, micro-entreprise d'Antoine Binet.
+          MarieNour est un service de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, micro-entreprise d'Antoine Binet.
         </p>
       </div>
     </div>
@@ -77,7 +77,7 @@ export function Mentions() {
   return (
     <LegalShell eyebrow="Informations légales" title="Mentions légales" current="mentions">
       <Section title="Éditeur du site">
-        Le site et l'application <strong>marienour</strong> (marienour.work) sont créés et édités par{" "}
+        Le site et l'application <strong>MarieNour</strong> (marienour.work) sont créés et édités par{" "}
         <strong>Antoine Binet</strong>, entrepreneur individuel exerçant{" "}
         <strong>en micro-entreprise</strong> sous le nom commercial «&nbsp;AB&nbsp;Azur&nbsp;Tech&nbsp;».<br />
         Forme juridique&nbsp;: Entreprise individuelle — micro-entreprise.<br />
@@ -90,7 +90,7 @@ export function Mentions() {
       </Section>
 
       <Section title="Lien avec AB Azur Tech">
-        marienour fait partie des applications conçues et publiées par{" "}
+        MarieNour fait partie des applications conçues et publiées par{" "}
         <strong>AB&nbsp;Azur&nbsp;Tech</strong>, le nom commercial sous lequel Antoine Binet développe ses
         services (voir aussi le portfolio <a href="https://ab-azurtech.com" target="_blank" rel="noopener noreferrer">ab-azurtech.com</a>).
         Il s'agit d'une <strong>application personnelle et gratuite</strong>, indépendante&nbsp;: AB&nbsp;Azur&nbsp;Tech
@@ -107,14 +107,14 @@ export function Mentions() {
       </Section>
 
       <Section title="Propriété intellectuelle">
-        L'interface, le code, le nom et les visuels de marienour sont, sauf mention contraire, la propriété
+        L'interface, le code, le nom et les visuels de MarieNour sont, sauf mention contraire, la propriété
         d'Antoine Binet (AB Azur Tech). Les contenus que vous publiez (textes, photos, listes, etc.) restent
         votre propriété&nbsp;; vous nous accordez uniquement le droit de les héberger et de les afficher pour
         faire fonctionner le service. Toute reproduction non autorisée de l'application est interdite.
       </Section>
 
       <Section title="Conditions d'utilisation & données personnelles">
-        L'usage de marienour est régi par nos{" "}
+        L'usage de MarieNour est régi par nos{" "}
         <Link to="/cgu">conditions générales d'utilisation</Link>. Le traitement de vos données est décrit
         dans notre <Link to="/confidentialite">politique de confidentialité</Link>.
       </Section>
@@ -132,12 +132,12 @@ export function CGU() {
     <LegalShell eyebrow="Conditions d'utilisation" title="Conditions générales d'utilisation" current="cgu">
       <p className="muted" style={{ lineHeight: 1.65 }}>
         Les présentes conditions générales d'utilisation (les «&nbsp;CGU&nbsp;») encadrent l'accès et
-        l'usage de l'application <strong>marienour</strong>. En créant un compte ou en utilisant le service,
+        l'usage de l'application <strong>MarieNour</strong>. En créant un compte ou en utilisant le service,
         vous acceptez ces CGU. Si vous ne les acceptez pas, n'utilisez pas l'application.
       </p>
 
       <Section title="1. Objet & éditeur">
-        marienour est un <strong>hub personnel</strong> permettant d'organiser et de partager des contenus
+        MarieNour est un <strong>hub personnel</strong> permettant d'organiser et de partager des contenus
         (listes, notes, voyages, recettes, inspirations, photos, dépenses partagées, etc.). Le service est
         édité par <strong>Antoine Binet</strong>, micro-entreprise exerçant sous le nom{" "}
         <strong>AB&nbsp;Azur&nbsp;Tech</strong> (voir les{" "}
@@ -145,7 +145,7 @@ export function CGU() {
       </Section>
 
       <Section title="2. Une application 100 % gratuite, fournie « en l'état »">
-        marienour est et restera une <strong>application gratuite</strong>&nbsp;: aucun paiement, aucun
+        MarieNour est et restera une <strong>application gratuite</strong>&nbsp;: aucun paiement, aucun
         abonnement, aucune publicité, aucune revente de vos données. En contrepartie, le service est fourni{" "}
         <strong>«&nbsp;en l'état&nbsp;»</strong> et «&nbsp;selon disponibilité&nbsp;», sans garantie de
         résultat, de disponibilité continue ni d'absence d'erreur. Il s'agit d'un projet personnel&nbsp;:
@@ -185,12 +185,12 @@ export function CGU() {
         Vous vous engagez à ne pas&nbsp;: (a) publier de contenu illicite, haineux, diffamatoire,
         harcelant, violent ou portant atteinte aux droits d'autrui&nbsp;; (b) usurper l'identité d'un tiers
         ou collecter ses données sans son accord&nbsp;; (c) tenter de contourner la sécurité, surcharger,
-        copier massivement (scraping) ou perturber le service&nbsp;; (d) utiliser marienour à des fins
+        copier massivement (scraping) ou perturber le service&nbsp;; (d) utiliser MarieNour à des fins
         commerciales, de spam ou frauduleuses. Tout manquement peut entraîner la suspension du compte.
       </Section>
 
       <Section title="7. Partage & dimension sociale">
-        marienour est semi-social&nbsp;: vous pouvez relier des amis, partager des voyages, des dépenses ou
+        MarieNour est semi-social&nbsp;: vous pouvez relier des amis, partager des voyages, des dépenses ou
         un profil public. Les contenus que vous <strong>choisissez de partager</strong> deviennent visibles
         par les membres concernés. Vous gardez la maîtrise de ce que vous partagez et avec qui&nbsp;;
         respectez en retour la vie privée des autres membres.
@@ -198,7 +198,7 @@ export function CGU() {
 
       <Section title="8. Disponibilité, maintenance & évolutions">
         Le service peut être interrompu pour maintenance, mise à jour ou raison technique, sans préavis.
-        Les fonctionnalités peuvent évoluer, apparaître ou disparaître. Étant gratuit, marienour n'offre
+        Les fonctionnalités peuvent évoluer, apparaître ou disparaître. Étant gratuit, MarieNour n'offre
         aucun engagement de niveau de service (SLA) ni de support garanti.
       </Section>
 
@@ -206,7 +206,7 @@ export function CGU() {
         Dans les limites permises par la loi, et compte tenu du caractère <strong>gratuit</strong> du
         service, la responsabilité de l'éditeur ne saurait être engagée pour les dommages indirects, la
         perte de données, l'indisponibilité du service ou l'usage que vous faites des contenus. Vous
-        utilisez marienour sous votre propre responsabilité. Rien dans ces CGU n'exclut la responsabilité
+        utilisez MarieNour sous votre propre responsabilité. Rien dans ces CGU n'exclut la responsabilité
         qui ne peut l'être en droit français (notamment en cas de faute lourde ou dolosive).
       </Section>
 
@@ -244,7 +244,7 @@ export function Confidentialite() {
   return (
     <LegalShell eyebrow="Vie privée" title="Politique de confidentialité" current="confidentialite">
       <p className="muted" style={{ lineHeight: 1.65 }}>
-        marienour accorde une grande importance à la protection de vos données. Cette page, conforme au{" "}
+        MarieNour accorde une grande importance à la protection de vos données. Cette page, conforme au{" "}
         <strong>Règlement général sur la protection des données (RGPD)</strong>, explique quelles données
         sont traitées, pourquoi, combien de temps, avec qui, et comment exercer vos droits.
       </p>
@@ -288,7 +288,7 @@ export function Confidentialite() {
       </Section>
 
       <Section title="Cookies & traceurs">
-        marienour utilise un seul <strong>cookie de session</strong>, strictement nécessaire pour vous
+        MarieNour utilise un seul <strong>cookie de session</strong>, strictement nécessaire pour vous
         garder connecté (httpOnly, sécurisé). Aucun cookie publicitaire, aucun pisteur tiers, aucun outil de
         statistiques&nbsp;: aucune bannière de consentement n'est donc requise.
       </Section>

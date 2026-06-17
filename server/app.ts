@@ -26,7 +26,7 @@ export function createApp() {
   // Charge l'utilisateur courant pour toutes les routes.
   app.use("*", attachUser);
 
-  app.get("/health", (c) => c.json({ ok: true, app: c.env.APP_NAME ?? "marienour" }));
+  app.get("/health", (c) => c.json({ ok: true, app: c.env.APP_NAME ?? "MarieNour" }));
 
   app.route("/auth", authRoutes);
   app.route("/friends", friendsRoutes);

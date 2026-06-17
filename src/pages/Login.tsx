@@ -107,7 +107,7 @@ export default function Login() {
       <header className="landing-nav">
         <div className="brand">
           <img src="/favicon.svg" alt="" className="brand-logo" />
-          <span className="brand-name">marienour</span>
+          <span className="brand-name">MarieNour</span>
         </div>
         <button className="btn btn-soft btn-sm landing-nav-cta" onClick={goAuth}>Se connecter</button>
       </header>
