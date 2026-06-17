@@ -453,6 +453,68 @@ body { overscroll-behavior-y: none; }
 .intro-dot.active { background: var(--accent); width: 22px; }
 .intro-skip { justify-content: center; cursor: pointer; user-select: none; }
 .intro-skip input { width: 16px; height: 16px; accent-color: var(--accent); }
+.intro-help-link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  margin: var(--space-4) auto 0; padding: 4px 8px; background: none; border: none; cursor: pointer;
+  color: var(--accent-ink); font-family: var(--font-body); font-weight: 600; font-size: 0.85rem;
+}
+.intro-help-link:hover { text-decoration: underline; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Centre d'aide (page /aide)
+   ════════════════════════════════════════════════════════════════════════ */
+.help-hero { text-align: center; padding: var(--space-4) 0 var(--space-2); }
+.help-hero-icon {
+  display: grid; place-items: center; width: 74px; height: 74px; border-radius: 22px;
+  margin: 0 auto var(--space-4); color: var(--accent-ink);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--sky) 60%, transparent));
+  animation: rise 0.4s ease both;
+}
+.help-search { position: relative; max-width: 520px; margin: var(--space-5) auto 0; }
+.help-search .input { padding-left: 2.6rem; padding-right: 2.6rem; border-radius: 999px; }
+.help-search .input::-webkit-search-cancel-button { display: none; }
+.help-search-ic { position: absolute; left: 0.95rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; display: inline-flex; }
+.help-search-clear {
+  position: absolute; right: 0.55rem; top: 50%; transform: translateY(-50%);
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: var(--surface-2); color: var(--ink-2); cursor: pointer;
+}
+.help-search-clear:hover { background: var(--bg-2); }
+
+.help-body { max-width: 820px; margin: 0 auto; }
+.help-cats { display: flex; justify-content: flex-start; margin: var(--space-5) 0; }
+@media (min-width: 720px) { .help-cats { justify-content: center; } }
+
+.help-section { margin-top: var(--space-6); }
+.help-section-title {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); margin-bottom: var(--space-3);
+}
+.help-topics { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.help-topic { padding: 0; overflow: hidden; transition: box-shadow 0.15s ease, border-color 0.15s ease; }
+.help-topic.open { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+.help-topic-head {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer; padding: var(--space-4);
+  font-family: var(--font-body); color: var(--ink);
+}
+.help-topic-head:hover { background: var(--surface-2); }
+.help-topic-ic {
+  display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; flex: none;
+  color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+.help-topic-title { font-family: var(--font-display); font-weight: 600; font-size: 1rem; line-height: 1.25; }
+.help-chevron { color: var(--muted); flex: none; display: inline-flex; transition: transform 0.2s ease; }
+.help-chevron.open { transform: rotate(90deg); color: var(--accent-ink); }
+
+.help-topic-body { padding: 0 var(--space-4) var(--space-4); animation: rise 0.25s ease both; }
+.help-topic-inner { border-top: 1px dashed var(--border); padding-top: var(--space-3); line-height: 1.6; color: var(--ink-2); }
+.help-topic-inner ul { margin: var(--space-2) 0 0; padding-left: 1.15em; display: grid; gap: 6px; }
+.help-topic-inner strong { color: var(--ink); }
+
+.help-contact { text-align: center; margin-top: var(--space-6); background: color-mix(in srgb, var(--accent) 6%, transparent); }
 
 /* ════════════════════════════════════════════════════════════════════════
    Responsive / iPhone — la grosse passe mobile
