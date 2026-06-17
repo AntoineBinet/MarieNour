@@ -13,7 +13,7 @@ import type { InviteKind, PublicUser } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 
-const KINDS: InviteKind[] = ["friend", "trip", "group"];
+const KINDS: InviteKind[] = ["friend", "trip", "group", "event"];
 
 // Alphabet sans caractères ambigus (0/O, 1/l/I) pour un code lisible sur un QR.
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghijkmnpqrstuvwxyz";
@@ -49,6 +49,10 @@ async function targetTitle(db: AppEnv["Bindings"]["DB"], kind: string, targetId:
     const r = await db.prepare("SELECT title FROM expense_groups WHERE id = ?").bind(targetId).first<{ title: string }>();
     return r?.title ?? null;
   }
+  if (kind === "event") {
+    const r = await db.prepare("SELECT title FROM events WHERE id = ?").bind(targetId).first<{ title: string }>();
+    return r?.title ?? null;
+  }
   return null;
 }
 
@@ -70,6 +74,16 @@ app.post("/", requireAuth, async (c) => {
   } else if (kind === "group") {
     const ok = await c.env.DB.prepare("SELECT 1 FROM expense_groups WHERE id = ? AND owner_id = ?").bind(targetId, me).first();
     if (!ok) return c.json({ error: "Groupe introuvable" }, 404);
+  } else if (kind === "event") {
+    // L'organisateur d'origine OU un co-hôte peut générer une invitation.
+    const ok = await c.env.DB.prepare(
+      `SELECT 1 FROM events e WHERE e.id = ?
+         AND (e.user_id = ?
+              OR EXISTS (SELECT 1 FROM event_guests g WHERE g.event_id = e.id AND g.user_id = ? AND g.role IN ('owner','cohost')))`,
+    )
+      .bind(targetId, me, me)
+      .first();
+    if (!ok) return c.json({ error: "Événement introuvable" }, 404);
   }
 
   const token = inviteToken();
@@ -163,6 +177,33 @@ app.post("/:token/accept", requireAuth, async (c) => {
       if (!exists) {
         await c.env.DB.prepare(
           "INSERT INTO trip_participants (id, trip_id, user_id, name, role, color, created_at) VALUES (?, ?, ?, ?, 'traveller', NULL, ?)",
+        )
+          .bind(uid(), targetId, me.id, me.display_name, ts)
+          .run();
+      }
+    }
+  } else if (kind === "event" && targetId) {
+    // Réclame l'invité « placeholder » (sans compte) s'il est fourni, sinon
+    // ajoute la personne comme nouvel invité (RSVP en attente).
+    let claimed = false;
+    if (memberId) {
+      const g = await c.env.DB.prepare("SELECT id, user_id FROM event_guests WHERE id = ? AND event_id = ?")
+        .bind(memberId, targetId)
+        .first<{ id: string; user_id: string | null }>();
+      if (g && !g.user_id) {
+        await c.env.DB.prepare("UPDATE event_guests SET user_id = ?, name = ? WHERE id = ?")
+          .bind(me.id, me.display_name, memberId)
+          .run();
+        claimed = true;
+      }
+    }
+    if (!claimed) {
+      const exists = await c.env.DB.prepare("SELECT 1 FROM event_guests WHERE event_id = ? AND user_id = ?")
+        .bind(targetId, me.id)
+        .first();
+      if (!exists) {
+        await c.env.DB.prepare(
+          "INSERT INTO event_guests (id, event_id, user_id, name, role, rsvp, plus_ones, note, color, created_at) VALUES (?, ?, ?, ?, 'guest', 'pending', 0, NULL, NULL, ?)",
         )
           .bind(uid(), targetId, me.id, me.display_name, ts)
           .run();

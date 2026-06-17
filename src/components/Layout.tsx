@@ -14,6 +14,7 @@ const NAV: { section: string | null; items: { to: string; label: string; ic: Ico
       { to: "/listes", label: "Listes & checklists", ic: "lists" },
       { to: "/notes", label: "Notes & idées", ic: "notes" },
       { to: "/voyages", label: "Voyages", ic: "trips" },
+      { to: "/evenements", label: "Événements", ic: "confetti" },
       { to: "/recettes", label: "Recettes", ic: "recipes" },
       { to: "/inspiration", label: "Inspiration", ic: "inspiration" },
       { to: "/photos", label: "Photos", ic: "photos" },

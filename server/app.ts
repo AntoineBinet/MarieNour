@@ -18,6 +18,7 @@ import pollsRoutes from "./routes/polls";
 import invitesRoutes from "./routes/invites";
 import onboardingRoutes from "./routes/onboarding";
 import financeRoutes from "./routes/finance";
+import eventsRoutes from "./routes/events";
 
 export function createApp() {
   const app = new Hono<AppEnv>().basePath("/api");
@@ -43,6 +44,7 @@ export function createApp() {
   app.route("/invites", invitesRoutes);
   app.route("/onboarding", onboardingRoutes);
   app.route("/finance", financeRoutes);
+  app.route("/events", eventsRoutes);
 
   app.notFound((c) => c.json({ error: "Route introuvable" }, 404));
   app.onError((err, c) => {

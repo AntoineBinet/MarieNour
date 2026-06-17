@@ -13,12 +13,14 @@ const TITLES: Record<InviteKind, string> = {
   friend: "Ajoute-moi en ami",
   trip: "Rejoins le voyage",
   group: "Rejoins le groupe de dépenses",
+  event: "Rejoins l'événement",
 };
 
 const HINTS: Record<InviteKind, string> = {
   friend: "Fais scanner ce QR code (ou partage le lien). Même sans compte, la personne pourra s'inscrire puis t'ajouter d'un tap.",
   trip: "La personne scanne, crée son compte si besoin, et rejoint automatiquement le voyage.",
   group: "La personne scanne et rejoint le groupe — ses dépenses seront partagées avec toi.",
+  event: "La personne scanne, crée son compte si besoin, et rejoint l'événement pour répondre à l'invitation (RSVP).",
 };
 
 export interface InviteQrProps {

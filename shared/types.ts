@@ -212,8 +212,119 @@ export interface TripParticipant {
   is_me: boolean;
 }
 
+/* ── Événements (week-end, EVG/EVJF, soirée, anniv…) ──────────────────────── */
+export type EventKind =
+  | "weekend"
+  | "evg"
+  | "evjf"
+  | "party"
+  | "birthday"
+  | "dinner"
+  | "aperitif"
+  | "wedding"
+  | "trip"
+  | "other";
+export type EventStatus = "planning" | "confirmed" | "cancelled" | "done";
+export type Rsvp = "pending" | "yes" | "no" | "maybe";
+export type GuestRole = "owner" | "cohost" | "guest";
+export type EventItemKind = "activity" | "food" | "transport" | "break" | "other";
+export type BringCategory = "food" | "drink" | "material" | "other";
+export type DateVote = "yes" | "maybe" | "no";
+
+export interface EventGuest {
+  id: string;
+  user_id: string | null; // null = invité hors-app (réclamable via QR/lien)
+  name: string;
+  role: GuestRole;
+  rsvp: Rsvp;
+  plus_ones: number;
+  note: string | null;
+  color: string | null;
+  handle: string | null;
+  avatar_url: string | null;
+  is_me: boolean;
+}
+
+export interface EventDateOption {
+  id: string;
+  day_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  position: number;
+  yes: number;
+  maybe: number;
+  no: number;
+  my_vote: DateVote | null;
+}
+
+export interface EventTask {
+  id: string;
+  title: string;
+  assignee_id: string | null;
+  done: boolean;
+  due_date: string | null;
+  position: number;
+}
+
+export interface EventAgendaItem {
+  id: string;
+  day_date: string | null;
+  time: string | null;
+  title: string;
+  kind: EventItemKind;
+  location: string | null;
+  notes: string | null;
+  position: number;
+}
+
+export interface EventBringItem {
+  id: string;
+  title: string;
+  qty_needed: number;
+  category: BringCategory;
+  claimed_by: string | null; // guest id
+  note: string | null;
+  position: number;
+}
+
+export interface EventSummary {
+  id: string;
+  title: string;
+  kind: EventKind;
+  description: string | null;
+  location: string | null;
+  start_date: string | null;
+  start_time: string | null;
+  end_date: string | null;
+  end_time: string | null;
+  cover_url: string | null;
+  budget: number | null;
+  currency: string;
+  capacity: number | null;
+  rsvp_deadline: string | null;
+  status: EventStatus;
+  date_decided: boolean;
+  visibility: Visibility;
+  created_at: number;
+  updated_at: number;
+  is_host: boolean; // suis-je organisateur/co-hôte ?
+  my_rsvp: Rsvp | null; // ma réponse si je suis invité
+  guest_count: number; // nb d'invités (lignes)
+  going_count: number; // nb de personnes attendues (oui + accompagnants)
+}
+
+export interface EventDetail extends EventSummary {
+  address: string | null;
+  guests: EventGuest[];
+  date_options: EventDateOption[];
+  tasks: EventTask[];
+  agenda: EventAgendaItem[];
+  bring: EventBringItem[];
+  expense_group_id: string | null;
+}
+
 /* ── Invitations / QR ─────────────────────────────────────────────────────── */
-export type InviteKind = "friend" | "trip" | "group";
+export type InviteKind = "friend" | "trip" | "group" | "event";
 
 export interface Invite {
   token: string;
@@ -316,6 +427,7 @@ export interface ExpenseGroup {
   icon: string;
   currency: string;
   trip_id: string | null;
+  event_id: string | null;
   archived: boolean;
   created_at: number;
   updated_at: number;

@@ -14,7 +14,7 @@ app.post("/seed", async (c) => {
   if (flag?.onboarded) return c.json({ ok: true, created: {} });
 
   const ts = now();
-  const created: Record<string, number> = { lists: 0, notes: 0, trips: 0 };
+  const created: Record<string, number> = { lists: 0, notes: 0, trips: 0, events: 0 };
 
   // ── Une checklist « Premiers pas » pré-remplie ───────────────────────────
   const listId = uid();
@@ -77,6 +77,33 @@ app.post("/seed", async (c) => {
     .bind(uid(), me, ts, ts)
     .run();
   created.trips = 1;
+
+  // ── Un événement exemple (montre le RSVP + le sondage de dates) ──────────
+  const eventId = uid();
+  await c.env.DB.prepare(
+    `INSERT INTO events (id, user_id, title, kind, description, location, address, start_date, start_time, end_date, end_time,
+       cover_url, budget, currency, capacity, rsvp_deadline, status, date_decided, visibility, created_at, updated_at)
+     VALUES (?, ?, 'Soirée entre amis', 'party', 'Première soirée à organiser : propose des dates et invite tes amis !',
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'EUR', NULL, NULL, 'planning', 0, 'friends', ?, ?)`,
+  )
+    .bind(eventId, me, ts, ts)
+    .run();
+  await c.env.DB.prepare(
+    "INSERT INTO event_guests (id, event_id, user_id, name, role, rsvp, plus_ones, note, color, created_at) VALUES (?, ?, ?, ?, 'owner', 'yes', 0, NULL, NULL, ?)",
+  )
+    .bind(uid(), eventId, me, c.var.user!.display_name, ts)
+    .run();
+  // Deux créneaux proposés pour illustrer le sondage de dates.
+  let dpos = 0;
+  for (const offset of [10, 17]) {
+    const day = new Date(ts + offset * 86_400_000).toISOString().slice(0, 10);
+    await c.env.DB.prepare(
+      "INSERT INTO event_date_options (id, event_id, day_date, start_time, end_time, position) VALUES (?, ?, ?, '20:00', NULL, ?)",
+    )
+      .bind(uid(), eventId, day, dpos++)
+      .run();
+  }
+  created.events = 1;
 
   await c.env.DB.prepare("UPDATE users SET onboarded = 1, updated_at = ? WHERE id = ?").bind(ts, me).run();
   return c.json({ ok: true, created });

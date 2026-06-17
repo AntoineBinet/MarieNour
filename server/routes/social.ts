@@ -8,7 +8,7 @@ import type { Comment, FeedItem, PublicUser, Visibility } from "@shared/types";
 const app = new Hono<AppEnv>();
 app.use("*", requireAuth);
 
-const ENTITY_TYPES = ["note", "recipe", "trip", "board", "inspiration", "list", "media"];
+const ENTITY_TYPES = ["note", "recipe", "trip", "board", "inspiration", "list", "media", "event"];
 
 interface EntityMeta {
   owner_id: string;
@@ -48,9 +48,31 @@ async function entityMeta(db: AppEnv["Bindings"]["DB"], type: string, id: string
       const r = await db.prepare("SELECT user_id, visibility, caption FROM media WHERE id = ?").bind(id).first<Record<string, unknown>>();
       return r ? { owner_id: r.user_id as string, visibility: cleanVisibility(r.visibility), title: (r.caption as string) ?? "Photo", preview: null, image_url: `/api/media/${id}/raw` } : null;
     }
+    case "event": {
+      const r = await db.prepare("SELECT user_id, visibility, title, description, cover_url FROM events WHERE id = ?").bind(id).first<Record<string, unknown>>();
+      return r ? { owner_id: r.user_id as string, visibility: cleanVisibility(r.visibility), title: r.title as string, preview: (r.description as string) ?? null, image_url: (r.cover_url as string) ?? null } : null;
+    }
     default:
       return null;
   }
+}
+
+/** Le viewer peut-il interagir (voir/aimer/commenter) avec cette entité ?
+ *  Cas général : visibilité (privé/amis/public). Cas « event » : un invité de
+ *  l'événement y a aussi accès, même si l'événement est privé. */
+async function canAccessEntity(
+  db: AppEnv["Bindings"]["DB"],
+  me: string,
+  type: string,
+  entityId: string,
+  meta: EntityMeta,
+): Promise<boolean> {
+  if (await canView(db, me, meta.owner_id, meta.visibility)) return true;
+  if (type === "event") {
+    const g = await db.prepare("SELECT 1 FROM event_guests WHERE event_id = ? AND user_id = ?").bind(entityId, me).first();
+    return !!g;
+  }
+  return false;
 }
 
 const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
@@ -153,7 +175,7 @@ app.post("/like", async (c) => {
 
   const meta = await entityMeta(c.env.DB, type, entityId);
   if (!meta) return c.json({ error: "Contenu introuvable" }, 404);
-  if (!(await canView(c.env.DB, me, meta.owner_id, meta.visibility))) return c.json({ error: "Accès refusé" }, 403);
+  if (!(await canAccessEntity(c.env.DB, me, type, entityId, meta))) return c.json({ error: "Accès refusé" }, 403);
 
   const existing = await c.env.DB.prepare("SELECT id FROM likes WHERE user_id = ? AND entity_type = ? AND entity_id = ?")
     .bind(me, type, entityId)
@@ -175,7 +197,7 @@ app.get("/comments", async (c) => {
   const entityId = str(c.req.query("entity_id"), 60);
   if (!ENTITY_TYPES.includes(type) || !entityId) return c.json({ error: "Cible invalide" }, 400);
   const meta = await entityMeta(c.env.DB, type, entityId);
-  if (!meta || !(await canView(c.env.DB, me, meta.owner_id, meta.visibility))) return c.json({ error: "Accès refusé" }, 403);
+  if (!meta || !(await canAccessEntity(c.env.DB, me, type, entityId, meta))) return c.json({ error: "Accès refusé" }, 403);
 
   const res = await c.env.DB.prepare(
     `SELECT cm.id AS comment_id, cm.body, cm.created_at AS comment_created_at, ${PUB_U}
@@ -201,7 +223,7 @@ app.post("/comments", async (c) => {
   const text = str(body.body, 2000).trim();
   if (!ENTITY_TYPES.includes(type) || !entityId || !text) return c.json({ error: "Données invalides" }, 400);
   const meta = await entityMeta(c.env.DB, type, entityId);
-  if (!meta || !(await canView(c.env.DB, me, meta.owner_id, meta.visibility))) return c.json({ error: "Accès refusé" }, 403);
+  if (!meta || !(await canAccessEntity(c.env.DB, me, type, entityId, meta))) return c.json({ error: "Accès refusé" }, 403);
 
   const id = uid();
   await c.env.DB.prepare("INSERT INTO comments (id, user_id, entity_type, entity_id, body, created_at) VALUES (?, ?, ?, ?, ?, ?)")

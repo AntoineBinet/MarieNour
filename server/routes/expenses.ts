@@ -263,6 +263,7 @@ app.get("/", async (c) => {
       icon: (g.icon as string) ?? "wallet",
       currency: (g.currency as string) ?? "EUR",
       trip_id: (g.trip_id as string) ?? null,
+      event_id: (g.event_id as string) ?? null,
       archived: bool(g.archived),
       created_at: g.created_at as number,
       updated_at: g.updated_at as number,
@@ -281,8 +282,8 @@ app.post("/", async (c) => {
   const id = uid();
   const ts = now();
   await c.env.DB.prepare(
-    `INSERT INTO expense_groups (id, owner_id, title, icon, currency, trip_id, archived, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+    `INSERT INTO expense_groups (id, owner_id, title, icon, currency, trip_id, event_id, archived, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
   )
     .bind(
       id,
@@ -291,6 +292,7 @@ app.post("/", async (c) => {
       str(body.icon, 40) || "wallet",
       str(body.currency, 8) || "EUR",
       str(body.trip_id, 60) || null,
+      str(body.event_id, 60) || null,
       ts,
       ts,
     )
@@ -383,6 +385,7 @@ app.get("/:id", async (c) => {
     icon: (g.icon as string) ?? "wallet",
     currency: (g.currency as string) ?? "EUR",
     trip_id: (g.trip_id as string) ?? null,
+    event_id: (g.event_id as string) ?? null,
     archived: bool(g.archived),
     created_at: g.created_at as number,
     updated_at: g.updated_at as number,

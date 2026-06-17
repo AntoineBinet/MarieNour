@@ -94,7 +94,7 @@ export default function Dashboard() {
   const seed = useMutation({
     mutationFn: async () => {
       await api.seedStarter().catch(() => {});
-      for (const t of ["lists", "trips", "notes", "expenses"]) await api.addWidget(t).catch(() => {});
+      for (const t of ["lists", "trips", "events", "notes", "expenses"]) await api.addWidget(t).catch(() => {});
     },
     onSuccess: () => {
       qc.invalidateQueries();
