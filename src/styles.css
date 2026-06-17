@@ -101,6 +101,21 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Scrollbars discrètes & harmonisées ───────────────────────────────────
+   Remplace la scrollbar native (moche, surtout sur la sidebar quand l'écran
+   est court) par une barre fine, arrondie et thématisée. S'adapte aux thèmes
+   clair/sombre via les variables. Les conteneurs masquant volontairement leur
+   scrollbar (.seg-scroll) gardent priorité grâce à leur spécificité. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 99px;
+  border: 3px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; line-height: 1.15; margin: 0; color: var(--ink); }
 h1 { font-size: clamp(1.7rem, 3vw, 2.4rem); letter-spacing: -0.01em; }
 h2 { font-size: 1.3rem; }
