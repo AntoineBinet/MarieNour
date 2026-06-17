@@ -14,9 +14,12 @@ import Inspiration from "./pages/Inspiration";
 import Photos from "./pages/Photos";
 import Friends from "./pages/Friends";
 import Feed from "./pages/Feed";
+import Expenses from "./pages/Expenses";
+import Finance from "./pages/Finance";
 import Profile from "./pages/Profile";
 import PublicProfile from "./pages/PublicProfile";
 import Admin from "./pages/Admin";
+import Invite from "./pages/Invite";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,6 +33,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/i/:token" element={<Invite />} />
       <Route path="/mentions-legales" element={<Mentions />} />
       <Route path="/confidentialite" element={<Confidentialite />} />
       <Route
@@ -46,6 +50,8 @@ export default function App() {
                 <Route path="/recettes" element={<Recipes />} />
                 <Route path="/inspiration" element={<Inspiration />} />
                 <Route path="/photos" element={<Photos />} />
+                <Route path="/depenses" element={<Expenses />} />
+                <Route path="/finances" element={<Finance />} />
                 <Route path="/feed" element={<Feed />} />
                 <Route path="/amis" element={<Friends />} />
                 <Route path="/profil" element={<Profile />} />

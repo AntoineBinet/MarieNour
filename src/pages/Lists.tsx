@@ -11,6 +11,7 @@ import {
   SwatchRow,
   NOTE_COLORS,
 } from "../ui";
+import { Icon } from "../components/Icon";
 import type { List, ListItem, Visibility } from "@shared/types";
 
 const VISIBILITIES: { value: Visibility; label: string }[] = [
@@ -94,7 +95,7 @@ function CreateListModal({ onClose }: { onClose: () => void }) {
     mutationFn: () => api.createList({ title: title.trim(), emoji: emoji || "📝", color, kind, visibility }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lists"] });
-      toast.push("Liste créée ✨");
+      toast.push("Liste créée");
       onClose();
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -294,9 +295,9 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
               <span className="chip">{list.kind === "checklist" ? "Checklist" : "Liste"}</span>
               <span className="chip chip-accent">{visLabel(list.visibility)}</span>
               <span className="spacer" />
-              <button className="btn btn-soft btn-sm" onClick={startEdit}>✎ Modifier</button>
-              <button className="btn btn-soft btn-sm" onClick={() => archive.mutate()} disabled={archive.isPending}>🗄 Archiver</button>
-              <button className="btn btn-danger btn-sm" onClick={askDelete}>🗑 Supprimer</button>
+              <button className="btn btn-soft btn-sm" onClick={startEdit}><Icon name="edit" size={15} /> Modifier</button>
+              <button className="btn btn-soft btn-sm" onClick={() => archive.mutate()} disabled={archive.isPending}><Icon name="archive" size={15} /> Archiver</button>
+              <button className="btn btn-danger btn-sm" onClick={askDelete}><Icon name="trash" size={15} /> Supprimer</button>
             </div>
 
             <div className="row gap-2" style={{ marginBottom: "var(--space-4)" }}>
@@ -307,13 +308,13 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
                 placeholder="Ajouter un élément…"
                 onKeyDown={(e) => e.key === "Enter" && submitItem()}
               />
-              <button className="btn btn-primary" onClick={submitItem} disabled={!newItem.trim() || addItem.isPending}>
-                ＋
+              <button className="btn btn-primary" onClick={submitItem} disabled={!newItem.trim() || addItem.isPending} aria-label="Ajouter">
+                <Icon name="plus" size={15} />
               </button>
             </div>
 
             {items.length === 0 ? (
-              <EmptyState emoji="🗒" title="Liste vide" hint="Ajoute ton premier élément ci-dessus." />
+              <EmptyState icon="lists" title="Liste vide" hint="Ajoute ton premier élément ci-dessus." />
             ) : (
               <div className="stack" style={{ marginTop: 0 }}>
                 {items.map((item) => (
@@ -323,7 +324,7 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
                       onClick={() => toggleItem.mutate(item)}
                       aria-label={item.done ? "Marquer non fait" : "Marquer fait"}
                     >
-                      {item.done ? "✓" : ""}
+                      {item.done ? <Icon name="check" size={14} /> : ""}
                     </button>
                     <span className={`li-text grow${item.done ? " done" : ""}`} style={{ wordBreak: "break-word" }}>
                       {item.content}
@@ -333,7 +334,7 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
                       onClick={() => removeItem.mutate(item.id)}
                       aria-label="Supprimer l'élément"
                     >
-                      ✕
+                      <Icon name="close" size={14} />
                     </button>
                   </div>
                 ))}
@@ -396,7 +397,7 @@ export default function Lists() {
           <h1>Listes & checklists</h1>
           <p className="muted">Tout ce que tu veux cocher, suivre et ne pas oublier.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle liste</button>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouvelle liste</button>
       </div>
 
       <div className="row" style={{ justifyContent: "flex-end", marginBottom: "var(--space-4)" }}>
@@ -404,7 +405,11 @@ export default function Lists() {
           className={`btn btn-sm ${showArchived ? "btn-soft" : "btn-ghost"}`}
           onClick={() => setShowArchived((v) => !v)}
         >
-          {showArchived ? "← Masquer les archives" : "🗄 Voir les archives"}
+          {showArchived ? (
+            <><Icon name="arrowLeft" size={15} /> Masquer les archives</>
+          ) : (
+            <><Icon name="archive" size={15} /> Voir les archives</>
+          )}
         </button>
       </div>
 
@@ -412,10 +417,10 @@ export default function Lists() {
         <Spinner />
       ) : lists.length === 0 ? (
         <EmptyState
-          emoji="📋"
+          icon="lists"
           title="Aucune liste pour l'instant"
           hint="Crée ta première liste pour commencer à t'organiser."
-          action={<button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle liste</button>}
+          action={<button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouvelle liste</button>}
         />
       ) : (
         <div className="grid-cards">

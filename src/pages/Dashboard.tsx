@@ -13,6 +13,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { Modal, Spinner, useToast } from "../ui";
+import { Icon, type IconName } from "../components/Icon";
 import { WIDGET_CATALOG, WIDGET_DEFS, WidgetContent } from "../widgets";
 import type { Widget, WidgetSize } from "@shared/types";
 
@@ -33,7 +34,9 @@ function SortableWidget({
   return (
     <div ref={setNodeRef} style={style} className={`widget size-${widget.size}${isDragging ? " dragging" : ""}`}>
       <div className="widget-head">
-        <span>{def?.emoji ?? "🔹"}</span>
+        <span style={{ color: "var(--accent-ink)", display: "inline-flex" }}>
+          <Icon name={(def?.icon as IconName) ?? "sparkle"} size={18} />
+        </span>
         <span className="widget-title">{widget.title || def?.name || widget.type}</span>
         {editing ? (
           <div className="row gap-2">
@@ -47,8 +50,8 @@ function SortableWidget({
               <option value="md">M</option>
               <option value="lg">L</option>
             </select>
-            <button className="btn btn-icon btn-soft btn-sm" {...attributes} {...listeners} aria-label="Déplacer">⠿</button>
-            <button className="btn btn-icon btn-danger btn-sm" onClick={() => onRemove(widget.id)} aria-label="Retirer">✕</button>
+            <button className="btn btn-icon btn-soft btn-sm" {...attributes} {...listeners} aria-label="Déplacer"><Icon name="dots" size={15} /></button>
+            <button className="btn btn-icon btn-danger btn-sm" onClick={() => onRemove(widget.id)} aria-label="Retirer"><Icon name="close" size={15} /></button>
           </div>
         ) : null}
       </div>
@@ -77,7 +80,7 @@ export default function Dashboard() {
     mutationFn: (type: string) => api.addWidget(type),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["widgets"] });
-      toast.push("Widget ajouté ✨");
+      toast.push("Widget ajouté");
     },
   });
   const remove = useMutation({
@@ -87,6 +90,16 @@ export default function Dashboard() {
   const resize = useMutation({
     mutationFn: ({ id, size }: { id: string; size: WidgetSize }) => api.updateWidget(id, { size }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["widgets"] }),
+  });
+  const seed = useMutation({
+    mutationFn: async () => {
+      await api.seedStarter().catch(() => {});
+      for (const t of ["lists", "trips", "notes", "expenses"]) await api.addWidget(t).catch(() => {});
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+      toast.push("Ton espace est prêt");
+    },
   });
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -112,12 +125,14 @@ export default function Dashboard() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Ton atelier</p>
-          <h1>{greeting}, {user?.display_name} 🌿</h1>
+          <h1>{greeting}, {user?.display_name}</h1>
           <p className="muted">Tout ce que tu gardes, planifies et partages, au même endroit.</p>
         </div>
         <div className="row gap-2">
-          <button className="btn btn-soft" onClick={() => setEditing((v) => !v)}>{editing ? "✓ Terminé" : "✎ Personnaliser"}</button>
-          <button className="btn btn-primary" onClick={() => setAdding(true)}>＋ Ajouter</button>
+          <button className="btn btn-soft" onClick={() => setEditing((v) => !v)}>
+            <Icon name={editing ? "check" : "edit"} size={16} /> {editing ? "Terminé" : "Personnaliser"}
+          </button>
+          <button className="btn btn-primary" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Ajouter</button>
         </div>
       </div>
 
@@ -126,10 +141,17 @@ export default function Dashboard() {
       ) : widgets.length === 0 ? (
         <div className="card">
           <div className="empty">
-            <span className="emoji">🪟</span>
-            <h3>Ton tableau de bord est vide</h3>
-            <p className="muted">Ajoute des widgets pour composer ton espace : listes, voyages, inspirations, photos…</p>
-            <button className="btn btn-primary" style={{ marginTop: "var(--space-4)" }} onClick={() => setAdding(true)}>＋ Ajouter mon premier widget</button>
+            <span className="empty-icon"><Icon name="sparkle" size={34} strokeWidth={1.6} /></span>
+            <h3>Bienvenue dans ton atelier</h3>
+            <p className="muted">Démarre en un clic : on te prépare quelques listes, une note et un week-end à imaginer, puis tu personnalises tout.</p>
+            <div className="row gap-2 wrap" style={{ justifyContent: "center", marginTop: "var(--space-4)" }}>
+              <button className="btn btn-primary" onClick={() => seed.mutate()} disabled={seed.isPending}>
+                <Icon name="sparkle" size={16} /> {seed.isPending ? "Préparation…" : "Démarrer mon espace"}
+              </button>
+              <button className="btn btn-soft" onClick={() => setAdding(true)}>
+                <Icon name="plus" size={16} /> Choisir mes widgets
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -160,7 +182,7 @@ export default function Dashboard() {
                 style={{ textAlign: "left", cursor: "pointer" }}
                 onClick={() => { add.mutate(w.type); setAdding(false); }}
               >
-                <div style={{ fontSize: "1.8rem" }}>{w.emoji}</div>
+                <div style={{ color: "var(--accent-ink)" }}><Icon name={(w.icon as IconName) ?? "sparkle"} size={26} /></div>
                 <strong>{w.name}</strong>
                 <p className="muted small">{w.description}</p>
               </button>

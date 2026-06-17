@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Spinner, EmptyState, useToast, useConfirm } from "../ui";
+import { Icon } from "../components/Icon";
+import { InviteQr } from "../components/InviteQr";
+import PollsPanel from "../components/PollsPanel";
 import type { Friendship, PublicUser } from "@shared/types";
 
 /* ── Pastille avatar ─────────────────────────────────────────────────────── */
@@ -67,7 +70,7 @@ export default function Friends() {
     mutationFn: (userId: string) => api.requestFriend(userId),
     onSuccess: (res) => {
       invalidate();
-      toast.push(res.status === "accepted" ? "Vous êtes maintenant amis ✨" : "Demande envoyée ✉️");
+      toast.push(res.status === "accepted" ? "Vous êtes maintenant amis" : "Demande envoyée");
     },
     onError: onErr,
   });
@@ -76,7 +79,7 @@ export default function Friends() {
     mutationFn: (id: string) => api.acceptFriend(id),
     onSuccess: () => {
       invalidate();
-      toast.push("Demande acceptée 🤝");
+      toast.push("Demande acceptée");
     },
     onError: onErr,
   });
@@ -101,19 +104,24 @@ export default function Friends() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Ton cercle</p>
-          <h1>Amis 🫶</h1>
-          <p className="muted">Retrouve tes proches et partage ce que tu crées.</p>
+          <h1>Amis &amp; sondages</h1>
+          <p className="muted">Retrouve tes proches, invite-les d'un scan et sonde le groupe.</p>
         </div>
+        <InviteQr kind="friend" variant="primary">Inviter un ami</InviteQr>
       </div>
 
       {/* ── Recherche ──────────────────────────────────────────────────── */}
       <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-        <input
-          className="input"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="🔍 Rechercher quelqu'un par nom ou @pseudo…"
-        />
+        <div className="row gap-2">
+          <Icon name="search" size={18} />
+          <input
+            className="input"
+            style={{ border: "none", padding: "0.3rem 0", background: "transparent" }}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Rechercher quelqu'un par nom ou @pseudo…"
+          />
+        </div>
         {q.trim().length >= 1 && (
           <div style={{ marginTop: "var(--space-4)" }}>
             {search.isLoading ? (
@@ -156,7 +164,7 @@ export default function Friends() {
               <h2>Demandes reçues {incoming.length > 0 && <span className="chip">{incoming.length}</span>}</h2>
             </div>
             {incoming.length === 0 ? (
-              <EmptyState emoji="📭" title="Aucune demande" hint="Les invitations reçues apparaîtront ici." />
+              <EmptyState icon="bell" title="Aucune demande" hint="Les invitations reçues apparaîtront ici." />
             ) : (
               <div className="col gap-3">
                 {incoming.map((f) => (
@@ -188,7 +196,7 @@ export default function Friends() {
               <h2>En attente {outgoing.length > 0 && <span className="chip">{outgoing.length}</span>}</h2>
             </div>
             {outgoing.length === 0 ? (
-              <EmptyState emoji="⏳" title="Aucune demande en attente" hint="Tes invitations envoyées apparaîtront ici." />
+              <EmptyState icon="clock" title="Aucune demande en attente" hint="Tes invitations envoyées apparaîtront ici." />
             ) : (
               <div className="col gap-3">
                 {outgoing.map((f) => (
@@ -215,7 +223,7 @@ export default function Friends() {
               <h2>Mes amis {friends.length > 0 && <span className="chip">{friends.length}</span>}</h2>
             </div>
             {friends.length === 0 ? (
-              <EmptyState emoji="🌱" title="Pas encore d'amis" hint="Recherche quelqu'un ci-dessus pour l'ajouter." />
+              <EmptyState icon="friends" title="Pas encore d'amis" hint="Recherche quelqu'un ci-dessus pour l'ajouter." />
             ) : (
               <div className="grid-cards">
                 {friends.map((f) => (
@@ -237,6 +245,11 @@ export default function Friends() {
           </section>
         </div>
       )}
+
+      {/* ── Sondages ───────────────────────────────────────────────────── */}
+      <div style={{ marginTop: "var(--space-6)" }}>
+        <PollsPanel />
+      </div>
 
       {confirmNode}
     </div>

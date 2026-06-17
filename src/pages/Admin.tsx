@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { useAuth } from "../auth";
+import { Icon } from "../components/Icon";
+import type { IconName } from "../components/Icon";
 
 /* ── Libellés FR des statistiques ────────────────────────────────────────── */
 const STAT_LABELS: Record<string, string> = {
@@ -18,17 +20,17 @@ const STAT_LABELS: Record<string, string> = {
   list_items: "Items de liste",
 };
 
-const STAT_EMOJI: Record<string, string> = {
-  users: "🧑",
-  lists: "📋",
-  notes: "📝",
-  trips: "✈️",
-  recipes: "🍳",
-  boards: "🧷",
-  inspirations: "✨",
-  media: "📷",
-  friendships: "🫶",
-  list_items: "✅",
+const STAT_ICON: Record<string, IconName> = {
+  users: "users",
+  lists: "lists",
+  notes: "notes",
+  trips: "plane",
+  recipes: "fork",
+  boards: "bookmark",
+  inspirations: "sparkle",
+  media: "camera",
+  friendships: "heart",
+  list_items: "check",
 };
 
 interface AdminUser {
@@ -75,7 +77,7 @@ function MaintenanceCard() {
     if (status.startedAt !== runStartedAt) return;
     if (status.phase === "done") {
       setRunStartedAt(null);
-      toast.push(status.upToDate ? "Déjà à jour ✓" : "Mise à jour appliquée 🎉");
+      toast.push(status.upToDate ? "Déjà à jour" : "Mise à jour appliquée");
     } else if (status.phase === "error") {
       setRunStartedAt(null);
       toast.push(status.error || "Échec de la mise à jour", true);
@@ -101,7 +103,7 @@ function MaintenanceCard() {
   return (
     <section className="card" style={{ marginBottom: "var(--space-6)" }}>
       <div className="panel-head">
-        <h2>Mise à jour de l'application 🚀</h2>
+        <h2><Icon name="rocket" size={18} /> Mise à jour de l'application</h2>
       </div>
 
       {unsupported ? (
@@ -189,7 +191,7 @@ export default function Admin() {
   const resetPassword = useMutation({
     mutationFn: ({ id, password }: { id: string; password: string }) => api.adminResetPassword(id, password),
     onSuccess: () => {
-      toast.push("Mot de passe réinitialisé 🔑");
+      toast.push("Mot de passe réinitialisé");
       setResetFor(null);
       setNewPassword("");
     },
@@ -200,7 +202,7 @@ export default function Admin() {
     mutationFn: ({ id, role }: { id: string; role: "admin" | "member" }) => api.adminSetRole(id, role),
     onSuccess: () => {
       invalidate();
-      toast.push("Rôle mis à jour ✨");
+      toast.push("Rôle mis à jour");
     },
     onError: onErr,
   });
@@ -217,7 +219,7 @@ export default function Admin() {
 
   /* ── Garde d'accès ──────────────────────────────────────────────────── */
   if (user?.role !== "admin") {
-    return <EmptyState emoji="🔒" title="Réservé à l'admin" hint="Tu n'as pas accès à cette section." />;
+    return <EmptyState icon="lock" title="Réservé à l'admin" hint="Tu n'as pas accès à cette section." />;
   }
 
   const stats = statsQ.data?.stats ?? {};
@@ -249,7 +251,7 @@ export default function Admin() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">{appName}</p>
-          <h1>Administration 🛠️</h1>
+          <h1><Icon name="settings" size={24} /> Administration</h1>
           <p className="muted">Vue d'ensemble et gestion des comptes.</p>
         </div>
         <span className="chip chip-accent">Admin</span>
@@ -259,13 +261,13 @@ export default function Admin() {
       {statsQ.isLoading ? (
         <Spinner />
       ) : statKeys.length === 0 ? (
-        <EmptyState emoji="📊" title="Aucune statistique" />
+        <EmptyState icon="chart" title="Aucune statistique" />
       ) : (
         <div className="grid-cards" style={{ marginBottom: "var(--space-6)" }}>
           {statKeys.map((k) => (
             <div key={k} className="card card-pad-sm">
               <div className="row gap-2" style={{ marginBottom: 4 }}>
-                <span style={{ fontSize: "1.4rem" }}>{STAT_EMOJI[k] ?? "🔹"}</span>
+                <Icon name={STAT_ICON[k] ?? "grid"} size={22} />
                 <span className="muted small">{STAT_LABELS[k] ?? k}</span>
               </div>
               <strong style={{ fontFamily: "var(--font-display)", fontSize: "1.8rem" }}>{stats[k]}</strong>
@@ -286,7 +288,7 @@ export default function Admin() {
         {usersQ.isLoading ? (
           <Spinner />
         ) : users.length === 0 ? (
-          <EmptyState emoji="👤" title="Aucun utilisateur" />
+          <EmptyState icon="profile" title="Aucun utilisateur" />
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -314,7 +316,13 @@ export default function Admin() {
                       </td>
                       <td style={{ padding: "0.6rem 0.5rem" }} className="muted small">{fmtDate(u.created_at)}</td>
                       <td style={{ padding: "0.6rem 0.5rem" }} className="muted small">
-                        {`📝 ${u.notes ?? 0} · 🍳 ${u.recipes ?? 0} · ✈️ ${u.trips ?? 0}`}
+                        <span className="row gap-2" style={{ alignItems: "center" }}>
+                          <Icon name="notes" size={14} /> {u.notes ?? 0}
+                          <span aria-hidden="true">·</span>
+                          <Icon name="fork" size={14} /> {u.recipes ?? 0}
+                          <span aria-hidden="true">·</span>
+                          <Icon name="plane" size={14} /> {u.trips ?? 0}
+                        </span>
                       </td>
                       <td style={{ padding: "0.6rem 0.5rem" }}>
                         <div className="row gap-2 wrap">

@@ -85,9 +85,13 @@ export interface Trip {
   budget: number | null;
   currency: string;
   visibility: Visibility;
+  kind: TripKind;
   created_at: number;
   updated_at: number;
   items?: TripItem[];
+  participants?: TripParticipant[];
+  participant_count?: number;
+  expense_group_id?: string | null;
 }
 
 export interface TripItem {
@@ -103,6 +107,8 @@ export interface TripItem {
   cost: number | null;
   done: boolean;
   position: number;
+  votes?: number;
+  voted_by_me?: boolean;
 }
 
 export interface Recipe {
@@ -188,4 +194,245 @@ export interface WidgetDef {
   name: string;
   description: string;
   emoji: string;
+  icon?: string;
+}
+
+/* ── Voyages : participants & votes ───────────────────────────────────────── */
+export type TripKind = "trip" | "roadtrip" | "weekend" | "solo";
+export type ParticipantRole = "owner" | "editor" | "traveller";
+
+export interface TripParticipant {
+  id: string;
+  user_id: string | null; // null = invité hors-app (réclamable via QR)
+  name: string;
+  role: ParticipantRole;
+  color: string | null;
+  handle: string | null;
+  avatar_url: string | null;
+  is_me: boolean;
+}
+
+/* ── Invitations / QR ─────────────────────────────────────────────────────── */
+export type InviteKind = "friend" | "trip" | "group";
+
+export interface Invite {
+  token: string;
+  url: string;
+  kind: InviteKind;
+  target_id: string | null;
+  label: string | null;
+  expires_at: number | null;
+  uses: number;
+}
+
+export interface InvitePreview {
+  kind: InviteKind;
+  inviter: PublicUser;
+  target_title: string | null;
+  valid: boolean;
+  reason?: string;
+}
+
+/* ── Sondages ─────────────────────────────────────────────────────────────── */
+export interface PollOption {
+  id: string;
+  label: string;
+  votes: number;
+  voters: PublicUser[];
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  multi: boolean;
+  closes_at: number | null;
+  closed: boolean;
+  visibility: Visibility;
+  author: PublicUser;
+  created_at: number;
+  options: PollOption[];
+  total_votes: number;
+  my_votes: string[]; // option ids
+}
+
+/* ── Dépenses partagées (Tricount) ────────────────────────────────────────── */
+export type SplitMode = "equal" | "shares" | "amounts";
+
+export interface ExpenseMember {
+  id: string;
+  user_id: string | null;
+  name: string;
+  weight: number;
+  handle: string | null;
+  avatar_url: string | null;
+  is_me: boolean;
+}
+
+export interface ExpenseShare {
+  member_id: string;
+  amount: number;
+}
+
+export interface Expense {
+  id: string;
+  group_id: string;
+  payer_id: string;
+  title: string;
+  amount: number;
+  category: string;
+  split_mode: SplitMode;
+  spent_at: string | null;
+  note: string | null;
+  created_at: number;
+  shares: ExpenseShare[];
+}
+
+export interface Settlement {
+  id: string;
+  group_id: string;
+  from_id: string;
+  to_id: string;
+  amount: number;
+  note: string | null;
+  created_at: number;
+}
+
+export interface MemberBalance {
+  member_id: string;
+  paid: number;
+  owed: number;
+  balance: number; // paid - owed (+ remboursements). >0 = on lui doit
+}
+
+export interface SettlePlanStep {
+  from_id: string;
+  to_id: string;
+  amount: number;
+}
+
+export interface ExpenseGroup {
+  id: string;
+  title: string;
+  icon: string;
+  currency: string;
+  trip_id: string | null;
+  archived: boolean;
+  created_at: number;
+  updated_at: number;
+  member_count?: number;
+  total_spent?: number;
+  my_balance?: number;
+}
+
+export interface ExpenseGroupDetail extends ExpenseGroup {
+  members: ExpenseMember[];
+  expenses: Expense[];
+  settlements: Settlement[];
+  balances: MemberBalance[];
+  settle_plan: SettlePlanStep[];
+}
+
+/* ── Gestion de budget personnel (« Mes finances ») ───────────────────────── */
+export type AccountKind = "checking" | "savings" | "cash" | "card" | "investment";
+export type CategoryKind = "expense" | "income";
+export type TxType = "expense" | "income" | "transfer";
+export type Cadence = "weekly" | "monthly" | "yearly";
+
+export interface FinanceAccount {
+  id: string;
+  name: string;
+  kind: AccountKind;
+  currency: string;
+  start_balance: number;
+  icon: string;
+  color: string;
+  archived: boolean;
+  position: number;
+  balance: number; // start_balance + flux des transactions
+}
+
+export interface FinanceCategory {
+  id: string;
+  name: string;
+  kind: CategoryKind;
+  icon: string;
+  color: string;
+  monthly_budget: number | null;
+  position: number;
+  archived: boolean;
+  spent?: number; // dépensé ce mois (rempli par l'aperçu)
+}
+
+export interface FinanceTransaction {
+  id: string;
+  account_id: string;
+  category_id: string | null;
+  type: TxType;
+  amount: number;
+  date: string;
+  payee: string | null;
+  note: string | null;
+  transfer_account_id: string | null;
+  recurring_id: string | null;
+  created_at: number;
+}
+
+export interface FinanceRecurring {
+  id: string;
+  account_id: string;
+  category_id: string | null;
+  type: TxType;
+  amount: number;
+  label: string;
+  cadence: Cadence;
+  next_date: string;
+  active: boolean;
+}
+
+export interface FinanceGoal {
+  id: string;
+  name: string;
+  target_amount: number;
+  saved_amount: number;
+  target_date: string | null;
+  account_id: string | null;
+  icon: string;
+  color: string;
+}
+
+export interface FinancePartner {
+  user: PublicUser;
+  can_edit: boolean;
+  direction: "shared_by_me" | "shared_with_me";
+}
+
+export interface BudgetLine {
+  category: FinanceCategory;
+  budget: number;
+  spent: number;
+}
+
+export interface CategorySpend {
+  category_id: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  amount: number;
+}
+
+export interface FinanceOverview {
+  currency: string;
+  net_worth: number;
+  accounts: FinanceAccount[];
+  month: string; // 'YYYY-MM'
+  month_income: number;
+  month_expense: number;
+  prev_month_expense: number;
+  budget_total: number;
+  budget_spent: number;
+  budgets: BudgetLine[];
+  by_category: CategorySpend[]; // dépenses du mois par catégorie
+  goals: FinanceGoal[];
+  recent: FinanceTransaction[];
+  upcoming: FinanceRecurring[];
 }

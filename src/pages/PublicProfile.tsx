@@ -2,6 +2,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { api } from "../api";
 import { Spinner, EmptyState, useToast } from "../ui";
+import { Icon } from "../components/Icon";
+import type { IconName } from "../components/Icon";
 import type { PublicUser } from "@shared/types";
 
 interface ProfileRecipe { id: string; title: string; image_url: string | null }
@@ -9,15 +11,15 @@ interface ProfileTrip { id: string; title: string; destination: string | null; c
 interface ProfileBoard { id: string; title: string; cover_url: string | null }
 
 /* ── Carte média générique ───────────────────────────────────────────────── */
-function CoverCard({ title, cover, subtitle, fallback }: { title: string; cover: string | null; subtitle?: string | null; fallback: string }) {
+function CoverCard({ title, cover, subtitle, fallback }: { title: string; cover: string | null; subtitle?: string | null; fallback: IconName }) {
   return (
     <div className="card card-pad-sm" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ height: 140 }}>
         {cover ? (
           <img src={cover} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: "2.6rem", background: "var(--surface-2)" }}>
-            {fallback}
+          <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "var(--muted)", background: "var(--surface-2)" }}>
+            <Icon name={fallback} size={42} />
           </div>
         )}
       </div>
@@ -43,7 +45,7 @@ export default function PublicProfile() {
   const requestFriend = useMutation({
     mutationFn: (userId: string) => api.requestFriend(userId),
     onSuccess: (res) => {
-      toast.push(res.status === "accepted" ? "Vous êtes maintenant amis ✨" : "Demande envoyée ✉️");
+      toast.push(res.status === "accepted" ? "Vous êtes maintenant amis" : "Demande envoyée");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -51,7 +53,7 @@ export default function PublicProfile() {
   if (isLoading) return <Spinner />;
 
   if (isError || !data?.user) {
-    return <EmptyState emoji="🔍" title="Profil introuvable" hint="Ce profil n'existe pas ou n'est plus accessible." />;
+    return <EmptyState icon="search" title="Profil introuvable" hint="Ce profil n'existe pas ou n'est plus accessible." />;
   }
 
   const user = data.user as PublicUser;
@@ -107,10 +109,10 @@ export default function PublicProfile() {
               onClick={() => requestFriend.mutate(user.id)}
               disabled={requestFriend.isPending}
             >
-              ＋ Ajouter en ami
+              <Icon name="plus" size={15} /> Ajouter en ami
             </button>
           )}
-          {isFriend && <span className="chip chip-accent">Ami ✓</span>}
+          {isFriend && <span className="chip chip-accent"><Icon name="check" size={14} /> Ami</span>}
         </div>
       </div>
 
@@ -122,7 +124,7 @@ export default function PublicProfile() {
           </div>
           <div className="grid-cards">
             {recipes.map((r) => (
-              <CoverCard key={r.id} title={r.title} cover={r.image_url} fallback="🍳" />
+              <CoverCard key={r.id} title={r.title} cover={r.image_url} fallback="fork" />
             ))}
           </div>
         </section>
@@ -136,7 +138,7 @@ export default function PublicProfile() {
           </div>
           <div className="grid-cards">
             {trips.map((t) => (
-              <CoverCard key={t.id} title={t.title} cover={t.cover_url} subtitle={t.destination} fallback="✈️" />
+              <CoverCard key={t.id} title={t.title} cover={t.cover_url} subtitle={t.destination} fallback="plane" />
             ))}
           </div>
         </section>
@@ -150,7 +152,7 @@ export default function PublicProfile() {
           </div>
           <div className="grid-cards">
             {boards.map((b) => (
-              <CoverCard key={b.id} title={b.title} cover={b.cover_url} fallback="🧷" />
+              <CoverCard key={b.id} title={b.title} cover={b.cover_url} fallback="bookmark" />
             ))}
           </div>
         </section>

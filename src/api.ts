@@ -1,16 +1,32 @@
 import type {
   Board,
   Comment,
+  Expense,
+  ExpenseGroup,
+  ExpenseGroupDetail,
   FeedItem,
+  FinanceAccount,
+  FinanceCategory,
+  FinanceGoal,
+  FinanceOverview,
+  FinancePartner,
+  FinanceRecurring,
+  FinanceTransaction,
   Friendship,
   Inspiration,
+  Invite,
+  InviteKind,
+  InvitePreview,
   List,
   ListItem,
   MediaItem,
   Note,
+  Poll,
   PublicUser,
   Recipe,
+  SplitMode,
   Trip,
+  TripParticipant,
   Visibility,
   Widget,
 } from "@shared/types";
@@ -163,6 +179,100 @@ export const api = {
       trips: unknown[];
       boards: unknown[];
     }>(`/social/profile/${handle}`),
+
+  // Trips — participants & votes (planificateur de groupe)
+  tripParticipants: (id: string) => get<{ participants: TripParticipant[] }>(`/trips/${id}/participants`),
+  addTripParticipant: (id: string, b: { name: string; user_id?: string; role?: string }) =>
+    post<{ id: string }>(`/trips/${id}/participants`, b),
+  removeTripParticipant: (id: string, pid: string) => del<{ ok: true }>(`/trips/${id}/participants/${pid}`),
+  voteTripItem: (id: string, itemId: string) => post<{ voted: boolean; votes: number }>(`/trips/${id}/items/${itemId}/vote`),
+
+  // Invitations / QR codes
+  createInvite: (b: { kind: InviteKind; target_id?: string; member_id?: string; label?: string; expires_in_days?: number }) =>
+    post<{ invite: Invite }>("/invites", b),
+  inviteInfo: (token: string) => get<{ invite: InvitePreview }>(`/invites/${token}`),
+  acceptInvite: (token: string) => post<{ kind: InviteKind; target_id: string | null }>(`/invites/${token}/accept`),
+
+  // Sondages
+  polls: () => get<{ polls: Poll[] }>("/polls"),
+  createPoll: (b: { question: string; options: string[]; multi?: boolean; closes_at?: number | null; visibility?: Visibility }) =>
+    post<{ id: string }>("/polls", b),
+  votePoll: (id: string, option_ids: string[]) => post<{ ok: true }>(`/polls/${id}/vote`, { option_ids }),
+  closePoll: (id: string) => post<{ ok: true }>(`/polls/${id}/close`),
+  deletePoll: (id: string) => del<{ ok: true }>(`/polls/${id}`),
+
+  // Dépenses partagées (Tricount)
+  expenseGroups: () => get<{ groups: ExpenseGroup[] }>("/expenses"),
+  expenseGroup: (id: string) => get<{ group: ExpenseGroupDetail }>(`/expenses/${id}`),
+  createExpenseGroup: (b: { title: string; icon?: string; currency?: string; trip_id?: string; members?: string[] }) =>
+    post<{ id: string }>("/expenses", b),
+  updateExpenseGroup: (id: string, b: Partial<{ title: string; icon: string; currency: string; archived: boolean }>) =>
+    patch<{ ok: true }>(`/expenses/${id}`, b),
+  deleteExpenseGroup: (id: string) => del<{ ok: true }>(`/expenses/${id}`),
+  addExpenseMember: (id: string, b: { name: string; user_id?: string; weight?: number }) =>
+    post<{ id: string }>(`/expenses/${id}/members`, b),
+  removeExpenseMember: (id: string, memberId: string) => del<{ ok: true }>(`/expenses/${id}/members/${memberId}`),
+  addExpense: (
+    id: string,
+    b: {
+      title: string;
+      amount: number;
+      payer_id: string;
+      category?: string;
+      split_mode?: SplitMode;
+      spent_at?: string;
+      note?: string;
+      shares?: Array<{ member_id: string; value: number }>;
+    },
+  ) => post<{ id: string }>(`/expenses/${id}/expenses`, b),
+  updateExpense: (id: string, expenseId: string, b: Partial<Expense> & { shares?: Array<{ member_id: string; value: number }> }) =>
+    patch<{ ok: true }>(`/expenses/${id}/expenses/${expenseId}`, b),
+  deleteExpense: (id: string, expenseId: string) => del<{ ok: true }>(`/expenses/${id}/expenses/${expenseId}`),
+  settleExpense: (id: string, b: { from_id: string; to_id: string; amount: number; note?: string }) =>
+    post<{ id: string }>(`/expenses/${id}/settle`, b),
+  deleteSettlement: (id: string, settlementId: string) => del<{ ok: true }>(`/expenses/${id}/settle/${settlementId}`),
+
+  // Finances personnelles (budget)
+  financeOverview: (month?: string, owner?: string) => {
+    const p = new URLSearchParams();
+    if (month) p.set("month", month);
+    if (owner) p.set("owner", owner);
+    const q = p.toString();
+    return get<{ overview: FinanceOverview }>(`/finance/overview${q ? `?${q}` : ""}`);
+  },
+  financeAccounts: () => get<{ accounts: FinanceAccount[] }>("/finance/accounts"),
+  createAccount: (b: Partial<FinanceAccount>) => post<{ id: string }>("/finance/accounts", b),
+  updateAccount: (id: string, b: Partial<FinanceAccount>) => patch<{ ok: true }>(`/finance/accounts/${id}`, b),
+  deleteAccount: (id: string) => del<{ ok: true }>(`/finance/accounts/${id}`),
+  financeCategories: () => get<{ categories: FinanceCategory[] }>("/finance/categories"),
+  createCategory: (b: Partial<FinanceCategory>) => post<{ id: string }>("/finance/categories", b),
+  updateCategory: (id: string, b: Partial<FinanceCategory>) => patch<{ ok: true }>(`/finance/categories/${id}`, b),
+  deleteCategory: (id: string) => del<{ ok: true }>(`/finance/categories/${id}`),
+  financeTransactions: (opts?: { month?: string; account?: string; category?: string; type?: string; q?: string; owner?: string }) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(opts ?? {})) if (v) p.set(k, v);
+    const q = p.toString();
+    return get<{ transactions: FinanceTransaction[] }>(`/finance/transactions${q ? `?${q}` : ""}`);
+  },
+  createTransaction: (b: Partial<FinanceTransaction> & { owner?: string }) => post<{ id: string }>("/finance/transactions", b),
+  updateTransaction: (id: string, b: Partial<FinanceTransaction>) => patch<{ ok: true }>(`/finance/transactions/${id}`, b),
+  deleteTransaction: (id: string) => del<{ ok: true }>(`/finance/transactions/${id}`),
+  financeRecurring: () => get<{ recurring: FinanceRecurring[] }>("/finance/recurring"),
+  createRecurring: (b: Partial<FinanceRecurring>) => post<{ id: string }>("/finance/recurring", b),
+  updateRecurring: (id: string, b: Partial<FinanceRecurring>) => patch<{ ok: true }>(`/finance/recurring/${id}`, b),
+  deleteRecurring: (id: string) => del<{ ok: true }>(`/finance/recurring/${id}`),
+  runRecurring: (id: string) => post<{ id: string }>(`/finance/recurring/${id}/run`),
+  financeGoals: () => get<{ goals: FinanceGoal[] }>("/finance/goals"),
+  createGoal: (b: Partial<FinanceGoal>) => post<{ id: string }>("/finance/goals", b),
+  updateGoal: (id: string, b: Partial<FinanceGoal>) => patch<{ ok: true }>(`/finance/goals/${id}`, b),
+  contributeGoal: (id: string, amount: number) => post<{ ok: true }>(`/finance/goals/${id}/contribute`, { amount }),
+  deleteGoal: (id: string) => del<{ ok: true }>(`/finance/goals/${id}`),
+  financePartners: () => get<{ partners: FinancePartner[] }>("/finance/partners"),
+  addFinancePartner: (user_id: string, can_edit: boolean) => post<{ ok: true }>("/finance/partners", { user_id, can_edit }),
+  removeFinancePartner: (user_id: string) => del<{ ok: true }>(`/finance/partners/${user_id}`),
+
+  // Onboarding (contenu de démarrage)
+  seedStarter: () => post<{ ok: true; created: Record<string, number> }>("/onboarding/seed"),
 
   // Admin
   adminStats: () => get<{ stats: Record<string, number>; app_name: string }>("/admin/stats"),

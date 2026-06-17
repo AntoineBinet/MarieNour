@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
+import { Icon } from "../components/Icon";
 import type { Recipe, Visibility } from "@shared/types";
 
 const VIS_LABEL: Record<Visibility, string> = {
@@ -60,7 +61,7 @@ function RecipeForm({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["recipes"] });
       if (initial) qc.invalidateQueries({ queryKey: ["recipe", initial.id] });
-      toast.push(initial ? "Recette mise à jour ✨" : "Recette ajoutée ✨");
+      toast.push(initial ? "Recette mise à jour" : "Recette ajoutée");
       onClose();
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -166,9 +167,9 @@ function RecipeReader({
           {r.description && <p className="muted">{r.description}</p>}
 
           <div className="row gap-2 wrap">
-            {r.servings != null && <span className="chip">🍽️ {r.servings} portions</span>}
-            {r.prep_minutes != null && <span className="chip">🔪 Prépa {r.prep_minutes} min</span>}
-            {r.cook_minutes != null && <span className="chip">🔥 Cuisson {r.cook_minutes} min</span>}
+            {r.servings != null && <span className="chip"><Icon name="fork" size={14} /> {r.servings} portions</span>}
+            {r.prep_minutes != null && <span className="chip"><Icon name="clock" size={14} /> Prépa {r.prep_minutes} min</span>}
+            {r.cook_minutes != null && <span className="chip"><Icon name="fire" size={14} /> Cuisson {r.cook_minutes} min</span>}
             <span className="chip">{VIS_LABEL[r.visibility]}</span>
           </div>
 
@@ -204,13 +205,13 @@ function RecipeReader({
 
           {r.source_url && (
             <p>
-              <a href={r.source_url} target="_blank" rel="noreferrer">🔗 Voir la source</a>
+              <a href={r.source_url} target="_blank" rel="noreferrer"><Icon name="link" size={14} /> Voir la source</a>
             </p>
           )}
 
           <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
-            <button className="btn btn-danger" onClick={() => onDelete(r)}>🗑️ Supprimer</button>
-            <button className="btn btn-soft" onClick={() => onEdit(r)}>✎ Éditer</button>
+            <button className="btn btn-danger" onClick={() => onDelete(r)}><Icon name="trash" size={15} /> Supprimer</button>
+            <button className="btn btn-soft" onClick={() => onEdit(r)}><Icon name="edit" size={15} /> Éditer</button>
           </div>
         </div>
       )}
@@ -235,8 +236,8 @@ function RecipeCard({
         {r.image_url ? (
           <img src={r.image_url} alt={r.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: "2.8rem", background: "var(--surface-2)" }}>
-            🍳
+          <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "var(--muted)", background: "var(--surface-2)" }}>
+            <Icon name="fork" size={44} />
           </div>
         )}
         <button
@@ -245,12 +246,12 @@ function RecipeCard({
           aria-label={r.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
           onClick={(e) => { e.stopPropagation(); onToggleFav(); }}
         >
-          {r.favorite ? "⭐" : "☆"}
+          <Icon name="star" size={16} filled={r.favorite} />
         </button>
       </div>
       <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1 }}>
         <strong style={{ fontFamily: "var(--font-display)", fontSize: "1.02rem" }}>{r.title}</strong>
-        {time && <span className="muted small">⏱️ {time}</span>}
+        {time && <span className="muted small"><Icon name="clock" size={13} /> {time}</span>}
         {r.tags.length > 0 && (
           <div className="row gap-2 wrap">
             {r.tags.slice(0, 3).map((t) => (
@@ -285,7 +286,7 @@ export default function Recipes() {
     onSuccess: (_d, r) => {
       qc.invalidateQueries({ queryKey: ["recipes"] });
       qc.invalidateQueries({ queryKey: ["recipe", r.id] });
-      toast.push(r.favorite ? "Retiré des favoris" : "Ajouté aux favoris ⭐");
+      toast.push(r.favorite ? "Retiré des favoris" : "Ajouté aux favoris");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -312,10 +313,10 @@ export default function Recipes() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Ta cuisine</p>
-          <h1>Recettes 🍳</h1>
+          <h1>Recettes</h1>
           <p className="muted">Toutes tes idées de plats, gardées au chaud.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle recette</button>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouvelle recette</button>
       </div>
 
       <div className="row" style={{ marginBottom: "var(--space-5)" }}>
@@ -323,7 +324,7 @@ export default function Recipes() {
           className="input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="🔍 Rechercher une recette, un ingrédient, un tag…"
+          placeholder="Rechercher une recette, un ingrédient, un tag…"
         />
       </div>
 
@@ -331,10 +332,10 @@ export default function Recipes() {
         <Spinner />
       ) : recipes.length === 0 ? (
         <EmptyState
-          emoji="🍽️"
+          icon="fork"
           title={q ? "Aucune recette trouvée" : "Pas encore de recette"}
           hint={q ? "Essaie un autre mot-clé." : "Ajoute ta première recette pour commencer ton carnet."}
-          action={!q && <button className="btn btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle recette</button>}
+          action={!q && <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} /> Nouvelle recette</button>}
         />
       ) : (
         <div className="grid-cards">

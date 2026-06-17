@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
+import { Icon } from "../components/Icon";
 import type { MediaItem, Visibility } from "@shared/types";
 
 const VISIBILITIES: { value: Visibility; label: string }[] = [
@@ -39,7 +40,7 @@ function PhotoModal({
     mutationFn: (b: Partial<{ caption: string; visibility: Visibility }>) => api.updateMedia(media.id, b),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["media"] });
-      toast.push("Photo mise à jour ✨");
+      toast.push("Photo mise à jour");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -92,9 +93,9 @@ function PhotoModal({
         </Field>
 
         <div className="row wrap gap-2">
-          <span className="muted small">📅 {formatDate(media.created_at)}</span>
+          <span className="muted small row gap-1" style={{ alignItems: "center" }}><Icon name="calendar" size={14} /> {formatDate(media.created_at)}</span>
           <span className="spacer" />
-          <button className="btn btn-danger" onClick={() => onDelete(media)}>🗑️ Supprimer</button>
+          <button className="btn btn-danger row gap-1" style={{ alignItems: "center" }} onClick={() => onDelete(media)}><Icon name="trash" size={15} /> Supprimer</button>
         </div>
       </div>
     </Modal>
@@ -151,7 +152,7 @@ export default function Photos() {
     }
     setUploading(null);
     qc.invalidateQueries({ queryKey: ["media"] });
-    if (ok > 0) toast.push(`${ok} photo${ok > 1 ? "s" : ""} importée${ok > 1 ? "s" : ""} 📸`);
+    if (ok > 0) toast.push(`${ok} photo${ok > 1 ? "s" : ""} importée${ok > 1 ? "s" : ""}`);
   };
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,11 +174,11 @@ export default function Photos() {
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Tes souvenirs</p>
-          <h1>Photos 📸</h1>
+          <h1>Photos</h1>
           <p className="muted">Importe, légende et partage tes images préférées.</p>
         </div>
         <button className="btn btn-primary" onClick={() => fileInput.current?.click()} disabled={!!uploading}>
-          {uploading ? `Envoi en cours… (${uploading.done}/${uploading.total})` : "＋ Importer"}
+          {uploading ? `Envoi en cours… (${uploading.done}/${uploading.total})` : <><Icon name="plus" size={15} /> Importer</>}
         </button>
       </div>
 
@@ -218,10 +219,10 @@ export default function Photos() {
         <Spinner />
       ) : media.length === 0 ? (
         <EmptyState
-          emoji="🖼️"
+          icon="image"
           title="Pas encore de photos"
           hint="Importe tes premières images pour commencer ta galerie."
-          action={<button className="btn btn-primary" onClick={() => fileInput.current?.click()}>＋ Importer des photos</button>}
+          action={<button className="btn btn-primary row gap-1" style={{ alignItems: "center" }} onClick={() => fileInput.current?.click()}><Icon name="plus" size={15} /> Importer des photos</button>}
         />
       ) : (
         <div className="masonry">
