@@ -38,6 +38,28 @@ function toPub(row: Record<string, unknown>): PublicUser {
 
 const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
 
+/** Relie deux personnes en amis (accepté d'office). Respecte un éventuel blocage
+ *  et ne recrée pas un lien existant. Utilisé quand on rejoint un voyage / groupe
+ *  / événement créé par quelqu'un : la personne apparaît alors dans « Amis ». */
+async function ensureFriendship(db: AppEnv["Bindings"]["DB"], a: string, b: string, ts: number): Promise<void> {
+  if (!a || !b || a === b) return;
+  const existing = await db
+    .prepare(
+      `SELECT id, status FROM friendships
+       WHERE (requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)`,
+    )
+    .bind(a, b, b, a)
+    .first<{ id: string; status: string }>();
+  if (!existing) {
+    await db
+      .prepare("INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at) VALUES (?, ?, ?, 'accepted', ?, ?)")
+      .bind(uid(), a, b, ts, ts)
+      .run();
+  } else if (existing.status === "pending") {
+    await db.prepare("UPDATE friendships SET status = 'accepted', updated_at = ? WHERE id = ?").bind(ts, existing.id).run();
+  }
+}
+
 /** Titre lisible de la cible d'une invitation (voyage / groupe), ou null. */
 async function targetTitle(db: AppEnv["Bindings"]["DB"], kind: string, targetId: string | null): Promise<string | null> {
   if (!targetId) return null;
@@ -235,6 +257,10 @@ app.post("/:token/accept", requireAuth, async (c) => {
       }
     }
   }
+
+  // Rejoindre un voyage / groupe / événement crée aussi un lien d'amitié avec le
+  // créateur : il apparaît alors dans « Amis & sondages » (côté des deux).
+  if (kind !== "friend") await ensureFriendship(c.env.DB, creator, me.id, ts);
 
   await c.env.DB.prepare("UPDATE invites SET uses = uses + 1 WHERE id = ?").bind(inv.id).run();
   return c.json({ kind, target_id: targetId });

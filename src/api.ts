@@ -1,4 +1,5 @@
 import type {
+  AppNotification,
   Board,
   Comment,
   Expense,
@@ -315,6 +316,11 @@ export const api = {
   financePartners: () => get<{ partners: FinancePartner[] }>("/finance/partners"),
   addFinancePartner: (user_id: string, can_edit: boolean) => post<{ ok: true }>("/finance/partners", { user_id, can_edit }),
   removeFinancePartner: (user_id: string) => del<{ ok: true }>(`/finance/partners/${user_id}`),
+
+  // Notifications (cloche)
+  notifications: () => get<{ notifications: AppNotification[] }>("/notifications"),
+  dismissNotification: (key: string) => post<{ ok: true }>("/notifications/dismiss", { key }),
+  dismissAllNotifications: () => post<{ ok: true }>("/notifications/dismiss-all"),
 
   // Onboarding (contenu de démarrage)
   seedStarter: () => post<{ ok: true; created: Record<string, number> }>("/onboarding/seed"),

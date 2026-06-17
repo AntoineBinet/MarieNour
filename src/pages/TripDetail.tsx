@@ -258,6 +258,9 @@ export default function TripDetail() {
   }
 
   const range = formatDateRange(trip.start_date, trip.end_date);
+  // Voyage partagé : je suis participant mais pas le créateur → vue en lecture
+  // (je peux consulter et voter, mais pas éditer/supprimer ni gérer les voyageurs).
+  const isOwner = trip.is_owner !== false;
 
   /* Group items: by day_date (ascending), then an "ideas" group for null day_date. */
   const groups = new Map<string, TripItem[]>();
@@ -341,53 +344,63 @@ export default function TripDetail() {
             {trip.budget != null && <span className="chip chip-accent"><Icon name="wallet" size={13} /> {trip.budget} {trip.currency}</span>}
           </div>
         </div>
-        <div className="row gap-2">
-          <button className="btn btn-soft" onClick={openEdit}><Icon name="edit" size={15} /> Éditer</button>
-          <button className="btn btn-danger" onClick={askDeleteTrip}><Icon name="trash" size={15} /> Supprimer</button>
-        </div>
+        {isOwner ? (
+          <div className="row gap-2">
+            <button className="btn btn-soft" onClick={openEdit}><Icon name="edit" size={15} /> Éditer</button>
+            <button className="btn btn-danger" onClick={askDeleteTrip}><Icon name="trash" size={15} /> Supprimer</button>
+          </div>
+        ) : trip.owner ? (
+          <span className="chip chip-accent row gap-2" style={{ alignSelf: "flex-start" }}>
+            <Icon name="users" size={14} /> Partagé par {trip.owner.display_name}
+          </span>
+        ) : null}
       </div>
 
       {/* ── Participants & partage ──────────────────────────────────────── */}
       <div className="card card-pad-sm" style={{ marginBottom: "var(--space-5)" }}>
         <div className="panel-head" style={{ marginBottom: "var(--space-3)" }}>
           <h3 className="row gap-2"><Icon name="users" size={17} /> Voyageurs {participants.length > 0 && <span className="chip">{participants.length}</span>}</h3>
-          <div className="row gap-2">
-            <InviteLink kind="trip" targetId={id} variant="sm">Lien</InviteLink>
-            <InviteQr kind="trip" targetId={id} variant="sm">QR</InviteQr>
-          </div>
+          {isOwner && (
+            <div className="row gap-2">
+              <InviteLink kind="trip" targetId={id} variant="sm">Lien</InviteLink>
+              <InviteQr kind="trip" targetId={id} variant="sm">QR</InviteQr>
+            </div>
+          )}
         </div>
         <div className="row wrap gap-2">
           {participants.map((p) => (
-            <ParticipantChip key={p.id} p={p} onRemove={() => removeParticipant.mutate(p.id)} />
+            <ParticipantChip key={p.id} p={p} onRemove={isOwner ? () => removeParticipant.mutate(p.id) : undefined} />
           ))}
         </div>
-        <form
-          className="row gap-2"
-          style={{ marginTop: "var(--space-3)" }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (guestName.trim()) addParticipant.mutate(guestName.trim());
-          }}
-        >
-          <input
-            className="input"
-            style={{ maxWidth: 240 }}
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            placeholder="Ajouter un voyageur (même sans compte)…"
-          />
-          <button className="btn btn-soft btn-sm" type="submit" disabled={addParticipant.isPending}>
-            <Icon name="plus" size={15} /> Ajouter
-          </button>
-        </form>
+        {isOwner && (
+          <form
+            className="row gap-2"
+            style={{ marginTop: "var(--space-3)" }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (guestName.trim()) addParticipant.mutate(guestName.trim());
+            }}
+          >
+            <input
+              className="input"
+              style={{ maxWidth: 240 }}
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              placeholder="Ajouter un voyageur (même sans compte)…"
+            />
+            <button className="btn btn-soft btn-sm" type="submit" disabled={addParticipant.isPending}>
+              <Icon name="plus" size={15} /> Ajouter
+            </button>
+          </form>
+        )}
         <div className="row gap-2 wrap" style={{ marginTop: "var(--space-3)" }}>
           {trip.expense_group_id ? (
             <Link className="btn btn-soft btn-sm" to="/depenses"><Icon name="expenses" size={15} /> Voir les dépenses partagées</Link>
-          ) : (
+          ) : isOwner ? (
             <button className="btn btn-soft btn-sm" onClick={() => createGroup.mutate()} disabled={createGroup.isPending}>
               <Icon name="expenses" size={15} /> {createGroup.isPending ? "Création…" : "Créer un Tricount pour ce voyage"}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -399,7 +412,9 @@ export default function TripDetail() {
 
       <div className="panel-head">
         <h2>Itinéraire</h2>
-        <button className="btn btn-primary btn-sm" onClick={() => setAddingItem(true)}><Icon name="plus" size={15} /> Ajouter une étape</button>
+        {isOwner && (
+          <button className="btn btn-primary btn-sm" onClick={() => setAddingItem(true)}><Icon name="plus" size={15} /> Ajouter une étape</button>
+        )}
       </div>
 
       {items.length === 0 ? (
@@ -407,8 +422,10 @@ export default function TripDetail() {
           <EmptyState
             icon="compass"
             title="Itinéraire vide"
-            hint="Ajoute des activités, repas, logements ou transports pour construire ton programme."
-            action={<button className="btn btn-primary" onClick={() => setAddingItem(true)}><Icon name="plus" size={15} /> Ajouter une étape</button>}
+            hint={isOwner
+              ? "Ajoute des activités, repas, logements ou transports pour construire ton programme."
+              : "L'organisateur n'a pas encore ajouté d'étapes à ce voyage."}
+            action={isOwner ? <button className="btn btn-primary" onClick={() => setAddingItem(true)}><Icon name="plus" size={15} /> Ajouter une étape</button> : undefined}
           />
         </div>
       ) : (
@@ -427,11 +444,13 @@ export default function TripDetail() {
                       className={`check${it.done ? " done" : ""}`}
                       role="checkbox"
                       aria-checked={it.done}
-                      tabIndex={0}
-                      onClick={() => updateItem.mutate({ itemId: it.id, b: { done: !it.done } })}
-                      onKeyDown={(e) =>
-                        (e.key === "Enter" || e.key === " ") &&
-                        updateItem.mutate({ itemId: it.id, b: { done: !it.done } })
+                      tabIndex={isOwner ? 0 : -1}
+                      style={isOwner ? undefined : { cursor: "default" }}
+                      onClick={isOwner ? () => updateItem.mutate({ itemId: it.id, b: { done: !it.done } }) : undefined}
+                      onKeyDown={
+                        isOwner
+                          ? (e) => (e.key === "Enter" || e.key === " ") && updateItem.mutate({ itemId: it.id, b: { done: !it.done } })
+                          : undefined
                       }
                     >
                       {it.done ? <Icon name="check" size={13} /> : ""}
@@ -471,13 +490,15 @@ export default function TripDetail() {
                     >
                       <Icon name="heart" size={14} filled={it.voted_by_me} /> {it.votes ?? 0}
                     </button>
-                    <button
-                      className="btn btn-icon btn-danger btn-sm"
-                      onClick={() => askDeleteItem(it)}
-                      aria-label="Supprimer"
-                    >
-                      <Icon name="trash" size={15} />
-                    </button>
+                    {isOwner && (
+                      <button
+                        className="btn btn-icon btn-danger btn-sm"
+                        onClick={() => askDeleteItem(it)}
+                        aria-label="Supprimer"
+                      >
+                        <Icon name="trash" size={15} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

@@ -78,20 +78,61 @@ async function ownsTrip(c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }
   return !!r;
 }
 
+/** Suis-je participant (rejoint via invitation) de ce voyage ? */
+async function isParticipant(c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }, id: string): Promise<boolean> {
+  const r = await c.env.DB.prepare("SELECT 1 FROM trip_participants WHERE trip_id = ? AND user_id = ?")
+    .bind(id, c.var.user!.id)
+    .first();
+  return !!r;
+}
+
+/** Accès en lecture (créateur OU participant). */
+async function canAccessTrip(c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] }, id: string): Promise<boolean> {
+  return (await ownsTrip(c, id)) || isParticipant(c, id);
+}
+
+/** Aperçu du créateur (avatar + nom) à partir d'une ligne jointe sur users. */
+function ownerOf(r: Record<string, unknown>) {
+  return {
+    id: r.user_id as string,
+    display_name: (r.o_name as string) ?? "",
+    handle: (r.o_handle as string) ?? null,
+    avatar_url: (r.o_avatar as string) ?? null,
+  };
+}
+
 app.get("/", async (c) => {
-  const res = await c.env.DB.prepare("SELECT * FROM trips WHERE user_id = ? ORDER BY COALESCE(start_date, '9999') ASC, created_at DESC")
-    .bind(c.var.user!.id)
+  const me = c.var.user!.id;
+  // Mes voyages + ceux où je suis participant (rejoint via invitation), avec le
+  // créateur joint pour pouvoir le mettre en avant dans la section « Partagé ».
+  const res = await c.env.DB.prepare(
+    `SELECT t.*, ou.display_name AS o_name, ou.handle AS o_handle, ou.avatar_url AS o_avatar
+     FROM trips t
+     JOIN users ou ON ou.id = t.user_id
+     WHERE t.user_id = ?
+        OR EXISTS (SELECT 1 FROM trip_participants p WHERE p.trip_id = t.id AND p.user_id = ?)
+     ORDER BY COALESCE(t.start_date, '9999') ASC, t.created_at DESC`,
+  )
+    .bind(me, me)
     .all<Record<string, unknown>>();
-  return c.json({ trips: (res.results ?? []).map(toTrip) });
+  return c.json({
+    trips: (res.results ?? []).map((r) => ({ ...toTrip(r), is_owner: r.user_id === me, owner: ownerOf(r) })),
+  });
 });
 
 app.get("/:id", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
-  const trip = await c.env.DB.prepare("SELECT * FROM trips WHERE id = ? AND user_id = ?")
-    .bind(id, me)
+  const trip = await c.env.DB.prepare(
+    `SELECT t.*, ou.display_name AS o_name, ou.handle AS o_handle, ou.avatar_url AS o_avatar
+     FROM trips t JOIN users ou ON ou.id = t.user_id WHERE t.id = ?`,
+  )
+    .bind(id)
     .first<Record<string, unknown>>();
   if (!trip) return c.json({ error: "Voyage introuvable" }, 404);
+  const isOwner = trip.user_id === me;
+  // Le créateur OU un participant peut consulter (les participants en lecture).
+  if (!isOwner && !(await isParticipant(c, id))) return c.json({ error: "Voyage introuvable" }, 404);
   const items = await c.env.DB.prepare(
     `SELECT ti.*,
        (SELECT COUNT(*) FROM trip_item_votes v WHERE v.item_id = ti.id) AS vote_count,
@@ -113,6 +154,8 @@ app.get("/:id", async (c) => {
       participants,
       participant_count: participants.length,
       expense_group_id: group?.id ?? null,
+      is_owner: isOwner,
+      owner: ownerOf(trip),
     },
   });
 });
@@ -158,7 +201,8 @@ app.post("/:id/items/:itemId/vote", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
   const itemId = c.req.param("itemId");
-  if (!(await ownsTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
+  // Voter est une décision de groupe : créateur ET participants peuvent voter.
+  if (!(await canAccessTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
   const item = await c.env.DB.prepare("SELECT 1 FROM trip_items WHERE id = ? AND trip_id = ?").bind(itemId, id).first();
   if (!item) return c.json({ error: "Étape introuvable" }, 404);
   const existing = await c.env.DB.prepare("SELECT id FROM trip_item_votes WHERE item_id = ? AND user_id = ?")

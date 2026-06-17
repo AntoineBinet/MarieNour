@@ -4,6 +4,7 @@ import { useAuth } from "../auth";
 import { Icon, type IconName } from "./Icon";
 import { IntroTour } from "./IntroTour";
 import InstallApp from "./InstallApp";
+import NotificationBell from "./NotificationBell";
 import { applyTheme, currentTheme, type Theme } from "../theme";
 
 const NAV: { section: string | null; items: { to: string; label: string; ic: IconName; end?: boolean }[] }[] = [
@@ -132,6 +133,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <div className="main">
         <header className="topbar">
           <button className="btn btn-soft btn-icon menu-btn" onClick={() => setOpen((o) => !o)} aria-label="Menu"><Icon name="menu" size={18} /></button>
+          <NotificationBell />
           <div className="brand topbar-brand">
             <img src="/favicon.svg" alt="" className="brand-logo" style={{ width: 28, height: 28 }} />
             <span className="brand-name" style={{ fontSize: "1.05rem" }}>MarieNour</span>
