@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { Icon, type IconName } from "./Icon";
 import { IntroTour } from "./IntroTour";
+import InstallApp from "./InstallApp";
 import { applyTheme, currentTheme, type Theme } from "../theme";
 
 const NAV: { section: string | null; items: { to: string; label: string; ic: IconName; end?: boolean }[] }[] = [
@@ -106,10 +107,11 @@ export default function Layout({ children }: { children: ReactNode }) {
               <span className="muted small">@{user?.handle}</span>
             </span>
           </NavLink>
-          <div className="row gap-2">
+          <div className="row gap-2 wrap">
             <button className="btn btn-soft btn-sm grow" onClick={toggleTheme}>
               <Icon name={theme === "dark" ? "sun" : "moon"} size={15} /> {theme === "dark" ? "Clair" : "Sombre"}
             </button>
+            <InstallApp />
             <button
               className="btn btn-soft btn-sm grow"
               onClick={async () => {

@@ -51,3 +51,61 @@ export function applyUpdateAndReload(): void {
   });
   waitingWorker.postMessage("SKIP_WAITING");
 }
+
+/* ── Invite d'installation native (Chrome / Edge / Android) ─────────────────── */
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
+const installListeners = new Set<() => void>();
+const notify = () => installListeners.forEach((cb) => cb());
+
+if (typeof window !== "undefined") {
+  // Le navigateur signale que l'app est installable : on garde l'évènement
+  // sous le coude pour déclencher l'invite au moment choisi par l'utilisateur.
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e as BeforeInstallPromptEvent;
+    notify();
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredPrompt = null;
+    notify();
+  });
+}
+
+/** Vrai si l'app tourne déjà en mode installé (écran d'accueil / standalone). */
+export function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+/** Vrai si une invite d'installation native est disponible (Chrome/Edge/Android). */
+export function canInstall(): boolean {
+  return deferredPrompt !== null;
+}
+
+/** S'abonne aux changements de disponibilité de l'invite. Retourne un désabonnement. */
+export function onInstallChange(cb: () => void): () => void {
+  installListeners.add(cb);
+  return () => {
+    installListeners.delete(cb);
+  };
+}
+
+/** Déclenche l'invite native d'installation. Retourne true si l'utilisateur accepte. */
+export async function promptInstall(): Promise<boolean> {
+  if (!deferredPrompt) return false;
+  const evt = deferredPrompt;
+  deferredPrompt = null;
+  await evt.prompt();
+  const choice = await evt.userChoice;
+  notify();
+  return choice.outcome === "accepted";
+}
