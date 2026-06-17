@@ -6,7 +6,7 @@ import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
 import { InviteLink } from "../components/InviteLink";
-import type { Trip, TripItem, TripKind, TripParticipant, Visibility } from "@shared/types";
+import type { Friendship, Trip, TripItem, TripKind, TripParticipant, Visibility } from "@shared/types";
 
 const VIS_LABEL: Record<Visibility, string> = {
   private: "Privé",
@@ -150,11 +150,17 @@ export default function TripDetail() {
   const [addingItem, setAddingItem] = useState(false);
   const [itemForm, setItemForm] = useState<ItemForm>(EMPTY_ITEM);
   const [guestName, setGuestName] = useState("");
+  const [invitingFriend, setInvitingFriend] = useState(false);
 
   const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => api.trip(id), enabled: !!id });
   const trip = data?.trip;
   const items = trip?.items ?? [];
   const participants = trip?.participants ?? [];
+
+  // Liste d'amis (pour le partage en un clic), chargée à l'ouverture de la modale.
+  const friendsQ = useQuery({ queryKey: ["friends"], queryFn: () => api.friends(), enabled: invitingFriend });
+  const participantUserIds = new Set(participants.map((p) => p.user_id).filter(Boolean));
+  const invitableFriends = (friendsQ.data?.friends ?? []).filter((f) => !participantUserIds.has(f.user.id));
 
   const invalidateTrip = () => qc.invalidateQueries({ queryKey: ["trip", id] });
 
@@ -170,6 +176,15 @@ export default function TripDetail() {
   const removeParticipant = useMutation({
     mutationFn: (pid: string) => api.removeTripParticipant(id, pid),
     onSuccess: invalidateTrip,
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+  const addFriendParticipant = useMutation({
+    mutationFn: (f: Friendship) =>
+      api.addTripParticipant(id, { name: f.user.display_name, user_id: f.user.id, role: "traveller" }),
+    onSuccess: () => {
+      invalidateTrip();
+      toast.push("Ami ajouté au voyage");
+    },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
   const voteItem = useMutation({
@@ -361,7 +376,10 @@ export default function TripDetail() {
         <div className="panel-head" style={{ marginBottom: "var(--space-3)" }}>
           <h3 className="row gap-2"><Icon name="users" size={17} /> Voyageurs {participants.length > 0 && <span className="chip">{participants.length}</span>}</h3>
           {isOwner && (
-            <div className="row gap-2">
+            <div className="row gap-2 wrap">
+              <button className="btn btn-soft btn-sm" onClick={() => setInvitingFriend(true)}>
+                <Icon name="friends" size={15} /> Un ami
+              </button>
               <InviteLink kind="trip" targetId={id} variant="sm">Lien</InviteLink>
               <InviteQr kind="trip" targetId={id} variant="sm">QR</InviteQr>
             </div>
@@ -641,6 +659,48 @@ export default function TripDetail() {
               <textarea className="textarea" value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} />
             </Field>
           </form>
+        </Modal>
+      )}
+
+      {/* ── Inviter un ami (partage en un clic) ── */}
+      {invitingFriend && (
+        <Modal title="Inviter un ami" onClose={() => setInvitingFriend(false)}>
+          {friendsQ.isLoading ? (
+            <Spinner />
+          ) : invitableFriends.length === 0 ? (
+            <EmptyState
+              icon="friends"
+              title="Personne à ajouter"
+              hint="Tous tes amis participent déjà — ou tu n'as pas encore d'amis. Ajoute-en depuis « Amis & sondages », ou partage le lien."
+            />
+          ) : (
+            <div className="col gap-2">
+              {invitableFriends.map((f) => (
+                <div key={f.id} className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="row gap-2" style={{ minWidth: 0, alignItems: "center" }}>
+                    {f.user.avatar_url ? (
+                      <img src={f.user.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
+                    ) : (
+                      <span style={{ width: 34, height: 34, borderRadius: "50%", flex: "none", display: "grid", placeItems: "center", background: "var(--surface-2)", color: "var(--accent-ink)", fontWeight: 700 }}>
+                        {(f.user.display_name || "?").trim().charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={{ display: "block" }}>{f.user.display_name}</strong>
+                      {f.user.handle && <span className="muted small">@{f.user.handle}</span>}
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-soft btn-sm"
+                    onClick={() => addFriendParticipant.mutate(f)}
+                    disabled={addFriendParticipant.isPending}
+                  >
+                    <Icon name="plus" size={14} /> Ajouter
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </Modal>
       )}
 
