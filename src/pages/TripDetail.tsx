@@ -5,6 +5,7 @@ import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
+import { InviteLink } from "../components/InviteLink";
 import type { Trip, TripItem, TripKind, TripParticipant, Visibility } from "@shared/types";
 
 const VIS_LABEL: Record<Visibility, string> = {
@@ -350,7 +351,10 @@ export default function TripDetail() {
       <div className="card card-pad-sm" style={{ marginBottom: "var(--space-5)" }}>
         <div className="panel-head" style={{ marginBottom: "var(--space-3)" }}>
           <h3 className="row gap-2"><Icon name="users" size={17} /> Voyageurs {participants.length > 0 && <span className="chip">{participants.length}</span>}</h3>
-          <InviteQr kind="trip" targetId={id} variant="sm">Inviter</InviteQr>
+          <div className="row gap-2">
+            <InviteLink kind="trip" targetId={id} variant="sm">Lien</InviteLink>
+            <InviteQr kind="trip" targetId={id} variant="sm">QR</InviteQr>
+          </div>
         </div>
         <div className="row wrap gap-2">
           {participants.map((p) => (

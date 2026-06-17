@@ -4,6 +4,7 @@ import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
+import { InviteLink } from "../components/InviteLink";
 import type {
   ExpenseGroup,
   ExpenseGroupDetail,
@@ -433,7 +434,8 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         </div>
         <div className="row gap-2 wrap">
-          <InviteQr kind="group" targetId={group.id} variant="soft">Inviter</InviteQr>
+          <InviteLink kind="group" targetId={group.id} variant="soft">Lien</InviteLink>
+          <InviteQr kind="group" targetId={group.id} variant="soft">QR</InviteQr>
           <button className="btn btn-soft" onClick={() => setAddingMember(true)}>
             <Icon name="users" size={16} /> Participant
           </button>

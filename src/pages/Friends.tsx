@@ -5,6 +5,7 @@ import { api } from "../api";
 import { Spinner, EmptyState, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
+import { InviteLink } from "../components/InviteLink";
 import PollsPanel from "../components/PollsPanel";
 import type { Friendship, PublicUser } from "@shared/types";
 
@@ -107,7 +108,10 @@ export default function Friends() {
           <h1>Amis &amp; sondages</h1>
           <p className="muted">Retrouve tes proches, invite-les d'un scan et sonde le groupe.</p>
         </div>
-        <InviteQr kind="friend" variant="primary">Inviter un ami</InviteQr>
+        <div className="row gap-2 wrap">
+          <InviteLink kind="friend" variant="primary">Inviter par lien</InviteLink>
+          <InviteQr kind="friend" variant="soft">QR code</InviteQr>
+        </div>
       </div>
 
       {/* ── Recherche ──────────────────────────────────────────────────── */}
