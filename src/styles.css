@@ -159,6 +159,10 @@ a:hover { text-decoration: underline; }
 .btn-sm { padding: 0.38rem 0.72rem; font-size: 0.82rem; }
 .btn-icon { padding: 0.45rem; border-radius: 50%; width: 36px; height: 36px; }
 .btn-block { width: 100%; }
+/* Icônes SVG dans les boutons : taille fixe, jamais écrasées à 0 de large par
+   le flexbox du bouton (cas des boutons ronds .btn-icon, sur mobile notamment :
+   Chrome/Safari réduisent sinon un <svg> enfant de flex sans largeur CSS). */
+.btn svg { flex: none; }
 
 /* ── Cards / panels ───────────────────────────────────────────────────── */
 .card {
