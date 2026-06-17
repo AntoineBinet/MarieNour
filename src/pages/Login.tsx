@@ -79,6 +79,13 @@ function AuthCard({ initialMode, redirectTo }: { initialMode: "login" | "registe
       <p className="muted small center" style={{ marginTop: "var(--space-4)" }}>
         <Icon name="lock" size={13} style={{ verticalAlign: "-2px" }} /> Gratuit, privé, sans pub.
       </p>
+      {mode === "register" && (
+        <p className="muted small center" style={{ marginTop: "var(--space-2)" }}>
+          En créant un compte, tu acceptes les{" "}
+          <Link to="/cgu">conditions d'utilisation</Link> et la{" "}
+          <Link to="/confidentialite">politique de confidentialité</Link>.
+        </p>
+      )}
     </div>
   );
 }
@@ -161,6 +168,8 @@ export default function Login() {
       <footer className="muted small center landing-footer">
         Site créé par Antoine Binet, sous la micro-société AB&nbsp;Azur&nbsp;Tech.
         <div style={{ marginTop: 4 }}>
+          <Link to="/cgu">Conditions d'utilisation</Link>
+          <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>
           <Link to="/mentions-legales">Mentions légales</Link>
           <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>
           <Link to="/confidentialite">Confidentialité</Link>

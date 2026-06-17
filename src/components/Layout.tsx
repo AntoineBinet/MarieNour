@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { Icon, type IconName } from "./Icon";
 import { IntroTour } from "./IntroTour";
@@ -131,7 +131,21 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
           <div className="grow" />
         </header>
-        <main className="content">{children}</main>
+        <main className="content">
+          {children}
+          <footer className="app-footer">
+            <div className="app-footer-links">
+              <Link to="/cgu">Conditions d'utilisation</Link>
+              <span className="sep">·</span>
+              <Link to="/confidentialite">Confidentialité</Link>
+              <span className="sep">·</span>
+              <Link to="/mentions-legales">Mentions légales</Link>
+            </div>
+            <div className="app-footer-meta">
+              marienour — service gratuit de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, sans pub ni revente de données.
+            </div>
+          </footer>
+        </main>
       </div>
 
       {/* Navigation inférieure — visible uniquement sur mobile (CSS). */}
