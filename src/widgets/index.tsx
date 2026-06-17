@@ -8,6 +8,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   { type: "lists", name: "Listes & checklists", description: "Tes listes en cours et leur avancement.", emoji: "✅", icon: "lists" },
   { type: "notes", name: "Notes récentes", description: "Tes dernières notes et idées.", emoji: "📝", icon: "notes" },
   { type: "trips", name: "Prochain voyage", description: "Compte à rebours du prochain départ.", emoji: "✈️", icon: "trips" },
+  { type: "events", name: "Prochain événement", description: "Ton prochain rendez-vous et le décompte.", emoji: "🎉", icon: "confetti" },
   { type: "recipes", name: "Recettes favorites", description: "Tes recettes mises en favori.", emoji: "🍳", icon: "recipes" },
   { type: "inspiration", name: "Boîte à inspirations", description: "À trier depuis tes réseaux.", emoji: "✨", icon: "inspiration" },
   { type: "photos", name: "Photos", description: "Tes derniers clichés.", emoji: "📷", icon: "photos" },
@@ -81,6 +82,34 @@ function TripsWidget() {
         <h3>{trip.title}</h3>
         <p className="muted small">{trip.destination}</p>
         {days != null && days >= 0 && <p style={{ marginTop: 8 }}><strong style={{ fontSize: "1.6rem", color: "var(--accent)" }}>{days}</strong> jours avant le départ</p>}
+      </Link>
+    </WBody>
+  );
+}
+
+function EventsWidget() {
+  const { data, isLoading } = useQuery({ queryKey: ["events"], queryFn: () => api.events() });
+  if (isLoading) return <Loading />;
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = (data?.events ?? []).filter((e) => e.date_decided && e.start_date && e.start_date >= today && e.status !== "cancelled");
+  const ev = upcoming[0] ?? (data?.events ?? [])[0];
+  if (!ev) return <p className="muted small">Aucun événement. <Link to="/evenements">Organiser →</Link></p>;
+  const days = ev.start_date ? Math.ceil((new Date(ev.start_date).getTime() - Date.now()) / 86400000) : null;
+  return (
+    <WBody>
+      <Link to={`/evenements/${ev.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+        <h3>{ev.title}</h3>
+        {ev.location && <p className="muted small">{ev.location}</p>}
+        {days != null && days >= 0 && ev.date_decided ? (
+          <p style={{ marginTop: 8 }}>
+            <strong style={{ fontSize: "1.6rem", color: "var(--accent)" }}>{days === 0 ? "Auj." : days}</strong> {days === 0 ? "c'est le jour !" : "jours à attendre"}
+          </p>
+        ) : (
+          <p className="muted small" style={{ marginTop: 8 }}>Date à définir</p>
+        )}
+        <p className="small row gap-2" style={{ marginTop: 6 }}>
+          <Icon name="users" size={13} /> {ev.going_count} attendus{ev.capacity ? ` / ${ev.capacity}` : ""}
+        </p>
       </Link>
     </WBody>
   );
@@ -199,6 +228,7 @@ export function WidgetContent({ type, config }: { type: string; config: Record<s
     case "lists": return <ListsWidget />;
     case "notes": return <NotesWidget />;
     case "trips": return <TripsWidget />;
+    case "events": return <EventsWidget />;
     case "recipes": return <RecipesWidget />;
     case "inspiration": return <InspirationWidget />;
     case "photos": return <PhotosWidget />;

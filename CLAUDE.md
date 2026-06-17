@@ -56,8 +56,11 @@ index.html, src/            → front React 18 + Vite (build → dist/)
 server/app.ts               → app Hono (basePath /api), monte les routes
 server/routes/*.ts          → auth, friends, widgets, lists, notes, trips,
                               recipes, inspiration, media, social, admin,
-                              expenses (Tricount), polls (sondages),
-                              invites (QR codes), onboarding (seed de démarrage)
+                              expenses (Tricount), finance (budget perso),
+                              polls (sondages), invites (QR codes),
+                              onboarding (seed de démarrage),
+                              events (planification : RSVP, sondage de dates,
+                              tâches, programme, « qui apporte quoi »)
 src/components/Icon.tsx      → jeu d'icônes SVG « maison » (remplace les emojis)
 src/components/QrCode.tsx    → QR en SVG (lib qrcode-generator, hors-ligne)
 src/components/InviteQr.tsx  → bouton « Inviter par QR » (ami / voyage / groupe)

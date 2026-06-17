@@ -88,7 +88,11 @@ export type IconName =
   | "lightbulb"
   | "globe"
   | "wand"
-  | "trend";
+  | "trend"
+  | "confetti"
+  | "cake"
+  | "glass"
+  | "gift";
 
 const P: Record<IconName, JSX.Element> = {
   home: <path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" />,
@@ -486,6 +490,34 @@ const P: Record<IconName, JSX.Element> = {
     </>
   ),
   trend: <path d="M4 16l5-5 3 3 7-7m0 0h-4.5m4.5 0v4.5" />,
+  confetti: (
+    <>
+      <path d="M3 21 9.2 5.5a1 1 0 0 1 1.7-.2l4.8 4.8a1 1 0 0 1-.2 1.7L3 21Z" />
+      <path d="m9.5 14.5 4.2-4.2" />
+      <path d="M15 3.5v.01M19.5 5.5v.01M21 10v.01M17.5 9h.01M20 14.5h.01" />
+    </>
+  ),
+  cake: (
+    <>
+      <path d="M4 21h16" />
+      <path d="M5 21v-8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8" />
+      <path d="M5 15.2c1.3 0 1.3 1 2.6 1s1.3-1 2.6-1 1.3 1 2.6 1 1.3-1 2.6-1 1.3 1 2.6 1" />
+      <path d="M12 8.5V11M12 5.5v.01" />
+    </>
+  ),
+  glass: (
+    <>
+      <path d="M5 4h14l-7 8-7-8Z" />
+      <path d="M12 12v6M8.5 20h7" />
+    </>
+  ),
+  gift: (
+    <>
+      <rect x="4" y="9.5" width="16" height="10.5" rx="1.2" />
+      <path d="M4 9.5h16M12 9.5V20" />
+      <path d="M12 9.5C12 6.5 10.3 5 8.8 5.8S8.5 9.5 12 9.5Zm0 0c0-3 1.7-4.5 3.2-3.7S15.5 9.5 12 9.5Z" />
+    </>
+  ),
 };
 
 export interface IconProps {

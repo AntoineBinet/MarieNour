@@ -10,13 +10,14 @@ import { Spinner, useToast } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import type { InviteKind } from "@shared/types";
 
-const KIND_ICON: Record<InviteKind, IconName> = { friend: "friends", trip: "trips", group: "expenses" };
+const KIND_ICON: Record<InviteKind, IconName> = { friend: "friends", trip: "trips", group: "expenses", event: "confetti" };
 const KIND_VERB: Record<InviteKind, string> = {
   friend: "veut t'ajouter en ami",
   trip: "t'invite à rejoindre un voyage",
   group: "t'invite dans un groupe de dépenses",
+  event: "t'invite à un événement",
 };
-const KIND_DEST: Record<InviteKind, string> = { friend: "/amis", trip: "/voyages", group: "/depenses" };
+const KIND_DEST: Record<InviteKind, string> = { friend: "/amis", trip: "/voyages", group: "/depenses", event: "/evenements" };
 
 export default function Invite() {
   const { token = "" } = useParams();
@@ -36,7 +37,9 @@ export default function Invite() {
     onSuccess: (res) => {
       setDone(true);
       toast.push("Invitation acceptée");
-      setTimeout(() => navigate(KIND_DEST[res.kind] ?? "/", { replace: true }), 900);
+      // Pour un événement on ouvre directement sa fiche si on connaît la cible.
+      const dest = res.kind === "event" && res.target_id ? `/evenements/${res.target_id}` : KIND_DEST[res.kind] ?? "/";
+      setTimeout(() => navigate(dest, { replace: true }), 900);
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });

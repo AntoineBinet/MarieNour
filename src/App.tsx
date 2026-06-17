@@ -9,6 +9,8 @@ import Lists from "./pages/Lists";
 import Notes from "./pages/Notes";
 import Trips from "./pages/Trips";
 import TripDetail from "./pages/TripDetail";
+import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
 import Recipes from "./pages/Recipes";
 import Inspiration from "./pages/Inspiration";
 import Photos from "./pages/Photos";
@@ -48,6 +50,8 @@ export default function App() {
                 <Route path="/notes" element={<Notes />} />
                 <Route path="/voyages" element={<Trips />} />
                 <Route path="/voyages/:id" element={<TripDetail />} />
+                <Route path="/evenements" element={<Events />} />
+                <Route path="/evenements/:id" element={<EventDetail />} />
                 <Route path="/recettes" element={<Recipes />} />
                 <Route path="/inspiration" element={<Inspiration />} />
                 <Route path="/photos" element={<Photos />} />

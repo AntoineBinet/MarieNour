@@ -2,6 +2,13 @@ import type {
   Board,
   Comment,
   Expense,
+  DateVote,
+  EventAgendaItem,
+  EventBringItem,
+  EventDetail,
+  EventGuest,
+  EventSummary,
+  EventTask,
   ExpenseGroup,
   ExpenseGroupDetail,
   FeedItem,
@@ -187,6 +194,44 @@ export const api = {
   removeTripParticipant: (id: string, pid: string) => del<{ ok: true }>(`/trips/${id}/participants/${pid}`),
   voteTripItem: (id: string, itemId: string) => post<{ voted: boolean; votes: number }>(`/trips/${id}/items/${itemId}/vote`),
 
+  // Événements (planification : week-end, EVG/EVJF, soirée, anniv…)
+  events: () => get<{ events: EventSummary[] }>("/events"),
+  event: (id: string) => get<{ event: EventDetail }>(`/events/${id}`),
+  createEvent: (b: Partial<EventSummary> & { address?: string }) => post<{ id: string }>("/events", b),
+  updateEvent: (id: string, b: Partial<EventDetail>) => patch<{ ok: true }>(`/events/${id}`, b),
+  deleteEvent: (id: string) => del<{ ok: true }>(`/events/${id}`),
+  // Invités & RSVP
+  addEventGuest: (id: string, b: { name: string; user_id?: string; role?: string }) =>
+    post<{ id: string }>(`/events/${id}/guests`, b),
+  updateEventGuest: (id: string, gid: string, b: Partial<EventGuest>) => patch<{ ok: true }>(`/events/${id}/guests/${gid}`, b),
+  removeEventGuest: (id: string, gid: string) => del<{ ok: true }>(`/events/${id}/guests/${gid}`),
+  rsvpEvent: (id: string, b: { rsvp: string; plus_ones?: number; note?: string }) =>
+    post<{ ok: true; rsvp: string }>(`/events/${id}/rsvp`, b),
+  // Sondage de dates
+  addEventDate: (id: string, b: { day_date: string; start_time?: string; end_time?: string }) =>
+    post<{ id: string }>(`/events/${id}/dates`, b),
+  removeEventDate: (id: string, oid: string) => del<{ ok: true }>(`/events/${id}/dates/${oid}`),
+  voteEventDate: (id: string, oid: string, vote: DateVote) =>
+    post<{ ok: true }>(`/events/${id}/dates/${oid}/vote`, { vote }),
+  decideEventDate: (id: string, oid: string) => post<{ ok: true; start_date: string }>(`/events/${id}/dates/${oid}/decide`),
+  // Tâches
+  addEventTask: (id: string, b: { title: string; assignee_id?: string; due_date?: string }) =>
+    post<{ id: string }>(`/events/${id}/tasks`, b),
+  updateEventTask: (id: string, tid: string, b: Partial<EventTask>) => patch<{ ok: true }>(`/events/${id}/tasks/${tid}`, b),
+  removeEventTask: (id: string, tid: string) => del<{ ok: true }>(`/events/${id}/tasks/${tid}`),
+  // Programme
+  addEventItem: (id: string, b: Partial<EventAgendaItem>) => post<{ id: string }>(`/events/${id}/items`, b),
+  updateEventItem: (id: string, iid: string, b: Partial<EventAgendaItem>) =>
+    patch<{ ok: true }>(`/events/${id}/items/${iid}`, b),
+  removeEventItem: (id: string, iid: string) => del<{ ok: true }>(`/events/${id}/items/${iid}`),
+  // À apporter
+  addEventBring: (id: string, b: Partial<EventBringItem> & { claim?: boolean }) =>
+    post<{ id: string }>(`/events/${id}/bring`, b),
+  updateEventBring: (id: string, bid: string, b: Partial<EventBringItem>) =>
+    patch<{ ok: true }>(`/events/${id}/bring/${bid}`, b),
+  claimEventBring: (id: string, bid: string) => post<{ ok: true; claimed_by: string | null }>(`/events/${id}/bring/${bid}/claim`),
+  removeEventBring: (id: string, bid: string) => del<{ ok: true }>(`/events/${id}/bring/${bid}`),
+
   // Invitations / QR codes
   createInvite: (b: { kind: InviteKind; target_id?: string; member_id?: string; label?: string; expires_in_days?: number }) =>
     post<{ invite: Invite }>("/invites", b),
@@ -204,7 +249,7 @@ export const api = {
   // Dépenses partagées (Tricount)
   expenseGroups: () => get<{ groups: ExpenseGroup[] }>("/expenses"),
   expenseGroup: (id: string) => get<{ group: ExpenseGroupDetail }>(`/expenses/${id}`),
-  createExpenseGroup: (b: { title: string; icon?: string; currency?: string; trip_id?: string; members?: string[] }) =>
+  createExpenseGroup: (b: { title: string; icon?: string; currency?: string; trip_id?: string; event_id?: string; members?: string[] }) =>
     post<{ id: string }>("/expenses", b),
   updateExpenseGroup: (id: string, b: Partial<{ title: string; icon: string; currency: string; archived: boolean }>) =>
     patch<{ ok: true }>(`/expenses/${id}`, b),

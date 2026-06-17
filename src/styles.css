@@ -262,6 +262,26 @@ a:hover { text-decoration: underline; }
 .bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.3s ease; }
 
+/* ── Contrôle segmenté / onglets (filtres, fiche événement…) ──────────── */
+.seg {
+  display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.seg-scroll { display: flex; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.seg-scroll::-webkit-scrollbar { display: none; }
+.seg-item {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 0.4rem 0.85rem; border-radius: 999px; border: none; cursor: pointer;
+  background: transparent; color: var(--ink-2); font-family: var(--font-body);
+  font-weight: 600; font-size: 0.85rem; transition: background 0.15s ease, color 0.15s ease;
+}
+.seg-item:hover { color: var(--ink); }
+.seg-item.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.seg-badge {
+  font-size: 0.68rem; font-weight: 700; line-height: 1; padding: 2px 6px; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink);
+}
+
 /* ── Pastille de type (voyage, catégorie…) ────────────────────────────── */
 .tag-pill {
   display: inline-flex; align-items: center; gap: 6px; padding: 0.2rem 0.6rem; border-radius: 999px;
