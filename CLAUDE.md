@@ -73,7 +73,8 @@ server/adapters/{d1,r2,smtp}.ts → bindings locaux (SQLite / fichiers / SMTP no
 shared/types.ts             → types partagés front/back
 migrations/000X_*.sql       → schéma (rejoué auto au démarrage sur la VM)
 deployment/                 → kit VM Oracle + tunnel
-docs/SETUP-CLOUDFLARE-CHROME.md → runbook « Claude dans Chrome » (2 onglets)
+docs/SETUP-CLOUDFLARE-CHROME.md → runbook « Claude dans Chrome » (mise en ligne, 2 onglets)
+docs/SETUP-MAIL-CHROME.md   → runbook « Claude dans Chrome » (activer les e-mails Gmail/SMTP)
 ```
 
 ## Commandes
