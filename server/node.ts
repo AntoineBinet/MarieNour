@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { createApp } from "./app";
 import { createD1 } from "./adapters/d1";
 import { createR2 } from "./adapters/r2";
+import { createSmtpMailer } from "./adapters/smtp";
 import { attachUser, requireAdmin } from "./auth";
 import { getCurrentCommit, getStatus, startUpdate } from "./node-update";
 
@@ -28,6 +29,27 @@ const STATIC_DIR = process.env.MARIENOUR_STATIC_DIR || join(ROOT, "dist");
 
 mkdirSync(DATA_DIR, { recursive: true });
 
+// E-mail (SMTP) — optionnel. Configuré pour Gmail par défaut : il suffit de
+// poser SMTP_USER (adresse Gmail) + SMTP_PASS (« mot de passe d'application »).
+// Sans identifiants, MAILER reste undefined et les e-mails sont désactivés.
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER;
+const mailer =
+  SMTP_USER && SMTP_PASS
+    ? createSmtpMailer({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_PORT === 465,
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+        from: MAIL_FROM,
+      })
+    : undefined;
+if (!mailer) console.log("[marienour] e-mails désactivés (SMTP_USER/SMTP_PASS absents)");
+
 // Bindings (équivalents des bindings Cloudflare, mais locaux).
 const env = {
   DB: createD1(join(DATA_DIR, "marienour.db"), MIGRATIONS_DIR),
@@ -36,8 +58,7 @@ const env = {
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "",
   SESSION_SECRET: process.env.SESSION_SECRET || "",
   APP_NAME: process.env.APP_NAME || "MarieNour",
-  RESEND_API_KEY: process.env.RESEND_API_KEY || "",
-  MAIL_FROM: process.env.MAIL_FROM || "",
+  MAILER: mailer,
 };
 
 const indexHtmlPath = join(STATIC_DIR, "index.html");

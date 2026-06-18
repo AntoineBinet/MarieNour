@@ -1,15 +1,11 @@
-// Envoi d'e-mail transactionnel — RUNTIME-AGNOSTIQUE.
+// Composition des e-mails — RUNTIME-AGNOSTIQUE (aucune dépendance Node ici).
 //
-// On passe par l'API HTTP de Resend (https://resend.com) via `fetch`. Aucun
-// SMTP, aucune dépendance native : le même code marche sur la VM Oracle (Node)
-// ET sur le repli serverless (Cloudflare Workers). Cf. CLAUDE.md : les routes
-// ne doivent jamais introduire d'API spécifique à un runtime.
-//
-// Configuration (variables d'environnement, toutes optionnelles) :
-//   RESEND_API_KEY  → clé API Resend. ABSENTE = e-mails désactivés (no-op).
-//   MAIL_FROM       → expéditeur, ex. "MarieNour <hello@marienour.work>".
-//                     Défaut : "MarieNour <onboarding@resend.dev>" (bac à sable).
-// Le destinataire des notifications admin est ADMIN_EMAIL.
+// L'ENVOI réel est délégué à un `Mailer` injecté par le runtime, exactement
+// comme DB (D1/SQLite) et MEDIA (R2/fichiers) — cf. CLAUDE.md :
+//   • VM Oracle (Node) → SMTP via nodemailer (server/adapters/smtp.ts),
+//     configuré pour Gmail par défaut.
+//   • Repli Cloudflare Workers → pas de SMTP possible : MAILER absent, l'e-mail
+//     est simplement ignoré (l'app continue de fonctionner).
 import type { Bindings } from "./types";
 
 export interface MailMessage {
@@ -19,42 +15,10 @@ export interface MailMessage {
   text?: string;
 }
 
-/**
- * Envoie un e-mail. Best effort : ne lève jamais, renvoie `false` en cas d'échec
- * ou si l'envoi d'e-mails n'est pas configuré (RESEND_API_KEY absent).
- */
-export async function sendMail(env: Bindings, msg: MailMessage): Promise<boolean> {
-  const apiKey = (env.RESEND_API_KEY || "").trim();
-  if (!apiKey) {
-    console.log(`[mail] non configuré (RESEND_API_KEY absent) — e-mail « ${msg.subject} » ignoré`);
-    return false;
-  }
-  const from = (env.MAIL_FROM || "").trim() || `${env.APP_NAME || "MarieNour"} <onboarding@resend.dev>`;
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [msg.to],
-        subject: msg.subject,
-        ...(msg.html ? { html: msg.html } : {}),
-        ...(msg.text ? { text: msg.text } : {}),
-      }),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      console.error(`[mail] échec d'envoi (${res.status}) : ${detail}`);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error("[mail] erreur réseau :", err);
-    return false;
-  }
+/** Adaptateur d'envoi d'e-mail. Implémentation fournie par le runtime. */
+export interface Mailer {
+  /** Envoie un message. Best effort : ne lève pas, renvoie false en cas d'échec. */
+  send(msg: MailMessage): Promise<boolean>;
 }
 
 function escapeHtml(s: string): string {
@@ -66,7 +30,7 @@ function escapeHtml(s: string): string {
 
 /**
  * Prévient l'admin (ADMIN_EMAIL) qu'un nouvel utilisateur vient de s'inscrire.
- * No-op si ADMIN_EMAIL ou l'envoi d'e-mails ne sont pas configurés.
+ * No-op si ADMIN_EMAIL ou l'envoi d'e-mails (MAILER) ne sont pas configurés.
  */
 export async function notifyAdminNewUser(
   env: Bindings,
@@ -74,6 +38,10 @@ export async function notifyAdminNewUser(
 ): Promise<boolean> {
   const to = (env.ADMIN_EMAIL || "").trim();
   if (!to) return false;
+  if (!env.MAILER) {
+    console.log("[mail] non configuré (pas de MAILER / SMTP) — inscription non notifiée par e-mail");
+    return false;
+  }
 
   const appName = env.APP_NAME || "MarieNour";
   const name = escapeHtml(user.display_name);
@@ -100,5 +68,5 @@ export async function notifyAdminNewUser(
     `Identifiant : ${user.handle ? `@${user.handle}` : "—"}\n` +
     `Date : ${when}\n`;
 
-  return sendMail(env, { to, subject, html, text });
+  return env.MAILER.send({ to, subject, html, text });
 }

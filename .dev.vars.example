@@ -8,7 +8,7 @@ ADMIN_PASSWORD="change-moi-en-local"
 # Secret utilisé pour signer les jetons de session (chaîne aléatoire longue).
 SESSION_SECRET="dev-secret-change-moi"
 
-# E-mails (optionnel) : prévient l'admin à chaque nouvelle inscription, via
-# l'API HTTP Resend. Laisser vide pour désactiver l'envoi.
-# RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxxxxxx"
-# MAIL_FROM="MarieNour <hello@marienour.work>"
+# E-mails : l'envoi se fait par SMTP (nodemailer), uniquement sur le runtime
+# Node (VM Oracle / `npm start`). Le repli serverless Cloudflare Pages ne peut
+# pas faire de SMTP : les e-mails y sont désactivés. La config SMTP se met donc
+# dans l'environnement Node (cf. deployment/marienour.env.example), pas ici.

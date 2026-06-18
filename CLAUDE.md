@@ -66,10 +66,10 @@ src/components/QrCode.tsx    → QR en SVG (lib qrcode-generator, hors-ligne)
 src/components/InviteQr.tsx  → bouton « Inviter par QR » (ami / voyage / groupe)
 src/components/InviteLink.tsx→ bouton « Inviter par lien » (copie le lien dans le presse-papier)
 server/{auth,access,util}.ts→ sessions (cookie httpOnly, PBKDF2 Web Crypto), ACL
-server/mailer.ts            → e-mails transactionnels via API HTTP Resend (fetch,
-                              cross-runtime) : ex. alerte admin à chaque inscription
+server/mailer.ts            → compose les e-mails + contrat `Mailer` (envoi
+                              délégué au runtime) : alerte admin à chaque inscription
 server/node.ts              → entrée Node (VM) : env + static + SPA + listen :8002
-server/adapters/{d1,r2}.ts  → bindings locaux (SQLite / fichiers)
+server/adapters/{d1,r2,smtp}.ts → bindings locaux (SQLite / fichiers / SMTP nodemailer)
 shared/types.ts             → types partagés front/back
 migrations/000X_*.sql       → schéma (rejoué auto au démarrage sur la VM)
 deployment/                 → kit VM Oracle + tunnel
@@ -99,8 +99,11 @@ ADMIN_EMAIL=binet.antoine215@yahoo.com ADMIN_PASSWORD=dev SESSION_SECRET=dev npm
 | `ADMIN_PASSWORD` | (vide) | mot de passe maître admin (1er login = création) |
 | `SESSION_SECRET` | (vide) | secret de session (`openssl rand -hex 32`) |
 | `APP_NAME` | `marienour` | nom affiché |
-| `RESEND_API_KEY` | (vide) | clé API Resend pour l'envoi d'e-mails (vide = off) |
-| `MAIL_FROM` | `onboarding@resend.dev` | expéditeur des e-mails |
+| `SMTP_USER` | (vide) | identifiant SMTP (adresse Gmail) — vide = e-mails off |
+| `SMTP_PASS` | (vide) | mot de passe SMTP (« mot de passe d'application » Gmail) |
+| `SMTP_HOST` | `smtp.gmail.com` | serveur SMTP |
+| `SMTP_PORT` | `465` | port SMTP (465 SSL / 587 STARTTLS) |
+| `MAIL_FROM` | `=SMTP_USER` | expéditeur affiché |
 
 > Sur la VM, ces valeurs viennent de `/etc/marienour/marienour.env` (secrets) +
 > `marienour.service` (port/host/data dir). Pour le repli Pages : `wrangler.toml`
