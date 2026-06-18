@@ -272,6 +272,22 @@ a:hover { text-decoration: underline; }
   width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
 }
 .notif-x:hover { background: var(--surface-2); color: var(--ink); }
+/* Sur mobile, on ancre le panneau au viewport pour qu'il ne déborde jamais à
+   droite (la cloche est près du bord gauche, sous la barre du haut). */
+@media (max-width: 560px) {
+  .notif-panel {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 64px);
+    left: 12px; right: 12px; width: auto;
+  }
+}
+
+/* ── Éléments cliquables (tableau de bord finances) ───────────────────────
+   Affordance discrète : curseur + léger fond au survol/focus. */
+.fin-click { cursor: pointer; transition: background 0.12s ease, transform 0.06s ease; }
+.fin-click:hover { background: var(--surface-2); }
+.fin-click:active { transform: translateY(1px); }
+.fin-click:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── Dashboard widgets grid ───────────────────────────────────────────── */
 .widget-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-4); }

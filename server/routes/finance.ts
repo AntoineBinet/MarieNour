@@ -12,9 +12,11 @@ import type {
   FinanceAccount,
   FinanceCategory,
   FinanceGoal,
+  FinanceMonthPoint,
   FinanceOverview,
   FinancePartner,
   FinanceRecurring,
+  FinanceStats,
   FinanceTransaction,
   PublicUser,
   TxType,
@@ -75,6 +77,13 @@ function prevMonth(month: string): string {
   const [y, m] = month.split("-").map((n) => parseInt(n, 10));
   const d = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
   return d;
+}
+
+/** Décale un 'YYYY-MM' de `delta` mois (négatif = passé). */
+function shiftMonthStr(month: string, delta: number): string {
+  const [y, m] = month.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 /** Avance une date 'YYYY-MM-DD' selon la cadence (jour conservé, borné à la fin du mois). */
@@ -389,6 +398,87 @@ app.get("/overview", async (c) => {
     upcoming,
   };
   return c.json({ overview });
+});
+
+/* ── Statistiques (séries multi-mois + répartition par catégorie) ─────────── */
+app.get("/stats", async (c) => {
+  const space = await resolveOwner(c, c.req.query("owner"));
+  if (!space) return c.json({ error: "Accès refusé" }, 403);
+  const ownerId = space.ownerId;
+  const monthsN = Math.min(24, Math.max(2, Math.trunc(Number(c.req.query("months")) || 6)));
+  const endMonth = cleanMonth(c.req.query("month"));
+  const monthList: string[] = [];
+  for (let i = monthsN - 1; i >= 0; i--) monthList.push(shiftMonthStr(endMonth, -i));
+  const first = monthList[0];
+
+  // Revenus / dépenses par mois sur la période.
+  const agg = await c.env.DB.prepare(
+    `SELECT substr(date, 1, 7) AS m, type, COALESCE(SUM(amount), 0) AS total
+     FROM finance_transactions
+     WHERE user_id = ? AND type IN ('income', 'expense')
+       AND substr(date, 1, 7) >= ? AND substr(date, 1, 7) <= ?
+     GROUP BY m, type`,
+  )
+    .bind(ownerId, first, endMonth)
+    .all<{ m: string; type: string; total: number }>();
+  const incomeBy = new Map<string, number>();
+  const expenseBy = new Map<string, number>();
+  for (const row of agg.results ?? []) {
+    if (row.type === "income") incomeBy.set(row.m, r2(row.total ?? 0));
+    else expenseBy.set(row.m, r2(row.total ?? 0));
+  }
+  const months: FinanceMonthPoint[] = monthList.map((m) => ({
+    month: m,
+    income: incomeBy.get(m) ?? 0,
+    expense: expenseBy.get(m) ?? 0,
+  }));
+
+  // Répartition des dépenses par catégorie sur toute la période.
+  const catAgg = await c.env.DB.prepare(
+    `SELECT t.category_id AS category_id, COALESCE(SUM(t.amount), 0) AS amount
+     FROM finance_transactions t
+     WHERE t.user_id = ? AND t.type = 'expense'
+       AND substr(t.date, 1, 7) >= ? AND substr(t.date, 1, 7) <= ?
+     GROUP BY t.category_id`,
+  )
+    .bind(ownerId, first, endMonth)
+    .all<{ category_id: string | null; amount: number }>();
+  const catRes = await c.env.DB.prepare(
+    "SELECT id, name, color, icon FROM finance_categories WHERE user_id = ?",
+  )
+    .bind(ownerId)
+    .all<Record<string, unknown>>();
+  const catById = new Map<string, Record<string, unknown>>();
+  for (const row of catRes.results ?? []) catById.set(row.id as string, row);
+  const by_category: CategorySpend[] = [];
+  for (const row of catAgg.results ?? []) {
+    if (row.category_id == null) {
+      by_category.push({ category_id: null, name: "Sans catégorie", color: "sand", icon: "tag", amount: r2(row.amount ?? 0) });
+    } else {
+      const meta = catById.get(row.category_id);
+      by_category.push({
+        category_id: row.category_id,
+        name: (meta?.name as string) ?? "Sans catégorie",
+        color: (meta?.color as string) ?? "sand",
+        icon: (meta?.icon as string) ?? "tag",
+        amount: r2(row.amount ?? 0),
+      });
+    }
+  }
+  by_category.sort((a, b) => b.amount - a.amount);
+
+  const total_income = r2(months.reduce((s, p) => s + p.income, 0));
+  const total_expense = r2(months.reduce((s, p) => s + p.expense, 0));
+  const avg_expense = r2(total_expense / monthsN);
+  const accCur = await c.env.DB.prepare(
+    "SELECT currency FROM finance_accounts WHERE user_id = ? ORDER BY position ASC, created_at ASC LIMIT 1",
+  )
+    .bind(ownerId)
+    .first<{ currency: string }>();
+  const currency = accCur?.currency ?? "EUR";
+
+  const stats: FinanceStats = { currency, months, by_category, total_income, total_expense, avg_expense };
+  return c.json({ stats });
 });
 
 /* ── Comptes (SELF ONLY) ────────────────────────────────────────────────── */

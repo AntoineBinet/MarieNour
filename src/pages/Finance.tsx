@@ -37,6 +37,11 @@ function currentMonth(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
+function monthShort(m: string): string {
+  const [y, mo] = m.split("-").map(Number);
+  if (!y || !mo) return m;
+  return new Date(y, mo - 1, 1).toLocaleDateString("fr-FR", { month: "short" });
+}
 function fmtDate(d: string | null | undefined): string {
   if (!d) return "";
   const date = new Date(d);
@@ -81,9 +86,10 @@ const TYPE_META: Record<TxType, { label: string; icon: IconName; color: string; 
   transfer: { label: "Virement", icon: "transfer", color: "var(--muted)", sign: "" },
 };
 
-type TabKey = "overview" | "transactions" | "accounts" | "budgets" | "goals" | "recurring" | "partners";
+type TabKey = "overview" | "stats" | "transactions" | "accounts" | "budgets" | "goals" | "recurring" | "partners";
 const TABS: { key: TabKey; label: string; icon: IconName }[] = [
-  { key: "overview", label: "Aperçu", icon: "chart" },
+  { key: "overview", label: "Accueil", icon: "home" },
+  { key: "stats", label: "Stats", icon: "chart" },
   { key: "transactions", label: "Transactions", icon: "lists" },
   { key: "accounts", label: "Comptes", icon: "wallet" },
   { key: "budgets", label: "Budgets", icon: "target" },
@@ -91,6 +97,10 @@ const TABS: { key: TabKey; label: string; icon: IconName }[] = [
   { key: "recurring", label: "Récurrent", icon: "repeat" },
   { key: "partners", label: "Partage", icon: "share" },
 ];
+
+/** Filtre transmis depuis l'Accueil / les Stats vers l'onglet Transactions (clic).
+ *  month: undefined = mois courant (vue Accueil) ; "" = tous les mois (vue Stats). */
+type TxFilter = { category?: string; type?: string; month?: string };
 
 /* Petite barre de progression colorée. */
 function ProgressBar({ pct, color, over }: { pct: number; color?: string; over?: boolean }) {
@@ -130,6 +140,12 @@ export default function Finance() {
   const [owner, setOwner] = useState<string>(""); // "" = moi ; sinon id du partenaire
 
   const [quickAdd, setQuickAdd] = useState(false);
+  const [txFilter, setTxFilter] = useState<TxFilter | null>(null);
+  // Navigue vers l'onglet Transactions en pré-filtrant (clic depuis l'Accueil).
+  const goToTx = (f: TxFilter) => {
+    setTxFilter(f);
+    setTab("transactions");
+  };
 
   const partnersQ = useQuery({ queryKey: ["finance", "partners"], queryFn: () => api.financePartners() });
   const partners = partnersQ.data?.partners ?? [];
@@ -205,7 +221,10 @@ export default function Finance() {
               key={t.key}
               type="button"
               className={active ? "btn btn-primary btn-sm" : "btn btn-soft btn-sm"}
-              onClick={() => setTab(t.key)}
+              onClick={() => {
+                setTab(t.key);
+                setTxFilter(null); // nav manuelle = pas de filtre hérité
+              }}
               style={{ flexShrink: 0, whiteSpace: "nowrap" }}
             >
               <Icon name={t.icon} size={15} /> {t.label}
@@ -214,8 +233,20 @@ export default function Finance() {
         })}
       </div>
 
-      {tab === "overview" && <OverviewTab month={month} setMonth={setMonth} owner={owner} canEdit={canEdit} />}
-      {tab === "transactions" && <TransactionsTab month={month} owner={owner} canEdit={canEdit} />}
+      {tab === "overview" && (
+        <OverviewTab month={month} setMonth={setMonth} owner={owner} canEdit={canEdit} setTab={setTab} goToTx={goToTx} />
+      )}
+      {tab === "stats" && <StatsTab month={month} owner={owner} goToTx={goToTx} />}
+      {tab === "transactions" && (
+        <TransactionsTab
+          month={month}
+          owner={owner}
+          canEdit={canEdit}
+          initialCategory={txFilter?.category}
+          initialType={txFilter?.type}
+          initialMonth={txFilter?.month}
+        />
+      )}
       {tab === "accounts" && <AccountsTab canEdit={canEdit} />}
       {tab === "budgets" && <BudgetsTab canEdit={canEdit} owner={owner} />}
       {tab === "goals" && <GoalsTab canEdit={canEdit} owner={owner} />}
@@ -263,18 +294,22 @@ function FinanceStarter() {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * 1. APERÇU
+ * 1. ACCUEIL — tableau de bord cliquable (chaque bloc mène à son onglet)
  * ──────────────────────────────────────────────────────────────────────────── */
 function OverviewTab({
   month,
   setMonth,
   owner,
   canEdit,
+  setTab,
+  goToTx,
 }: {
   month: string;
   setMonth: (m: string) => void;
   owner: string;
   canEdit: boolean;
+  setTab: (t: TabKey) => void;
+  goToTx: (f: TxFilter) => void;
 }) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -319,9 +354,19 @@ function OverviewTab({
         </button>
       </div>
 
-      {/* Hero patrimoine */}
-      <div className="card" style={{ background: "color-mix(in srgb, var(--accent) 8%, var(--surface))" }}>
-        <p className="eyebrow" style={{ marginBottom: 4 }}>Patrimoine net</p>
+      {/* Hero patrimoine — clic → onglet Comptes */}
+      <div
+        className="card fin-click"
+        style={{ background: "color-mix(in srgb, var(--accent) 8%, var(--surface))" }}
+        role="button"
+        tabIndex={0}
+        onClick={() => setTab("accounts")}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setTab("accounts")}
+      >
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+          <p className="eyebrow" style={{ marginBottom: 4 }}>Patrimoine net</p>
+          <span className="small muted row gap-1" style={{ flexShrink: 0 }}>Comptes <Icon name="arrowRight" size={13} /></span>
+        </div>
         <div style={{ fontSize: "2.2rem", fontWeight: 800, lineHeight: 1.1 }}>{money(ov.net_worth, cur)}</div>
         <div className="row wrap gap-2" style={{ marginTop: "var(--space-3)" }}>
           {(ov.accounts ?? []).map((a) => (
@@ -330,13 +375,19 @@ function OverviewTab({
               {a.name} · <strong>{money(a.balance, a.currency || cur)}</strong>
             </span>
           ))}
-          {(ov.accounts ?? []).length === 0 && <span className="muted small">Aucun compte — ajoute-en dans l'onglet Comptes.</span>}
+          {(ov.accounts ?? []).length === 0 && <span className="muted small">Aucun compte — touche pour en ajouter.</span>}
         </div>
       </div>
 
-      {/* Stat revenus / dépenses */}
+      {/* Stat revenus / dépenses — clic → Transactions filtrées */}
       <div className="grid-cards">
-        <div className="card card-pad-sm">
+        <div
+          className="card card-pad-sm fin-click"
+          role="button"
+          tabIndex={0}
+          onClick={() => goToTx({ type: "income" })}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && goToTx({ type: "income" })}
+        >
           <div className="row" style={{ justifyContent: "space-between" }}>
             <span className="muted small">Revenus du mois</span>
             <Icon name="arrowLeft" size={16} style={{ color: "var(--sage-ink, #4a5e3f)" }} />
@@ -345,7 +396,13 @@ function OverviewTab({
             {money(ov.month_income, cur)}
           </div>
         </div>
-        <div className="card card-pad-sm">
+        <div
+          className="card card-pad-sm fin-click"
+          role="button"
+          tabIndex={0}
+          onClick={() => goToTx({ type: "expense" })}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && goToTx({ type: "expense" })}
+        >
           <div className="row" style={{ justifyContent: "space-between" }}>
             <span className="muted small">Dépenses du mois</span>
             <Icon name="arrowRight" size={16} style={{ color: "var(--danger)" }} />
@@ -361,15 +418,11 @@ function OverviewTab({
         </div>
       </div>
 
-      {/* Budgets */}
+      {/* Budgets — clic sur une ligne → dépenses de la catégorie */}
       <section>
         <div className="panel-head row" style={{ justifyContent: "space-between" }}>
           <h2><Icon name="target" size={18} style={{ verticalAlign: "-3px" }} /> Budgets</h2>
-          {ov.budget_total > 0 && (
-            <span className={`chip${ov.budget_spent > ov.budget_total ? "" : " chip-accent"}`}>
-              {money(ov.budget_spent, cur)} / {money(ov.budget_total, cur)}
-            </span>
-          )}
+          <button className="btn btn-soft btn-sm" onClick={() => setTab("budgets")}>Gérer ›</button>
         </div>
         <div className="card card-pad-sm">
           {(ov.budgets ?? []).length === 0 ? (
@@ -378,12 +431,20 @@ function OverviewTab({
               (onglet Budgets) pour suivre tes plafonds.
             </p>
           ) : (
-            <div className="col" style={{ gap: "var(--space-3)" }}>
+            <div className="col" style={{ gap: "var(--space-2)" }}>
               {(ov.budgets ?? []).map((b) => {
                 const pct = b.budget > 0 ? (b.spent / b.budget) * 100 : 0;
                 const over = b.spent > b.budget;
                 return (
-                  <div key={b.category.id}>
+                  <div
+                    key={b.category.id}
+                    className="fin-click"
+                    role="button"
+                    tabIndex={0}
+                    style={{ padding: "4px 6px", margin: "0 -6px", borderRadius: 10 }}
+                    onClick={() => goToTx({ category: b.category.id, type: "expense" })}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && goToTx({ category: b.category.id, type: "expense" })}
+                  >
                     <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
                       <span className="row gap-2" style={{ minWidth: 0 }}>
                         <CatDot color={b.category.color} icon={b.category.icon} size={22} />
@@ -403,29 +464,43 @@ function OverviewTab({
         {ov.budget_total > 0 && <ProgressBar pct={budgetPct} over={ov.budget_spent > ov.budget_total} />}
       </section>
 
-      {/* Dépenses par catégorie */}
+      {/* Dépenses par catégorie — clic → dépenses de la catégorie */}
       <section>
-        <div className="panel-head"><h2><Icon name="chart" size={18} style={{ verticalAlign: "-3px" }} /> Dépenses par catégorie</h2></div>
+        <div className="panel-head row" style={{ justifyContent: "space-between" }}>
+          <h2><Icon name="chart" size={18} style={{ verticalAlign: "-3px" }} /> Dépenses par catégorie</h2>
+          <button className="btn btn-soft btn-sm" onClick={() => setTab("stats")}>Statistiques ›</button>
+        </div>
         <div className="card card-pad-sm">
           {(ov.by_category ?? []).length === 0 ? (
             <EmptyState icon="chart" title="Aucune dépense ce mois-ci" hint="Les dépenses apparaîtront ici, réparties par catégorie." />
           ) : (
-            <div className="col" style={{ gap: "var(--space-3)" }}>
-              {(ov.by_category ?? []).map((c) => (
-                <div key={c.category_id ?? c.name}>
-                  <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
-                    <span className="row gap-2" style={{ minWidth: 0 }}>
-                      <CatDot color={c.color} icon={c.icon} size={22} />
-                      <span style={{ fontWeight: 600 }}>{c.name}</span>
-                    </span>
-                    <span className="small muted">
-                      <strong style={{ color: "var(--ink)" }}>{money(c.amount, cur)}</strong> ·{" "}
-                      {Math.round((c.amount / totalCat) * 100)}%
-                    </span>
+            <div className="col" style={{ gap: "var(--space-2)" }}>
+              {(ov.by_category ?? []).map((c) => {
+                const go = () => goToTx(c.category_id ? { category: c.category_id, type: "expense" } : { type: "expense" });
+                return (
+                  <div
+                    key={c.category_id ?? c.name}
+                    className="fin-click"
+                    role="button"
+                    tabIndex={0}
+                    style={{ padding: "4px 6px", margin: "0 -6px", borderRadius: 10 }}
+                    onClick={go}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && go()}
+                  >
+                    <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
+                      <span className="row gap-2" style={{ minWidth: 0 }}>
+                        <CatDot color={c.color} icon={c.icon} size={22} />
+                        <span style={{ fontWeight: 600 }}>{c.name}</span>
+                      </span>
+                      <span className="small muted">
+                        <strong style={{ color: "var(--ink)" }}>{money(c.amount, cur)}</strong> ·{" "}
+                        {Math.round((c.amount / totalCat) * 100)}%
+                      </span>
+                    </div>
+                    <ProgressBar pct={(c.amount / maxCat) * 100} color={colorVar(c.color)} />
                   </div>
-                  <ProgressBar pct={(c.amount / maxCat) * 100} color={colorVar(c.color)} />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -433,7 +508,10 @@ function OverviewTab({
 
       {/* Objectifs d'épargne */}
       <section>
-        <div className="panel-head"><h2><Icon name="piggybank" size={18} style={{ verticalAlign: "-3px" }} /> Objectifs d'épargne</h2></div>
+        <div className="panel-head row" style={{ justifyContent: "space-between" }}>
+          <h2><Icon name="piggybank" size={18} style={{ verticalAlign: "-3px" }} /> Objectifs d'épargne</h2>
+          <button className="btn btn-soft btn-sm" onClick={() => setTab("goals")}>Gérer ›</button>
+        </div>
         {(ov.goals ?? []).length === 0 ? (
           <div className="card"><EmptyState icon="piggybank" title="Aucun objectif" hint="Crée un objectif (onglet Objectifs) pour épargner vers un but." /></div>
         ) : (
@@ -465,7 +543,10 @@ function OverviewTab({
       {/* À venir (récurrents) */}
       {(ov.upcoming ?? []).length > 0 && (
         <section>
-          <div className="panel-head"><h2><Icon name="clock" size={18} style={{ verticalAlign: "-3px" }} /> À venir</h2></div>
+          <div className="panel-head row" style={{ justifyContent: "space-between" }}>
+            <h2><Icon name="clock" size={18} style={{ verticalAlign: "-3px" }} /> À venir</h2>
+            <button className="btn btn-soft btn-sm" onClick={() => setTab("recurring")}>Gérer ›</button>
+          </div>
           <div className="card card-pad-sm">
             {(ov.upcoming ?? []).map((r) => (
               <div key={r.id} className="li-row" style={{ alignItems: "center" }}>
@@ -489,9 +570,12 @@ function OverviewTab({
         </section>
       )}
 
-      {/* Transactions récentes */}
+      {/* Transactions récentes — clic → onglet Transactions */}
       <section>
-        <div className="panel-head"><h2><Icon name="lists" size={18} style={{ verticalAlign: "-3px" }} /> Dernières transactions</h2></div>
+        <div className="panel-head row" style={{ justifyContent: "space-between" }}>
+          <h2><Icon name="lists" size={18} style={{ verticalAlign: "-3px" }} /> Dernières transactions</h2>
+          <button className="btn btn-soft btn-sm" onClick={() => setTab("transactions")}>Voir tout ›</button>
+        </div>
         <div className="card card-pad-sm">
           {(ov.recent ?? []).length === 0 ? (
             <p className="muted small">Aucune transaction récente.</p>
@@ -500,7 +584,15 @@ function OverviewTab({
               const acc = ov.accounts.find((a) => a.id === t.account_id);
               const meta = TYPE_META[t.type];
               return (
-                <div key={t.id} className="li-row" style={{ alignItems: "center" }}>
+                <div
+                  key={t.id}
+                  className="li-row fin-click"
+                  style={{ alignItems: "center" }}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setTab("transactions")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setTab("transactions")}
+                >
                   <Icon name={meta.icon} size={16} style={{ color: meta.color }} />
                   <div className="grow" style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -571,6 +663,148 @@ function ContributeModal({ goal, cur, onClose }: { goal: FinanceGoal; cur: strin
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * 1bis. STATISTIQUES — suivi visuel des dépenses sur plusieurs mois
+ * ──────────────────────────────────────────────────────────────────────────── */
+function StatsTab({ month, owner, goToTx }: { month: string; owner: string; goToTx: (f: TxFilter) => void }) {
+  const [months, setMonths] = useState(6);
+  const { data, isLoading } = useQuery({
+    queryKey: ["finance", "stats", month, months, owner],
+    queryFn: () => api.financeStats({ month, months, owner: owner || undefined }),
+  });
+  const stats = data?.stats;
+  const cur = stats?.currency || "EUR";
+
+  if (isLoading) return <Spinner />;
+  if (!stats) return <div className="card"><EmptyState icon="chart" title="Données indisponibles" /></div>;
+
+  const hasData = stats.total_expense > 0 || stats.total_income > 0;
+  const maxBar = Math.max(1, ...stats.months.flatMap((p) => [p.income, p.expense]));
+  const maxCat = Math.max(1, ...stats.by_category.map((c) => c.amount));
+  const totalCat = stats.by_category.reduce((s, c) => s + c.amount, 0) || 1;
+  const net = stats.total_income - stats.total_expense;
+  const H = 120; // hauteur max des barres
+
+  return (
+    <div className="col" style={{ gap: "var(--space-5)" }}>
+      {/* Période */}
+      <div className="row gap-2" style={{ justifyContent: "center" }}>
+        {[3, 6, 12].map((n) => (
+          <button
+            key={n}
+            className={months === n ? "btn btn-primary btn-sm" : "btn btn-soft btn-sm"}
+            onClick={() => setMonths(n)}
+          >
+            {n} mois
+          </button>
+        ))}
+      </div>
+
+      {/* Synthèse sur la période */}
+      <div className="grid-cards">
+        <div className="card card-pad-sm">
+          <span className="muted small">Dépenses ({months} mois)</span>
+          <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--danger)" }}>{money(stats.total_expense, cur)}</div>
+        </div>
+        <div className="card card-pad-sm">
+          <span className="muted small">Moyenne / mois</span>
+          <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{money(stats.avg_expense, cur)}</div>
+        </div>
+        <div className="card card-pad-sm">
+          <span className="muted small">Revenus ({months} mois)</span>
+          <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--sage-ink, #4a5e3f)" }}>{money(stats.total_income, cur)}</div>
+        </div>
+        <div className="card card-pad-sm">
+          <span className="muted small">Solde net</span>
+          <div style={{ fontSize: "1.4rem", fontWeight: 700, color: net >= 0 ? "var(--sage-ink, #4a5e3f)" : "var(--danger)" }}>
+            {net >= 0 ? "+" : ""}{money(net, cur)}
+          </div>
+        </div>
+      </div>
+
+      {!hasData ? (
+        <div className="card">
+          <EmptyState
+            icon="chart"
+            title="Pas encore de données"
+            hint="Ajoute quelques opérations : tes tendances et la répartition par catégorie s'afficheront ici."
+          />
+        </div>
+      ) : (
+        <>
+          {/* Tendance revenus / dépenses par mois */}
+          <section>
+            <div className="panel-head"><h2><Icon name="trend" size={18} style={{ verticalAlign: "-3px" }} /> Tendance mensuelle</h2></div>
+            <div className="card card-pad-sm">
+              <div className="row" style={{ alignItems: "flex-end", gap: 8, height: H + 24, overflowX: "auto" }}>
+                {stats.months.map((p) => (
+                  <div key={p.month} className="col" style={{ alignItems: "center", gap: 4, flex: 1, minWidth: 34 }}>
+                    <div className="row" style={{ alignItems: "flex-end", gap: 3, height: H }}>
+                      <span
+                        title={`Revenus · ${money(p.income, cur)}`}
+                        style={{ width: 11, height: Math.max(2, (p.income / maxBar) * H), background: "var(--ok)", borderRadius: "3px 3px 0 0" }}
+                      />
+                      <span
+                        title={`Dépenses · ${money(p.expense, cur)}`}
+                        style={{ width: 11, height: Math.max(2, (p.expense / maxBar) * H), background: "var(--danger)", borderRadius: "3px 3px 0 0" }}
+                      />
+                    </div>
+                    <span className="muted" style={{ fontSize: "0.66rem", textTransform: "capitalize" }}>{monthShort(p.month)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="row gap-4" style={{ justifyContent: "center", marginTop: "var(--space-2)" }}>
+                <span className="small muted row gap-1"><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--ok)" }} /> Revenus</span>
+                <span className="small muted row gap-1"><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--danger)" }} /> Dépenses</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Répartition par catégorie sur la période — clic → transactions filtrées */}
+          <section>
+            <div className="panel-head"><h2><Icon name="chart" size={18} style={{ verticalAlign: "-3px" }} /> Où part l'argent</h2></div>
+            <div className="card card-pad-sm">
+              {stats.by_category.length === 0 ? (
+                <p className="muted small">Aucune dépense sur la période.</p>
+              ) : (
+                <div className="col" style={{ gap: "var(--space-2)" }}>
+                  {stats.by_category.map((c) => {
+                    // Depuis les Stats (multi-mois) → on ouvre toutes les opérations (month: "").
+                    const go = () =>
+                      goToTx(c.category_id ? { category: c.category_id, type: "expense", month: "" } : { type: "expense", month: "" });
+                    return (
+                      <div
+                        key={c.category_id ?? c.name}
+                        className="fin-click"
+                        role="button"
+                        tabIndex={0}
+                        style={{ padding: "4px 6px", margin: "0 -6px", borderRadius: 10 }}
+                        onClick={go}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && go()}
+                      >
+                        <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
+                          <span className="row gap-2" style={{ minWidth: 0 }}>
+                            <CatDot color={c.color} icon={c.icon} size={22} />
+                            <span style={{ fontWeight: 600 }}>{c.name}</span>
+                          </span>
+                          <span className="small muted">
+                            <strong style={{ color: "var(--ink)" }}>{money(c.amount, cur)}</strong> · {Math.round((c.amount / totalCat) * 100)}%
+                          </span>
+                        </div>
+                        <ProgressBar pct={(c.amount / maxCat) * 100} color={colorVar(c.color)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
  * 2. TRANSACTIONS
  * ──────────────────────────────────────────────────────────────────────────── */
 interface TxForm {
@@ -594,15 +828,29 @@ const emptyTxForm = (): TxForm => ({
   note: "",
 });
 
-function TransactionsTab({ month, owner, canEdit }: { month: string; owner: string; canEdit: boolean }) {
+function TransactionsTab({
+  month,
+  owner,
+  canEdit,
+  initialCategory,
+  initialType,
+  initialMonth,
+}: {
+  month: string;
+  owner: string;
+  canEdit: boolean;
+  initialCategory?: string;
+  initialType?: string;
+  initialMonth?: string;
+}) {
   const qc = useQueryClient();
   const toast = useToast();
   const { confirm, confirmNode } = useConfirm();
 
-  const [fMonth, setFMonth] = useState(month);
+  const [fMonth, setFMonth] = useState(initialMonth ?? month);
   const [fAccount, setFAccount] = useState("");
-  const [fCategory, setFCategory] = useState("");
-  const [fType, setFType] = useState("");
+  const [fCategory, setFCategory] = useState(initialCategory ?? "");
+  const [fType, setFType] = useState(initialType ?? "");
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<FinanceTransaction | null>(null);
