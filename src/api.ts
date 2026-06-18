@@ -19,6 +19,7 @@ import type {
   FinanceOverview,
   FinancePartner,
   FinanceRecurring,
+  FinanceStats,
   FinanceTransaction,
   Friendship,
   Inspiration,
@@ -285,6 +286,14 @@ export const api = {
     if (owner) p.set("owner", owner);
     const q = p.toString();
     return get<{ overview: FinanceOverview }>(`/finance/overview${q ? `?${q}` : ""}`);
+  },
+  financeStats: (opts?: { month?: string; months?: number; owner?: string }) => {
+    const p = new URLSearchParams();
+    if (opts?.month) p.set("month", opts.month);
+    if (opts?.months) p.set("months", String(opts.months));
+    if (opts?.owner) p.set("owner", opts.owner);
+    const q = p.toString();
+    return get<{ stats: FinanceStats }>(`/finance/stats${q ? `?${q}` : ""}`);
   },
   financeAccounts: () => get<{ accounts: FinanceAccount[] }>("/finance/accounts"),
   createAccount: (b: Partial<FinanceAccount>) => post<{ id: string }>("/finance/accounts", b),

@@ -579,3 +579,19 @@ export interface FinanceOverview {
   recent: FinanceTransaction[];
   upcoming: FinanceRecurring[];
 }
+
+/* ── Statistiques (suivi visuel des dépenses sur plusieurs mois) ──────────── */
+export interface FinanceMonthPoint {
+  month: string; // 'YYYY-MM'
+  income: number;
+  expense: number;
+}
+
+export interface FinanceStats {
+  currency: string;
+  months: FinanceMonthPoint[]; // chronologique, N derniers mois
+  by_category: CategorySpend[]; // dépenses sur toute la période, triées desc
+  total_income: number;
+  total_expense: number;
+  avg_expense: number; // moyenne mensuelle des dépenses sur la période
+}
