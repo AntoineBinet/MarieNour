@@ -36,6 +36,8 @@ const env = {
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "",
   SESSION_SECRET: process.env.SESSION_SECRET || "",
   APP_NAME: process.env.APP_NAME || "MarieNour",
+  RESEND_API_KEY: process.env.RESEND_API_KEY || "",
+  MAIL_FROM: process.env.MAIL_FROM || "",
 };
 
 const indexHtmlPath = join(STATIC_DIR, "index.html");

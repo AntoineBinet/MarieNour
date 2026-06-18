@@ -7,6 +7,9 @@ export interface Bindings {
   ADMIN_PASSWORD: string;
   SESSION_SECRET: string;
   APP_NAME: string;
+  // Envoi d'e-mails (optionnel) — cf. server/mailer.ts. Absent = e-mails off.
+  RESEND_API_KEY?: string;
+  MAIL_FROM?: string;
 }
 
 export interface Variables {

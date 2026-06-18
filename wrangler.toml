@@ -20,9 +20,11 @@ database_id = "da427d20-5e7c-4e01-a8e5-aaec2ad48fed"
 binding = "MEDIA"
 bucket_name = "marienour-media"
 
-# Variables NON secrètes. Les secrets (ADMIN_PASSWORD, SESSION_SECRET)
-# se définissent via `wrangler pages secret put ...` en prod, et dans
-# le fichier .dev.vars en local (voir .dev.vars.example).
+# Variables NON secrètes. Les secrets (ADMIN_PASSWORD, SESSION_SECRET,
+# RESEND_API_KEY) se définissent via `wrangler pages secret put ...` en prod,
+# et dans le fichier .dev.vars en local (voir .dev.vars.example).
 [vars]
 ADMIN_EMAIL = "binet.antoine215@yahoo.com"
 APP_NAME = "MarieNour"
+# Expéditeur des e-mails (non secret). Le RESEND_API_KEY, lui, est un secret.
+# MAIL_FROM = "MarieNour <hello@marienour.work>"
