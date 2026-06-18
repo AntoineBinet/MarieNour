@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { authenticate, clearSession, createSession, createUser, writeSessionCookie } from "../auth";
+import { notifyAdminNewUser } from "../mailer";
 import { now, str } from "../util";
 
 const app = new Hono<AppEnv>();
@@ -30,6 +31,19 @@ app.post("/register", async (c) => {
 
   const token = await createSession(c.env.DB, user.id, c.req.header("user-agent") ?? null);
   writeSessionCookie(c, token);
+
+  // Prévient l'admin par e-mail (best effort : ne doit jamais bloquer ni faire
+  // échouer l'inscription si l'envoi d'e-mails est indisponible/non configuré).
+  try {
+    await notifyAdminNewUser(c.env, {
+      display_name: user.display_name,
+      email: user.email ?? email,
+      handle: user.handle,
+    });
+  } catch (err) {
+    console.error("[auth] notification d'inscription échouée :", err);
+  }
+
   return c.json({ user });
 });
 

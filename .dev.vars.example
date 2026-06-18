@@ -7,3 +7,8 @@ ADMIN_PASSWORD="change-moi-en-local"
 
 # Secret utilisé pour signer les jetons de session (chaîne aléatoire longue).
 SESSION_SECRET="dev-secret-change-moi"
+
+# E-mails (optionnel) : prévient l'admin à chaque nouvelle inscription, via
+# l'API HTTP Resend. Laisser vide pour désactiver l'envoi.
+# RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+# MAIL_FROM="MarieNour <hello@marienour.work>"

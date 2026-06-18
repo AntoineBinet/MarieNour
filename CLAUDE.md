@@ -66,6 +66,8 @@ src/components/QrCode.tsx    → QR en SVG (lib qrcode-generator, hors-ligne)
 src/components/InviteQr.tsx  → bouton « Inviter par QR » (ami / voyage / groupe)
 src/components/InviteLink.tsx→ bouton « Inviter par lien » (copie le lien dans le presse-papier)
 server/{auth,access,util}.ts→ sessions (cookie httpOnly, PBKDF2 Web Crypto), ACL
+server/mailer.ts            → e-mails transactionnels via API HTTP Resend (fetch,
+                              cross-runtime) : ex. alerte admin à chaque inscription
 server/node.ts              → entrée Node (VM) : env + static + SPA + listen :8002
 server/adapters/{d1,r2}.ts  → bindings locaux (SQLite / fichiers)
 shared/types.ts             → types partagés front/back
@@ -97,6 +99,8 @@ ADMIN_EMAIL=binet.antoine215@yahoo.com ADMIN_PASSWORD=dev SESSION_SECRET=dev npm
 | `ADMIN_PASSWORD` | (vide) | mot de passe maître admin (1er login = création) |
 | `SESSION_SECRET` | (vide) | secret de session (`openssl rand -hex 32`) |
 | `APP_NAME` | `marienour` | nom affiché |
+| `RESEND_API_KEY` | (vide) | clé API Resend pour l'envoi d'e-mails (vide = off) |
+| `MAIL_FROM` | `onboarding@resend.dev` | expéditeur des e-mails |
 
 > Sur la VM, ces valeurs viennent de `/etc/marienour/marienour.env` (secrets) +
 > `marienour.service` (port/host/data dir). Pour le repli Pages : `wrangler.toml`
