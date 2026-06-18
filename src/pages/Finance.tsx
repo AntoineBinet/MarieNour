@@ -98,8 +98,9 @@ const TABS: { key: TabKey; label: string; icon: IconName }[] = [
   { key: "partners", label: "Partage", icon: "share" },
 ];
 
-/** Filtre transmis depuis l'Accueil vers l'onglet Transactions (clic). */
-type TxFilter = { category?: string; type?: string };
+/** Filtre transmis depuis l'Accueil / les Stats vers l'onglet Transactions (clic).
+ *  month: undefined = mois courant (vue Accueil) ; "" = tous les mois (vue Stats). */
+type TxFilter = { category?: string; type?: string; month?: string };
 
 /* Petite barre de progression colorée. */
 function ProgressBar({ pct, color, over }: { pct: number; color?: string; over?: boolean }) {
@@ -243,6 +244,7 @@ export default function Finance() {
           canEdit={canEdit}
           initialCategory={txFilter?.category}
           initialType={txFilter?.type}
+          initialMonth={txFilter?.month}
         />
       )}
       {tab === "accounts" && <AccountsTab canEdit={canEdit} />}
@@ -440,8 +442,8 @@ function OverviewTab({
                     role="button"
                     tabIndex={0}
                     style={{ padding: "4px 6px", margin: "0 -6px", borderRadius: 10 }}
-                    onClick={() => goToTx({ category: b.category.id })}
-                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && goToTx({ category: b.category.id })}
+                    onClick={() => goToTx({ category: b.category.id, type: "expense" })}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && goToTx({ category: b.category.id, type: "expense" })}
                   >
                     <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
                       <span className="row gap-2" style={{ minWidth: 0 }}>
@@ -766,7 +768,9 @@ function StatsTab({ month, owner, goToTx }: { month: string; owner: string; goTo
               ) : (
                 <div className="col" style={{ gap: "var(--space-2)" }}>
                   {stats.by_category.map((c) => {
-                    const go = () => goToTx(c.category_id ? { category: c.category_id, type: "expense" } : { type: "expense" });
+                    // Depuis les Stats (multi-mois) → on ouvre toutes les opérations (month: "").
+                    const go = () =>
+                      goToTx(c.category_id ? { category: c.category_id, type: "expense", month: "" } : { type: "expense", month: "" });
                     return (
                       <div
                         key={c.category_id ?? c.name}
@@ -830,18 +834,20 @@ function TransactionsTab({
   canEdit,
   initialCategory,
   initialType,
+  initialMonth,
 }: {
   month: string;
   owner: string;
   canEdit: boolean;
   initialCategory?: string;
   initialType?: string;
+  initialMonth?: string;
 }) {
   const qc = useQueryClient();
   const toast = useToast();
   const { confirm, confirmNode } = useConfirm();
 
-  const [fMonth, setFMonth] = useState(month);
+  const [fMonth, setFMonth] = useState(initialMonth ?? month);
   const [fAccount, setFAccount] = useState("");
   const [fCategory, setFCategory] = useState(initialCategory ?? "");
   const [fType, setFType] = useState(initialType ?? "");
