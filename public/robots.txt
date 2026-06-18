@@ -1,0 +1,9 @@
+# marienour.work — hub personnel (la majorité du contenu est derrière authentification).
+# La page d'accueil est indexable ; les routes applicatives renvoient la même
+# coquille et pointent toutes vers la page d'accueil via <link rel="canonical">.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://marienour.work/sitemap.xml
