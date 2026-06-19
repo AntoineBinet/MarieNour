@@ -29,10 +29,10 @@ const STATIC_DIR = process.env.MARIENOUR_STATIC_DIR || join(ROOT, "dist");
 
 mkdirSync(DATA_DIR, { recursive: true });
 
-// E-mail (SMTP) — optionnel. Configuré pour Gmail par défaut : il suffit de
-// poser SMTP_USER (adresse Gmail) + SMTP_PASS (« mot de passe d'application »).
-// Sans identifiants, MAILER reste undefined et les e-mails sont désactivés.
-const SMTP_USER = process.env.SMTP_USER || "";
+// E-mail (SMTP) — optionnel. Configuré pour Gmail par défaut, expéditeur
+// binet.antoine2@gmail.com : il ne reste qu'à poser SMTP_PASS (« mot de passe
+// d'application » Gmail). Sans SMTP_PASS, MAILER reste undefined → e-mails off.
+const SMTP_USER = process.env.SMTP_USER || "binet.antoine2@gmail.com";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
@@ -58,6 +58,7 @@ const env = {
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "",
   SESSION_SECRET: process.env.SESSION_SECRET || "",
   APP_NAME: process.env.APP_NAME || "MarieNour",
+  NOTIFY_EMAIL: process.env.NOTIFY_EMAIL || "binet.antoine2@gmail.com",
   MAILER: mailer,
 };
 

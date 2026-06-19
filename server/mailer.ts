@@ -29,14 +29,17 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * Prévient l'admin (ADMIN_EMAIL) qu'un nouvel utilisateur vient de s'inscrire.
- * No-op si ADMIN_EMAIL ou l'envoi d'e-mails (MAILER) ne sont pas configurés.
+ * Prévient l'admin qu'un nouvel utilisateur vient de s'inscrire. Le destinataire
+ * est NOTIFY_EMAIL (par défaut binet.antoine2@gmail.com), avec repli sur
+ * ADMIN_EMAIL — ainsi l'alerte part vers la boîte Gmail sans dépendre du compte
+ * de connexion admin. No-op si aucun destinataire ou si l'envoi (MAILER) n'est
+ * pas configuré.
  */
 export async function notifyAdminNewUser(
   env: Bindings,
   user: { display_name: string; email: string; handle: string | null },
 ): Promise<boolean> {
-  const to = (env.ADMIN_EMAIL || "").trim();
+  const to = (env.NOTIFY_EMAIL || env.ADMIN_EMAIL || "").trim();
   if (!to) return false;
   if (!env.MAILER) {
     console.log("[mail] non configuré (pas de MAILER / SMTP) — inscription non notifiée par e-mail");

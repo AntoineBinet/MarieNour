@@ -4,7 +4,8 @@ Ce document est un **script d'automatisation navigateur**. Tu ouvres **deux
 onglets** (déjà connectés) et tu colles le **PROMPT** plus bas à *Claude dans
 Chrome* : il génère un **mot de passe d'application Gmail**, puis le pose sur la
 VM pour que marienour t'envoie un e-mail **à chaque nouvelle inscription**
-(destinataire : `binet.antoine215@yahoo.com`, déjà câblé).
+(expéditeur **et** destinataire : `binet.antoine2@gmail.com`, déjà câblés ; tu
+n'as donc que le **mot de passe d'application** à poser).
 
 ```
 Nouvelle inscription → server/routes/auth.ts → server/mailer.ts
@@ -12,8 +13,8 @@ Nouvelle inscription → server/routes/auth.ts → server/mailer.ts
 ```
 
 > 🧭 **Les deux onglets à ouvrir :**
-> 1. **Google** — <https://myaccount.google.com> (connecté au compte **Gmail qui
->    enverra** les mails — pas forcément ton Yahoo de réception).
+> 1. **Google** — <https://myaccount.google.com> (connecté au compte
+>    **binet.antoine2@gmail.com** qui **enverra ET recevra** les notifications).
 > 2. **Oracle Cloud** — <https://cloud.oracle.com> (pour ouvrir une *Cloud Shell*
 >    et se connecter en SSH à la VM `marienour`).
 >
@@ -34,9 +35,9 @@ Nouvelle inscription → server/routes/auth.ts → server/mailer.ts
 
 | Champ | Valeur |
 | --- | --- |
-| Compte Gmail expéditeur | `<<TON_ADRESSE_GMAIL>>` |
+| Compte Gmail expéditeur (déjà câblé) | `binet.antoine2@gmail.com` (= `SMTP_USER`) |
 | IP publique de la VM | `<<IP_PUBLIQUE_VM>>` |
-| Destinataire (déjà câblé) | `binet.antoine215@yahoo.com` (= `ADMIN_EMAIL`) |
+| Destinataire (déjà câblé) | `binet.antoine2@gmail.com` (= `NOTIFY_EMAIL`) |
 | Fichier d'env (VM) | `/etc/marienour/marienour.env` (600 root:root) |
 
 ---
@@ -47,7 +48,7 @@ Nouvelle inscription → server/routes/auth.ts → server/mailer.ts
 Tu pilotes DEUX onglets déjà ouverts et connectés pour activer l'envoi d'e-mails
 de mon app "marienour" (une notification à chaque nouvelle inscription) via le
 SMTP de Gmail :
-  • Onglet A = Google (myaccount.google.com), connecté au compte Gmail qui ENVERRA les mails
+  • Onglet A = Google (myaccount.google.com), connecté au compte binet.antoine2@gmail.com (expéditeur ET destinataire)
   • Onglet B = Oracle Cloud (cloud.oracle.com) — pour la Cloud Shell et le SSH vers ma VM
 
 Avance étape par étape, vérifie chaque écran avant d'agir, et adapte-toi si un
@@ -57,7 +58,7 @@ l'écris nulle part ailleurs que dans le fichier d'env de la VM (ÉTAPE 3). Si t
 es bloqué sur un écran inattendu, arrête-toi et demande-moi plutôt que de forcer.
 
 Valeurs :
-  GMAIL = <<TON_ADRESSE_GMAIL>>     (ex. prenom.nom@gmail.com)
+  GMAIL = binet.antoine2@gmail.com     (expéditeur, déjà câblé comme SMTP_USER par défaut)
   VM_IP = <<IP_PUBLIQUE_VM>>
 
 ────────────────────────────────────────────────────────────────────────
@@ -85,24 +86,29 @@ Valeurs :
    pour l'ÉTAPE 3. ⚠️ Il ne sera PLUS réaffiché : ne ferme pas cette fenêtre
    avant d'avoir fini l'ÉTAPE 3.
 
-ÉTAPE 3 (Onglet B — VM) — Écrire les identifiants SMTP
-9. Reviens à la Cloud Shell (session SSH sur la VM). Exécute (remplace
-   <<TON_ADRESSE_GMAIL>> et MDP_APP_16 = le code de l'ÉTAPE 2 sans espaces) :
-      sudo sed -i '/^[# ]*SMTP_USER=/d; /^[# ]*SMTP_PASS=/d' /etc/marienour/marienour.env
-      printf 'SMTP_USER=%s\nSMTP_PASS=%s\n' "<<TON_ADRESSE_GMAIL>>" "MDP_APP_16" \
+ÉTAPE 3 (Onglet B — VM) — Écrire le mot de passe SMTP
+9. Reviens à la Cloud Shell (session SSH sur la VM). L'expéditeur
+   (SMTP_USER=binet.antoine2@gmail.com) est DÉJÀ le défaut du code : il ne reste
+   qu'à poser le mot de passe d'application. Exécute (MDP_APP_16 = le code de
+   l'ÉTAPE 2 sans espaces) :
+      sudo sed -i '/^[# ]*SMTP_PASS=/d' /etc/marienour/marienour.env
+      printf 'SMTP_PASS=%s\n' "MDP_APP_16" \
         | sudo tee -a /etc/marienour/marienour.env >/dev/null
       sudo chmod 600 /etc/marienour/marienour.env
+   (Si tu veux un AUTRE compte expéditeur que binet.antoine2@gmail.com, ajoute
+   aussi une ligne SMTP_USER=ton.adresse@gmail.com.)
 10. Redémarre et vérifie que les e-mails NE sont PLUS désactivés :
       sudo systemctl restart marienour
       sleep 2 && journalctl -u marienour -n 20 --no-pager
-    Tu NE dois PLUS voir la ligne "e-mails désactivés (SMTP_USER/SMTP_PASS absents)".
+    Tu NE dois PLUS voir la ligne "e-mails désactivés (SMTP_USER/SMTP_PASS absents)" :
+    SMTP_USER étant déjà câblé, seul SMTP_PASS te manquait.
     Le service doit être "active (running)" et l'API répondre.
 
 ÉTAPE 4 — Test réel de bout en bout
 11. Ouvre https://marienour.work dans un nouvel onglet → écran de connexion →
     "Créer un compte". Inscris un compte de TEST (une adresse à toi, différente
     de l'admin). Valide l'inscription.
-12. Vérifie que la boîte binet.antoine215@yahoo.com a reçu un e-mail intitulé
+12. Vérifie que la boîte binet.antoine2@gmail.com a reçu un e-mail intitulé
     "Nouvelle inscription sur MarieNour : ...". Regarde AUSSI les spams/indésirables.
 13. (Optionnel) Supprime ce compte de test depuis /admin.
 
@@ -120,14 +126,14 @@ inattendu plutôt que de forcer.
   normal du compte en SMTP. Le mot de passe d'application (16 lettres) n'est
   utilisable que pour ça et se révoque indépendamment depuis
   <https://myaccount.google.com/apppasswords>.
-- **Expéditeur affiché** : par défaut, l'e-mail part de `<<TON_ADRESSE_GMAIL>>`.
-  Pour un nom plus joli, ajoute une ligne `MAIL_FROM=MarieNour <<<TON_ADRESSE_GMAIL>>>`
+- **Expéditeur affiché** : par défaut, l'e-mail part de `binet.antoine2@gmail.com`.
+  Pour un nom plus joli, ajoute une ligne `MAIL_FROM=MarieNour <binet.antoine2@gmail.com>`
   dans le fichier d'env (Gmail force de toute façon l'adresse authentifiée).
 - **L'e-mail n'arrive pas** :
   - `journalctl -u marienour -n 50 --no-pager` → cherche `[mail] échec d'envoi SMTP`.
     Un `Invalid login` = mauvais mot de passe d'application ou 2FA non activée.
-  - Vérifie les **spams** côté Yahoo, et que `SMTP_USER`/`SMTP_PASS` sont bien
-    dans `/etc/marienour/marienour.env` (sans espaces parasites).
+  - Vérifie les **spams** côté Gmail (binet.antoine2@gmail.com), et que `SMTP_PASS`
+    est bien dans `/etc/marienour/marienour.env` (sans espaces parasites).
   - Réseau VM → Gmail : le port **465** sortant doit être autorisé (par défaut
     rien ne le bloque côté Oracle pour le trafic sortant).
 - **Autre fournisseur SMTP** (pas Gmail) : ajoute aussi `SMTP_HOST=...` et
