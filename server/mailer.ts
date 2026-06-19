@@ -7,6 +7,7 @@
 //   • Repli Cloudflare Workers → pas de SMTP possible : MAILER absent, l'e-mail
 //     est simplement ignoré (l'app continue de fonctionner).
 import type { Bindings } from "./types";
+import { getEffectiveSettings, getEffectiveSmtpPass } from "./settings";
 
 export interface MailMessage {
   to: string;
@@ -30,16 +31,18 @@ function escapeHtml(s: string): string {
 
 /**
  * Prévient l'admin qu'un nouvel utilisateur vient de s'inscrire. Le destinataire
- * est NOTIFY_EMAIL (par défaut binet.antoine2@gmail.com), avec repli sur
- * ADMIN_EMAIL — ainsi l'alerte part vers la boîte Gmail sans dépendre du compte
- * de connexion admin. No-op si aucun destinataire ou si l'envoi (MAILER) n'est
- * pas configuré.
+ * et l'interrupteur viennent des réglages in-app (table app_settings), avec
+ * repli sur NOTIFY_EMAIL puis ADMIN_EMAIL — ainsi l'alerte part vers la boîte
+ * Gmail sans dépendre du compte de connexion admin. No-op si l'alerte est
+ * désactivée, si aucun destinataire, ou si l'envoi (MAILER) n'est pas configuré.
  */
 export async function notifyAdminNewUser(
   env: Bindings,
   user: { display_name: string; email: string; handle: string | null },
 ): Promise<boolean> {
-  const to = (env.NOTIFY_EMAIL || env.ADMIN_EMAIL || "").trim();
+  const settings = await getEffectiveSettings(env);
+  if (!settings.notify_on_signup) return false;
+  const to = settings.notify_email;
   if (!to) return false;
   if (!env.MAILER) {
     console.log("[mail] non configuré (pas de MAILER / SMTP) — inscription non notifiée par e-mail");
@@ -72,4 +75,42 @@ export async function notifyAdminNewUser(
     `Date : ${when}\n`;
 
   return env.MAILER.send({ to, subject, html, text });
+}
+
+/**
+ * Envoie un e-mail de test au destinataire donné, pour vérifier que la config
+ * SMTP fonctionne de bout en bout. Renvoie un message d'erreur explicite si
+ * l'envoi est impossible (utile pour l'écran de réglages admin).
+ */
+export async function sendTestEmail(
+  env: Bindings,
+  to: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const target = (to || "").trim();
+  if (!target) return { ok: false, error: "Aucun destinataire renseigné" };
+  if (!env.MAILER) {
+    return { ok: false, error: "Envoi d'e-mails indisponible sur cet hébergement." };
+  }
+  const pass = await getEffectiveSmtpPass(env);
+  if (!pass) {
+    return {
+      ok: false,
+      error: "Le mot de passe SMTP n'est pas encore renseigné. Saisis-le ci-dessus puis enregistre, et réessaie.",
+    };
+  }
+
+  const appName = env.APP_NAME || "MarieNour";
+  const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
+  const subject = `Test e-mail — ${appName}`;
+  const html =
+    `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5;color:#1f2937">` +
+    `<h2 style="margin:0 0 12px">Ça marche&nbsp;! ✅</h2>` +
+    `<p style="margin:0 0 8px">Cet e-mail de test confirme que l'envoi SMTP de <strong>${escapeHtml(appName)}</strong> fonctionne.</p>` +
+    `<p style="margin:0;color:#6b7280">Envoyé le ${escapeHtml(when)}.</p>` +
+    `</div>`;
+  const text =
+    `Ça marche !\n\nCet e-mail de test confirme que l'envoi SMTP de ${appName} fonctionne.\nEnvoyé le ${when}.\n`;
+
+  const sent = await env.MAILER.send({ to: target, subject, html, text });
+  return sent ? { ok: true } : { ok: false, error: "L'envoi SMTP a échoué (voir les logs du serveur)." };
 }

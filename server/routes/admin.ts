@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { hashPassword, requireAdmin } from "../auth";
-import { now, str } from "../util";
+import { sendTestEmail } from "../mailer";
+import { getEffectiveSettings, getEffectiveSmtpPass, isSmtpPassStoredInDb, writeSetting } from "../settings";
+import { bool, now, str } from "../util";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const app = new Hono<AppEnv>();
 app.use("*", requireAdmin);
@@ -14,6 +18,56 @@ app.get("/stats", async (c) => {
     stats[t] = r?.n ?? 0;
   }
   return c.json({ stats, app_name: c.env.APP_NAME });
+});
+
+/* ── Réglages e-mail (notifications) ──────────────────────────────────────── */
+// État SMTP. `configured` = un envoi est réellement possible : runtime capable
+// (MAILER présent, donc VM Node) ET un mot de passe disponible (en base ou via
+// l'env). `smtp_pass_set` = un mot de passe a été posé DEPUIS L'ADMIN (en base) :
+// sert à afficher « enregistré » dans le champ. Le mot de passe n'est JAMAIS
+// renvoyé au client.
+async function emailStatus(env: AppEnv["Bindings"]) {
+  const pass = await getEffectiveSmtpPass(env);
+  return {
+    configured: Boolean(env.MAILER) && pass.length > 0,
+    smtp_pass_set: await isSmtpPassStoredInDb(env.DB),
+    from: env.MAIL_FROM || null,
+    host: env.SMTP_HOST || null,
+  };
+}
+
+app.get("/settings", async (c) => {
+  const settings = await getEffectiveSettings(c.env);
+  return c.json({ settings, email: await emailStatus(c.env) });
+});
+
+app.patch("/settings", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  if (typeof body.notify_email === "string") {
+    const email = str(body.notify_email, 200).trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return c.json({ error: "E-mail de notification invalide" }, 400);
+    await writeSetting(c.env.DB, "notify_email", email);
+  }
+  if (body.notify_on_signup !== undefined) {
+    await writeSetting(c.env.DB, "notify_on_signup", bool(body.notify_on_signup) ? "1" : "0");
+  }
+  // Mot de passe SMTP : on enregistre seulement si une valeur non vide est
+  // fournie (un champ laissé vide ne l'efface pas). Les espaces sont retirés
+  // (Gmail affiche le mot de passe d'application en groupes de 4).
+  if (typeof body.smtp_pass === "string" && body.smtp_pass.trim()) {
+    const pass = str(body.smtp_pass, 200).replace(/\s+/g, "");
+    await writeSetting(c.env.DB, "smtp_pass", pass);
+  }
+  const settings = await getEffectiveSettings(c.env);
+  return c.json({ ok: true, settings, email: await emailStatus(c.env) });
+});
+
+app.post("/settings/test-email", async (c) => {
+  const settings = await getEffectiveSettings(c.env);
+  const body = await c.req.json().catch(() => ({}));
+  const to = (typeof body.to === "string" && body.to.trim()) || settings.notify_email;
+  const res = await sendTestEmail(c.env, to);
+  return c.json(res, res.ok ? 200 : 400);
 });
 
 app.get("/users", async (c) => {

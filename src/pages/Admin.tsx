@@ -164,6 +164,148 @@ function MaintenanceCard() {
   );
 }
 
+/* ── Réglages e-mail (notifications) ──────────────────────────────────────── */
+function EmailSettingsCard() {
+  const toast = useToast();
+  const qc = useQueryClient();
+
+  const settingsQ = useQuery({
+    queryKey: ["admin-settings"],
+    queryFn: () => api.adminSettings(),
+    retry: false,
+  });
+
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyOnSignup, setNotifyOnSignup] = useState(true);
+  // Mot de passe SMTP : champ volontairement vide au chargement (jamais renvoyé
+  // par le serveur). Saisir une valeur = remplacer ; laisser vide = conserver.
+  const [smtpPass, setSmtpPass] = useState("");
+
+  // Synchronise les champs locaux quand les réglages arrivent du serveur.
+  useEffect(() => {
+    if (settingsQ.data) {
+      setNotifyEmail(settingsQ.data.settings.notify_email);
+      setNotifyOnSignup(settingsQ.data.settings.notify_on_signup);
+    }
+  }, [settingsQ.data]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.adminUpdateSettings({
+        notify_email: notifyEmail.trim(),
+        notify_on_signup: notifyOnSignup,
+        // N'envoie le mot de passe que si l'admin en a saisi un.
+        ...(smtpPass.trim() ? { smtp_pass: smtpPass.trim() } : {}),
+      }),
+    onSuccess: (r) => {
+      qc.setQueryData(["admin-settings"], { settings: r.settings, email: r.email });
+      setSmtpPass(""); // on vide le champ : le statut « enregistré » prend le relais
+      toast.push("Réglages enregistrés");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const test = useMutation({
+    mutationFn: () => api.adminTestEmail(notifyEmail.trim() || undefined),
+    onSuccess: () => toast.push("E-mail de test envoyé ✓"),
+    onError: (e: any) => toast.push(e.message || "Échec de l'envoi", true),
+  });
+
+  const email = settingsQ.data?.email;
+  const configured = Boolean(email?.configured);
+  const passStored = Boolean(email?.smtp_pass_set);
+  const passPlaceholder = passStored
+    ? "•••••••••••••• (enregistré) — laisser vide pour conserver"
+    : configured
+      ? "Défini sur le serveur — laisser vide pour conserver"
+      : "Mot de passe d'application Gmail (16 caractères)";
+
+  return (
+    <section className="card" style={{ marginBottom: "var(--space-6)" }}>
+      <div className="panel-head">
+        <h2><Icon name="bell" size={18} /> Notifications par e-mail</h2>
+      </div>
+
+      {settingsQ.isLoading ? (
+        <Spinner />
+      ) : (
+        <>
+          {/* État de la config SMTP */}
+          <div className="row gap-2 wrap" style={{ alignItems: "center", marginBottom: "var(--space-4)" }}>
+            <span
+              className="chip"
+              style={{
+                background: configured ? "rgba(111,138,95,0.18)" : "rgba(200,105,75,0.18)",
+                color: configured ? "var(--sage, #5b7a4b)" : "var(--danger, #c8694b)",
+                fontWeight: 700,
+              }}
+            >
+              {configured ? "E-mails actifs" : "E-mails inactifs"}
+            </span>
+            {email?.from && <span className="muted small">Expéditeur&nbsp;: {email.from}</span>}
+          </div>
+
+          {!configured && (
+            <p className="small" style={{ color: "var(--danger)", marginBottom: "var(--space-4)" }}>
+              Aucun mot de passe SMTP n'est encore renseigné&nbsp;: tant qu'il manque, aucun e-mail ne part.
+              Saisis ci-dessous le « mot de passe d'application » Gmail (voir <code>docs/SETUP-MAIL-CHROME.md</code> pour
+              le générer), puis enregistre.
+            </p>
+          )}
+
+          <Field label="Destinataire des notifications">
+            <input
+              className="input"
+              type="email"
+              value={notifyEmail}
+              onChange={(e) => setNotifyEmail(e.target.value)}
+              placeholder="toi@exemple.com"
+            />
+          </Field>
+
+          <Field label="Mot de passe SMTP (Gmail)">
+            <input
+              className="input"
+              type="password"
+              autoComplete="new-password"
+              value={smtpPass}
+              onChange={(e) => setSmtpPass(e.target.value)}
+              placeholder={passPlaceholder}
+            />
+            <p className="muted small" style={{ marginTop: 4 }}>
+              « Mot de passe d'application » Gmail (16 caractères). Stocké de façon sécurisée côté serveur,
+              jamais réaffiché. Le saisir ici remplace l'ancien&nbsp;; le laisser vide le conserve.
+            </p>
+          </Field>
+
+          <label className="row gap-2" style={{ alignItems: "center", cursor: "pointer", marginTop: "var(--space-2)" }}>
+            <input
+              type="checkbox"
+              checked={notifyOnSignup}
+              onChange={(e) => setNotifyOnSignup(e.target.checked)}
+            />
+            <span>Recevoir un e-mail à chaque nouvelle inscription</span>
+          </label>
+
+          <div className="row gap-2 wrap" style={{ justifyContent: "flex-end", marginTop: "var(--space-5)" }}>
+            <button
+              className="btn btn-soft"
+              onClick={() => test.mutate()}
+              disabled={test.isPending || !configured}
+              title={!configured ? "Renseigne d'abord le mot de passe SMTP puis enregistre" : undefined}
+            >
+              {test.isPending ? "Envoi…" : "Envoyer un e-mail de test"}
+            </button>
+            <button className="btn btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "…" : "Enregistrer"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function Admin() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -275,6 +417,9 @@ export default function Admin() {
           ))}
         </div>
       )}
+
+      {/* ── Notifications par e-mail ─────────────────────────────────── */}
+      <EmailSettingsCard />
 
       {/* ── Mise à jour de l'application ─────────────────────────────── */}
       <MaintenanceCard />

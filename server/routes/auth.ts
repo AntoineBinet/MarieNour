@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { authenticate, clearSession, createSession, createUser, writeSessionCookie } from "../auth";
 import { notifyAdminNewUser } from "../mailer";
-import { now, str } from "../util";
+import { now, slugifyHandle, str } from "../util";
 
 const app = new Hono<AppEnv>();
 
@@ -75,6 +75,27 @@ app.patch("/me", async (c) => {
 
   const fields: string[] = [];
   const values: unknown[] = [];
+
+  // E-mail : modifiable, mais validé et unique (insensible à la casse).
+  if (typeof body.email === "string") {
+    const email = str(body.email, 200).trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return c.json({ error: "Email invalide" }, 400);
+    const clash = await c.env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND id <> ?").bind(email, user.id).first();
+    if (clash) return c.json({ error: "Un compte existe déjà avec cet email" }, 409);
+    fields.push("email = ?");
+    values.push(email);
+  }
+
+  // Pseudo (handle) : normalisé en slug, non vide, unique.
+  if (typeof body.handle === "string") {
+    const handle = slugifyHandle(body.handle);
+    if (!handle) return c.json({ error: "Pseudo invalide" }, 400);
+    const clash = await c.env.DB.prepare("SELECT 1 FROM users WHERE handle = ? AND id <> ?").bind(handle, user.id).first();
+    if (clash) return c.json({ error: "Ce pseudo est déjà pris" }, 409);
+    fields.push("handle = ?");
+    values.push(handle);
+  }
+
   if (typeof body.display_name === "string" && body.display_name.trim()) {
     fields.push("display_name = ?");
     values.push(str(body.display_name, 60).trim());

@@ -6,6 +6,18 @@ import { Spinner, Field, useToast } from "../ui";
 import { Icon } from "../components/Icon";
 import { useAuth } from "../auth";
 
+/** Aperçu du pseudo normalisé (miroir de slugifyHandle côté serveur). */
+function slugifyHandle(input: string): string {
+  return (
+    input
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "")
+      .slice(0, 20)
+  );
+}
+
 /* ── Accents disponibles ─────────────────────────────────────────────────── */
 const ACCENTS: { key: string; label: string; color: string }[] = [
   { key: "terracotta", label: "Terracotta", color: "#c8694b" },
@@ -22,6 +34,8 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [handle, setHandle] = useState(user?.handle ?? "");
 
   const save = useMutation({
     mutationFn: () =>
@@ -29,6 +43,8 @@ export default function Profile() {
         display_name: displayName.trim(),
         bio: bio.trim(),
         avatar_url: avatarUrl.trim(),
+        email: email.trim(),
+        handle: handle.trim(),
       }),
     onSuccess: (res) => {
       setUser(res.user);
@@ -52,9 +68,19 @@ export default function Profile() {
     setAccent.mutate(accent);
   };
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const submit = () => {
     if (!displayName.trim()) {
       toast.push("Donne-toi un nom à afficher", true);
+      return;
+    }
+    if (!EMAIL_RE.test(email.trim())) {
+      toast.push("Indique un e-mail valide", true);
+      return;
+    }
+    if (!handle.trim()) {
+      toast.push("Choisis un pseudo", true);
       return;
     }
     save.mutate();
@@ -111,11 +137,28 @@ export default function Profile() {
         </Field>
 
         <Field label="Pseudo">
-          <input className="input" value={user.handle ? `@${user.handle}` : "—"} readOnly disabled />
+          <input
+            className="input"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+            placeholder="ton-pseudo"
+          />
+          <p className="muted small" style={{ marginTop: 4 }}>
+            Lettres et chiffres uniquement (les accents et espaces sont retirés). C'est ton identifiant public&nbsp;: @{slugifyHandle(handle) || "pseudo"}.
+          </p>
         </Field>
 
         <Field label="Email">
-          <input className="input" value={user.email ?? "—"} readOnly disabled />
+          <input
+            className="input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="toi@exemple.com"
+          />
+          <p className="muted small" style={{ marginTop: 4 }}>
+            Sert à te connecter. En le changeant, tu te connecteras désormais avec ce nouvel e-mail.
+          </p>
         </Field>
 
         <div className="field">
