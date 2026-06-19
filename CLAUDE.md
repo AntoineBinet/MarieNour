@@ -96,12 +96,13 @@ ADMIN_EMAIL=binet.antoine215@yahoo.com ADMIN_PASSWORD=dev SESSION_SECRET=dev npm
 | `MARIENOUR_PORT` | `8002` | port d'écoute (aussi `PORT`) |
 | `MARIENOUR_HOST` | `127.0.0.1` | bind (ne pas exposer en prod) |
 | `MARIENOUR_DATA_DIR` | `./data` | SQLite + médias (gitignoré) |
-| `ADMIN_EMAIL` | `binet.antoine215@yahoo.com` | e-mail du compte admin |
+| `ADMIN_EMAIL` | `binet.antoine215@yahoo.com` | e-mail du compte admin (= **identifiant de connexion**) |
+| `NOTIFY_EMAIL` | `binet.antoine2@gmail.com` | destinataire des **notifications** (alerte à chaque inscription) — repli sur `ADMIN_EMAIL` |
 | `ADMIN_PASSWORD` | (vide) | mot de passe maître admin (1er login = création) |
 | `SESSION_SECRET` | (vide) | secret de session (`openssl rand -hex 32`) |
 | `APP_NAME` | `marienour` | nom affiché |
-| `SMTP_USER` | (vide) | identifiant SMTP (adresse Gmail) — vide = e-mails off |
-| `SMTP_PASS` | (vide) | mot de passe SMTP (« mot de passe d'application » Gmail) |
+| `SMTP_USER` | `binet.antoine2@gmail.com` | identifiant/expéditeur SMTP (compte Gmail) |
+| `SMTP_PASS` | (vide) | mot de passe SMTP (« mot de passe d'application » Gmail) — **seul élément à poser** ; vide = e-mails off |
 | `SMTP_HOST` | `smtp.gmail.com` | serveur SMTP |
 | `SMTP_PORT` | `465` | port SMTP (465 SSL / 587 STARTTLS) |
 | `MAIL_FROM` | `=SMTP_USER` | expéditeur affiché |

@@ -28,4 +28,5 @@ bucket_name = "marienour-media"
 # les notifications par e-mail sont simplement désactivées.
 [vars]
 ADMIN_EMAIL = "binet.antoine215@yahoo.com"
+NOTIFY_EMAIL = "binet.antoine2@gmail.com"
 APP_NAME = "MarieNour"
