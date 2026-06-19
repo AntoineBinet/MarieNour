@@ -48,6 +48,24 @@ export class ApiError extends Error {
   }
 }
 
+/** Réglages e-mail modifiables par l'admin (table app_settings). */
+export interface AdminEmailSettings {
+  notify_email: string;
+  notify_on_signup: boolean;
+}
+
+/** État de la config SMTP (diagnostic, dépend du runtime). */
+export interface AdminEmailStatus {
+  configured: boolean;
+  from: string | null;
+  host: string | null;
+}
+
+export interface AdminSettingsResponse {
+  settings: AdminEmailSettings;
+  email: AdminEmailStatus;
+}
+
 /** Statut d'une mise à jour in-app (runtime Node / VM uniquement). */
 export interface UpdateStatus {
   phase: "idle" | "running" | "done" | "error";
@@ -86,8 +104,9 @@ export const api = {
   register: (email: string, password: string, display_name: string) =>
     post<{ user: PublicUser }>("/auth/register", { email, password, display_name }),
   logout: () => post<{ ok: true }>("/auth/logout"),
-  updateMe: (patch_: Partial<{ display_name: string; bio: string; avatar_url: string; accent: string }>) =>
-    patch<{ user: PublicUser }>("/auth/me", patch_),
+  updateMe: (
+    patch_: Partial<{ display_name: string; bio: string; avatar_url: string; accent: string; email: string; handle: string }>,
+  ) => patch<{ user: PublicUser }>("/auth/me", patch_),
 
   // Widgets
   widgets: () => get<{ widgets: Widget[] }>("/widgets"),
@@ -343,6 +362,13 @@ export const api = {
     post<{ ok: true }>(`/admin/users/${id}/reset-password`, { password }),
   adminSetRole: (id: string, role: "admin" | "member") => patch<{ ok: true }>(`/admin/users/${id}`, { role }),
   adminDeleteUser: (id: string) => del<{ ok: true }>(`/admin/users/${id}`),
+
+  // Réglages e-mail (notifications)
+  adminSettings: () => get<AdminSettingsResponse>("/admin/settings"),
+  adminUpdateSettings: (b: Partial<AdminEmailSettings>) =>
+    patch<{ ok: true } & AdminSettingsResponse>("/admin/settings", b),
+  adminTestEmail: (to?: string) =>
+    post<{ ok: boolean; error?: string }>("/admin/settings/test-email", to ? { to } : {}),
 
   // Mise à jour in-app (présente uniquement sur le runtime Node de la VM)
   adminUpdateStatus: () =>

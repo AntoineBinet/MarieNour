@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { hashPassword, requireAdmin } from "../auth";
-import { now, str } from "../util";
+import { sendTestEmail } from "../mailer";
+import { getEffectiveSettings, writeSetting } from "../settings";
+import { bool, now, str } from "../util";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const app = new Hono<AppEnv>();
 app.use("*", requireAdmin);
@@ -14,6 +18,44 @@ app.get("/stats", async (c) => {
     stats[t] = r?.n ?? 0;
   }
   return c.json({ stats, app_name: c.env.APP_NAME });
+});
+
+/* ── Réglages e-mail (notifications) ──────────────────────────────────────── */
+// L'état SMTP (configured) dépend du runtime : sur la VM Node, MAILER est défini
+// dès que SMTP_PASS est posé ; sur le repli serverless, MAILER est absent.
+function emailStatus(env: AppEnv["Bindings"]) {
+  return {
+    configured: Boolean(env.MAILER),
+    from: env.MAIL_FROM || null,
+    host: env.SMTP_HOST || null,
+  };
+}
+
+app.get("/settings", async (c) => {
+  const settings = await getEffectiveSettings(c.env);
+  return c.json({ settings, email: emailStatus(c.env) });
+});
+
+app.patch("/settings", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  if (typeof body.notify_email === "string") {
+    const email = str(body.notify_email, 200).trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return c.json({ error: "E-mail de notification invalide" }, 400);
+    await writeSetting(c.env.DB, "notify_email", email);
+  }
+  if (body.notify_on_signup !== undefined) {
+    await writeSetting(c.env.DB, "notify_on_signup", bool(body.notify_on_signup) ? "1" : "0");
+  }
+  const settings = await getEffectiveSettings(c.env);
+  return c.json({ ok: true, settings, email: emailStatus(c.env) });
+});
+
+app.post("/settings/test-email", async (c) => {
+  const settings = await getEffectiveSettings(c.env);
+  const body = await c.req.json().catch(() => ({}));
+  const to = (typeof body.to === "string" && body.to.trim()) || settings.notify_email;
+  const res = await sendTestEmail(c.env, to);
+  return c.json(res, res.ok ? 200 : 400);
 });
 
 app.get("/users", async (c) => {

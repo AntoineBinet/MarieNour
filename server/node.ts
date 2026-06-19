@@ -59,6 +59,8 @@ const env = {
   SESSION_SECRET: process.env.SESSION_SECRET || "",
   APP_NAME: process.env.APP_NAME || "MarieNour",
   NOTIFY_EMAIL: process.env.NOTIFY_EMAIL || "binet.antoine2@gmail.com",
+  MAIL_FROM,
+  SMTP_HOST,
   MAILER: mailer,
 };
 

@@ -164,6 +164,118 @@ function MaintenanceCard() {
   );
 }
 
+/* ── Réglages e-mail (notifications) ──────────────────────────────────────── */
+function EmailSettingsCard() {
+  const toast = useToast();
+  const qc = useQueryClient();
+
+  const settingsQ = useQuery({
+    queryKey: ["admin-settings"],
+    queryFn: () => api.adminSettings(),
+    retry: false,
+  });
+
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyOnSignup, setNotifyOnSignup] = useState(true);
+
+  // Synchronise les champs locaux quand les réglages arrivent du serveur.
+  useEffect(() => {
+    if (settingsQ.data) {
+      setNotifyEmail(settingsQ.data.settings.notify_email);
+      setNotifyOnSignup(settingsQ.data.settings.notify_on_signup);
+    }
+  }, [settingsQ.data]);
+
+  const save = useMutation({
+    mutationFn: () => api.adminUpdateSettings({ notify_email: notifyEmail.trim(), notify_on_signup: notifyOnSignup }),
+    onSuccess: (r) => {
+      qc.setQueryData(["admin-settings"], { settings: r.settings, email: r.email });
+      toast.push("Réglages enregistrés");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const test = useMutation({
+    mutationFn: () => api.adminTestEmail(notifyEmail.trim() || undefined),
+    onSuccess: () => toast.push("E-mail de test envoyé ✓"),
+    onError: (e: any) => toast.push(e.message || "Échec de l'envoi", true),
+  });
+
+  const email = settingsQ.data?.email;
+  const configured = Boolean(email?.configured);
+
+  return (
+    <section className="card" style={{ marginBottom: "var(--space-6)" }}>
+      <div className="panel-head">
+        <h2><Icon name="bell" size={18} /> Notifications par e-mail</h2>
+      </div>
+
+      {settingsQ.isLoading ? (
+        <Spinner />
+      ) : (
+        <>
+          {/* État de la config SMTP */}
+          <div className="row gap-2 wrap" style={{ alignItems: "center", marginBottom: "var(--space-4)" }}>
+            <span
+              className="chip"
+              style={{
+                background: configured ? "rgba(111,138,95,0.18)" : "rgba(200,105,75,0.18)",
+                color: configured ? "var(--sage, #5b7a4b)" : "var(--danger, #c8694b)",
+                fontWeight: 700,
+              }}
+            >
+              {configured ? "E-mails actifs" : "E-mails inactifs"}
+            </span>
+            {email?.from && <span className="muted small">Expéditeur&nbsp;: {email.from}</span>}
+          </div>
+
+          {!configured && (
+            <p className="small" style={{ color: "var(--danger)", marginBottom: "var(--space-4)" }}>
+              Le mot de passe SMTP (<code>SMTP_PASS</code>, « mot de passe d'application » Gmail) n'est pas encore
+              posé sur le serveur. Tant qu'il est absent, aucun e-mail ne part. Cette clé est un secret&nbsp;: elle se
+              renseigne une seule fois dans <code>/etc/marienour/marienour.env</code> (voir <code>docs/SETUP-MAIL-CHROME.md</code>),
+              jamais dans l'app.
+            </p>
+          )}
+
+          <Field label="Destinataire des notifications">
+            <input
+              className="input"
+              type="email"
+              value={notifyEmail}
+              onChange={(e) => setNotifyEmail(e.target.value)}
+              placeholder="toi@exemple.com"
+            />
+          </Field>
+
+          <label className="row gap-2" style={{ alignItems: "center", cursor: "pointer", marginTop: "var(--space-2)" }}>
+            <input
+              type="checkbox"
+              checked={notifyOnSignup}
+              onChange={(e) => setNotifyOnSignup(e.target.checked)}
+            />
+            <span>Recevoir un e-mail à chaque nouvelle inscription</span>
+          </label>
+
+          <div className="row gap-2 wrap" style={{ justifyContent: "flex-end", marginTop: "var(--space-5)" }}>
+            <button
+              className="btn btn-soft"
+              onClick={() => test.mutate()}
+              disabled={test.isPending || !configured}
+              title={!configured ? "Configure d'abord SMTP_PASS sur le serveur" : undefined}
+            >
+              {test.isPending ? "Envoi…" : "Envoyer un e-mail de test"}
+            </button>
+            <button className="btn btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "…" : "Enregistrer"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function Admin() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -275,6 +387,9 @@ export default function Admin() {
           ))}
         </div>
       )}
+
+      {/* ── Notifications par e-mail ─────────────────────────────────── */}
+      <EmailSettingsCard />
 
       {/* ── Mise à jour de l'application ─────────────────────────────── */}
       <MaintenanceCard />
