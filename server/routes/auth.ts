@@ -1,8 +1,27 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
-import { authenticate, clearSession, createSession, createUser, writeSessionCookie } from "../auth";
-import { notifyAdminNewUser } from "../mailer";
+import {
+  authenticate,
+  clearSession,
+  createSession,
+  createUser,
+  generateToken,
+  hashToken,
+  writeSessionCookie,
+} from "../auth";
+import { notifyAdminNewUser, sendVerificationEmail, smtpReady } from "../mailer";
 import { now, slugifyHandle, str } from "../util";
+
+const VERIFY_TTL_MS = 1000 * 60 * 60 * 24; // 24 h
+
+/** Base URL publique (https://marienour.work) déduite de la requête. */
+function appOrigin(reqUrl: string): string {
+  try {
+    return new URL(reqUrl).origin;
+  } catch {
+    return "";
+  }
+}
 
 const app = new Hono<AppEnv>();
 
@@ -22,18 +41,55 @@ app.post("/register", async (c) => {
   if (exists) return c.json({ error: "Un compte existe déjà avec cet email" }, 409);
 
   const isAdminEmail = email === (c.env.ADMIN_EMAIL || "").trim().toLowerCase();
+
+  // Le compte propriétaire (ADMIN_EMAIL) est créé vérifié et connecté direct :
+  // pas de friction de vérification pour l'admin (qui passe d'ordinaire par le
+  // mot de passe maître). Les membres, eux, doivent valider leur e-mail.
+  if (isAdminEmail) {
+    const admin = await createUser(c.env.DB, {
+      email,
+      password,
+      display_name: displayName,
+      role: "admin",
+      email_verified: true,
+    });
+    const token = await createSession(c.env.DB, admin.id, c.req.header("user-agent") ?? null);
+    writeSessionCookie(c, token);
+    return c.json({ user: admin });
+  }
+
+  // Vérification d'e-mail OBLIGATOIRE (mode strict) : sans SMTP exploitable, le
+  // lien d'activation ne pourrait jamais partir → on refuse proprement plutôt
+  // que de créer un compte impossible à activer.
+  if (!(await smtpReady(c.env))) {
+    return c.json(
+      { error: "Les inscriptions sont momentanément indisponibles (envoi d'e-mails non configuré). Réessaie plus tard." },
+      503,
+    );
+  }
+
+  const rawToken = generateToken();
+  const tokenHash = await hashToken(rawToken);
   const user = await createUser(c.env.DB, {
     email,
     password,
     display_name: displayName,
-    role: isAdminEmail ? "admin" : "member",
+    role: "member",
+    email_verified: false,
+    verification_token_hash: tokenHash,
+    verification_expires: now() + VERIFY_TTL_MS,
   });
 
-  const token = await createSession(c.env.DB, user.id, c.req.header("user-agent") ?? null);
-  writeSessionCookie(c, token);
+  const verifyUrl = `${appOrigin(c.req.url)}/api/auth/verify-email/${rawToken}`;
+  const sent = await sendVerificationEmail(c.env, { to: email, name: displayName, url: verifyUrl }).catch(() => false);
+  if (!sent) {
+    // Envoi en échec → on annule la création : pas de compte fantôme non
+    // activable, et l'e-mail redevient disponible pour réessayer.
+    await c.env.DB.prepare("DELETE FROM users WHERE id = ? AND email_verified = 0").bind(user.id).run();
+    return c.json({ error: "Impossible d'envoyer l'e-mail d'activation pour le moment. Réessaie dans quelques minutes." }, 502);
+  }
 
-  // Prévient l'admin par e-mail (best effort : ne doit jamais bloquer ni faire
-  // échouer l'inscription si l'envoi d'e-mails est indisponible/non configuré).
+  // Prévient l'admin par e-mail (best effort : ne doit jamais bloquer).
   try {
     await notifyAdminNewUser(c.env, {
       display_name: user.display_name,
@@ -44,7 +100,54 @@ app.post("/register", async (c) => {
     console.error("[auth] notification d'inscription échouée :", err);
   }
 
-  return c.json({ user });
+  // Pas de session : le compte n'est activable qu'après clic sur le lien.
+  return c.json({ pending: true });
+});
+
+// Activation du compte via le lien reçu par e-mail. Redirige vers le SPA.
+app.get("/verify-email/:token", async (c) => {
+  const token = c.req.param("token");
+  if (!token || token.length > 128) return c.redirect("/login?error=invalid_token");
+  const tokenHash = await hashToken(token);
+  const row = await c.env.DB.prepare(
+    "SELECT id FROM users WHERE verification_token_hash = ? AND email_verified = 0 AND verification_expires > ?",
+  )
+    .bind(tokenHash, now())
+    .first<{ id: string }>();
+  if (!row) return c.redirect("/login?error=invalid_token");
+  await c.env.DB.prepare(
+    "UPDATE users SET email_verified = 1, verification_token_hash = NULL, verification_expires = NULL, updated_at = ? WHERE id = ?",
+  )
+    .bind(now(), row.id)
+    .run();
+  return c.redirect("/login?verified=1");
+});
+
+// Renvoi du lien d'activation. Réponse toujours « ok » (anti-énumération) :
+// on ne révèle pas si l'e-mail correspond à un compte.
+app.post("/resend-verification", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const email = str(body.email, 200).trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) return c.json({ error: "Email invalide" }, 400);
+
+  const row = await c.env.DB.prepare(
+    "SELECT id, display_name FROM users WHERE email = ? AND email_verified = 0",
+  )
+    .bind(email)
+    .first<{ id: string; display_name: string }>();
+
+  if (row && (await smtpReady(c.env))) {
+    const rawToken = generateToken();
+    const tokenHash = await hashToken(rawToken);
+    await c.env.DB.prepare(
+      "UPDATE users SET verification_token_hash = ?, verification_expires = ?, updated_at = ? WHERE id = ?",
+    )
+      .bind(tokenHash, now() + VERIFY_TTL_MS, now(), row.id)
+      .run();
+    const verifyUrl = `${appOrigin(c.req.url)}/api/auth/verify-email/${rawToken}`;
+    await sendVerificationEmail(c.env, { to: email, name: row.display_name, url: verifyUrl }).catch(() => false);
+  }
+  return c.json({ ok: true });
 });
 
 app.post("/login", async (c) => {
@@ -55,6 +158,22 @@ app.post("/login", async (c) => {
 
   const user = await authenticate(c, email, password);
   if (!user) return c.json({ error: "Identifiants incorrects" }, 401);
+
+  // Vérification d'e-mail obligatoire pour les membres (l'admin en est exempt).
+  if (user.role !== "admin") {
+    const row = await c.env.DB.prepare("SELECT email_verified FROM users WHERE id = ?")
+      .bind(user.id)
+      .first<{ email_verified: number }>();
+    if (row && !row.email_verified) {
+      return c.json(
+        {
+          error: "Compte non activé — clique sur le lien reçu par e-mail pour l'activer (pense à vérifier tes spams).",
+          code: "email_not_verified",
+        },
+        403,
+      );
+    }
+  }
 
   const token = await createSession(c.env.DB, user.id, c.req.header("user-agent") ?? null);
   writeSessionCookie(c, token);

@@ -25,6 +25,16 @@ async function sha256Hex(input: string): Promise<string> {
   return toHex(digest);
 }
 
+/** Jeton aléatoire url-safe (hex) — utilisé pour l'activation d'e-mail. */
+export function generateToken(bytes = 32): string {
+  return randomToken(bytes);
+}
+
+/** Hash SHA-256 d'un jeton, à stocker en base (on ne garde jamais le jeton clair). */
+export async function hashToken(token: string): Promise<string> {
+  return sha256Hex(token);
+}
+
 export async function hashPassword(password: string, saltHex?: string): Promise<{ hash: string; salt: string }> {
   const salt = saltHex ?? randomToken(16);
   const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
@@ -174,6 +184,7 @@ export async function authenticate(
         display_name: "Antoine",
         password,
         role: "admin",
+        email_verified: true, // le compte admin (propriétaire) n'a pas à se vérifier
       });
       return created;
     }
@@ -195,7 +206,19 @@ export async function authenticate(
 
 export async function createUser(
   db: Bindings["DB"],
-  params: { email: string; display_name: string; password: string; role?: Role; handle?: string },
+  params: {
+    email: string;
+    display_name: string;
+    password: string;
+    role?: Role;
+    handle?: string;
+    // Vérification d'e-mail (cf. migration 0007). Par défaut un compte est créé
+    // NON vérifié ; les appelants qui n'ont pas besoin de vérification (bootstrap
+    // admin) passent email_verified: true.
+    email_verified?: boolean;
+    verification_token_hash?: string | null;
+    verification_expires?: number | null;
+  },
 ): Promise<PublicUser> {
   const { hash, salt } = await hashPassword(params.password);
   const id = uid();
@@ -203,10 +226,24 @@ export async function createUser(
   const handle = await ensureUniqueHandle(db, params.handle || params.display_name || params.email.split("@")[0]);
   await db
     .prepare(
-      `INSERT INTO users (id, email, display_name, handle, password_hash, password_salt, role, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (id, email, display_name, handle, password_hash, password_salt, role, created_at, updated_at,
+         email_verified, verification_token_hash, verification_expires)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(id, params.email.toLowerCase(), params.display_name, handle, hash, salt, params.role ?? "member", ts, ts)
+    .bind(
+      id,
+      params.email.toLowerCase(),
+      params.display_name,
+      handle,
+      hash,
+      salt,
+      params.role ?? "member",
+      ts,
+      ts,
+      params.email_verified ? 1 : 0,
+      params.verification_token_hash ?? null,
+      params.verification_expires ?? null,
+    )
     .run();
   return {
     id,
