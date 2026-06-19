@@ -67,7 +67,9 @@ src/components/InviteQr.tsx  → bouton « Inviter par QR » (ami / voyage / gro
 src/components/InviteLink.tsx→ bouton « Inviter par lien » (copie le lien dans le presse-papier)
 server/{auth,access,util}.ts→ sessions (cookie httpOnly, PBKDF2 Web Crypto), ACL
 server/mailer.ts            → compose les e-mails + contrat `Mailer` (envoi
-                              délégué au runtime) : alerte admin à chaque inscription
+                              délégué au runtime) : e-mail d'activation de compte
+                              (vérification d'adresse, obligatoire à l'inscription
+                              d'un membre) + alerte admin à chaque inscription
 server/node.ts              → entrée Node (VM) : env + static + SPA + listen :8002
 server/adapters/{d1,r2,smtp}.ts → bindings locaux (SQLite / fichiers / SMTP nodemailer)
 shared/types.ts             → types partagés front/back

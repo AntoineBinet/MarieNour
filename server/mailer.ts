@@ -30,6 +30,48 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * Indique si l'envoi d'e-mails est RÉELLEMENT possible : un runtime capable
+ * (MAILER présent → VM Node) ET un mot de passe SMTP disponible (réglage admin
+ * en base ou variable d'env). Sert à bloquer proprement l'inscription quand la
+ * vérification d'e-mail ne pourrait pas aboutir.
+ */
+export async function smtpReady(env: Bindings): Promise<boolean> {
+  if (!env.MAILER) return false;
+  const pass = await getEffectiveSmtpPass(env);
+  return pass.length > 0;
+}
+
+/**
+ * Envoie l'e-mail d'activation de compte (vérification d'adresse). Best effort :
+ * renvoie false si l'envoi échoue (l'appelant décide quoi faire — ici on annule
+ * l'inscription pour ne pas laisser de compte fantôme non activable).
+ */
+export async function sendVerificationEmail(
+  env: Bindings,
+  params: { to: string; name: string; url: string },
+): Promise<boolean> {
+  if (!env.MAILER) return false;
+  const appName = env.APP_NAME || "MarieNour";
+  const name = escapeHtml(params.name || "");
+  const url = params.url; // construite côté serveur, non issue de l'utilisateur
+  const subject = `Active ton compte ${appName}`;
+  const html =
+    `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5;color:#1f2937">` +
+    `<h2 style="margin:0 0 12px">Bienvenue sur ${escapeHtml(appName)}${name ? `, ${name}` : ""}&nbsp;!</h2>` +
+    `<p style="margin:0 0 16px">Ton compte a bien été créé. Clique sur le bouton ci-dessous pour l'activer&nbsp;:</p>` +
+    `<p style="margin:0 0 20px"><a href="${url}" style="display:inline-block;background:#c06b4f;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600">Activer mon compte</a></p>` +
+    `<p style="margin:0 0 6px;color:#6b7280">Ou copie ce lien dans ton navigateur&nbsp;:</p>` +
+    `<p style="margin:0 0 16px;word-break:break-all"><a href="${url}">${url}</a></p>` +
+    `<p style="margin:0;color:#6b7280;font-size:13px">Le lien expire dans 24&nbsp;h. Si tu n'es pas à l'origine de cette inscription, ignore cet e-mail.</p>` +
+    `</div>`;
+  const text =
+    `Bienvenue sur ${appName}${params.name ? `, ${params.name}` : ""} !\n\n` +
+    `Active ton compte en ouvrant ce lien (valable 24 h) :\n${url}\n\n` +
+    `Si tu n'es pas à l'origine de cette inscription, ignore cet e-mail.\n`;
+  return env.MAILER.send({ to: params.to, subject, html, text });
+}
+
+/**
  * Prévient l'admin qu'un nouvel utilisateur vient de s'inscrire. Le destinataire
  * et l'interrupteur viennent des réglages in-app (table app_settings), avec
  * repli sur NOTIFY_EMAIL puis ADMIN_EMAIL — ainsi l'alerte part vers la boîte

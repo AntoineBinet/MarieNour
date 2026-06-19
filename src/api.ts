@@ -102,8 +102,11 @@ export const api = {
   // Auth
   me: () => get<{ user: PublicUser | null }>("/auth/me"),
   login: (email: string, password: string) => post<{ user: PublicUser }>("/auth/login", { email, password }),
+  // Inscription : renvoie { user } pour l'admin (connecté direct) ou
+  // { pending: true } pour un membre (e-mail d'activation envoyé).
   register: (email: string, password: string, display_name: string) =>
-    post<{ user: PublicUser }>("/auth/register", { email, password, display_name }),
+    post<{ user?: PublicUser; pending?: boolean }>("/auth/register", { email, password, display_name }),
+  resendVerification: (email: string) => post<{ ok: true }>("/auth/resend-verification", { email }),
   logout: () => post<{ ok: true }>("/auth/logout"),
   updateMe: (
     patch_: Partial<{ display_name: string; bio: string; avatar_url: string; accent: string; email: string; handle: string }>,

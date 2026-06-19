@@ -20,31 +20,109 @@ const REASONS: { icon: IconName; title: string; text: string }[] = [
   { icon: "sparkle", title: "Beau & rapide", text: "Une interface soignée, pensée mobile d'abord, qui va droit au but." },
 ];
 
-function AuthCard({ initialMode, redirectTo }: { initialMode: "login" | "register"; redirectTo: string }) {
+function AuthCard({
+  initialMode,
+  redirectTo,
+  initialNotice = "",
+  initialError = "",
+}: {
+  initialMode: "login" | "register";
+  redirectTo: string;
+  initialNotice?: string;
+  initialError?: string;
+}) {
   const { setUser } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
+  const [notice, setNotice] = useState(initialNotice);
   const [busy, setBusy] = useState(false);
+  // Compte créé en attente d'activation (membre) → on affiche l'écran « vérifie ta boîte mail ».
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  // E-mail pour lequel proposer un renvoi du lien (échec de connexion « non activé »).
+  const [resendFor, setResendFor] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+
+  const resend = async (target: string) => {
+    setResending(true);
+    setError("");
+    try {
+      await api.resendVerification(target);
+    } catch {
+      /* réponse volontairement opaque (anti-énumération) */
+    } finally {
+      setResending(false);
+      setNotice("E-mail de confirmation renvoyé. Pense à vérifier tes spams (courrier indésirable).");
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNotice("");
+    setResendFor(null);
     setBusy(true);
     try {
-      const res =
-        mode === "login" ? await api.login(email, password) : await api.register(email, password, name);
-      setUser(res.user);
-      navigate(redirectTo, { replace: true });
+      if (mode === "login") {
+        const res = await api.login(email, password);
+        setUser(res.user);
+        navigate(redirectTo, { replace: true });
+      } else {
+        const res = await api.register(email, password, name);
+        if (res.user) {
+          // Cas admin : vérifié d'emblée et connecté.
+          setUser(res.user);
+          navigate(redirectTo, { replace: true });
+        } else {
+          // Cas membre : e-mail d'activation envoyé, compte en attente.
+          setPendingEmail(email);
+        }
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Une erreur est survenue");
+      const ae = err instanceof ApiError ? err : null;
+      // 403 à la connexion = compte non activé → proposer le renvoi du lien.
+      if (ae && ae.status === 403 && mode === "login") setResendFor(email);
+      setError(ae ? ae.message : "Une erreur est survenue");
     } finally {
       setBusy(false);
     }
   };
+
+  // Écran de confirmation post-inscription (compte membre en attente d'activation).
+  if (pendingEmail) {
+    return (
+      <div className="auth-card card" id="auth">
+        <h3 style={{ marginTop: 0, marginBottom: "var(--space-2)" }}>Vérifie ta boîte mail 📬</h3>
+        <p className="small">
+          On a envoyé un lien d'activation à <strong>{pendingEmail}</strong>. Clique dessus pour activer ton compte, puis connecte-toi.
+        </p>
+        <p className="small" style={{ color: "var(--accent, #c06b4f)", fontWeight: 600 }}>
+          Pas reçu&nbsp;? Pense à regarder tes spams / courrier indésirable — les e-mails automatiques y atterrissent souvent.
+        </p>
+        {notice && <p className="small" style={{ color: "var(--ok, #2f855a)" }}>{notice}</p>}
+        <div className="row gap-2" style={{ marginTop: "var(--space-4)" }}>
+          <button className="btn btn-soft grow" type="button" disabled={resending} onClick={() => resend(pendingEmail)}>
+            {resending ? "…" : "Renvoyer l'e-mail"}
+          </button>
+          <button
+            className="btn btn-primary grow"
+            type="button"
+            onClick={() => {
+              setPendingEmail(null);
+              setMode("login");
+              setNotice("");
+              setError("");
+            }}
+          >
+            J'ai activé → me connecter
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-card card" id="auth">
@@ -70,7 +148,20 @@ function AuthCard({ initialMode, redirectTo }: { initialMode: "login" | "registe
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={mode === "login" ? "current-password" : "new-password"} />
         </Field>
 
+        {notice && <p style={{ color: "var(--ok, #2f855a)", marginTop: "var(--space-3)" }} className="small">{notice}</p>}
         {error && <p style={{ color: "var(--danger)", marginTop: "var(--space-3)" }} className="small">{error}</p>}
+
+        {resendFor && (
+          <button
+            className="btn btn-soft btn-block"
+            type="button"
+            disabled={resending}
+            style={{ marginTop: "var(--space-3)" }}
+            onClick={() => resend(resendFor)}
+          >
+            {resending ? "…" : "Renvoyer l'e-mail de confirmation"}
+          </button>
+        )}
 
         <button className="btn btn-primary btn-block" type="submit" disabled={busy} style={{ marginTop: "var(--space-5)" }}>
           {busy ? "…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
@@ -96,7 +187,12 @@ export default function Login() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const redirectTo = params.get("redirect") || (location.state as { from?: string } | null)?.from || "/";
-  const initialMode: "login" | "register" = params.get("mode") === "register" ? "register" : "login";
+  const verified = params.get("verified") === "1";
+  const verifyError = params.get("error") === "invalid_token";
+  // Après un clic sur le lien d'activation, on force l'onglet « Connexion ».
+  const initialMode: "login" | "register" = !verified && params.get("mode") === "register" ? "register" : "login";
+  const initialNotice = verified ? "E-mail vérifié ✓ Tu peux maintenant te connecter." : "";
+  const initialError = verifyError ? "Lien de vérification invalide ou expiré. Connecte-toi pour en recevoir un nouveau." : "";
 
   if (user) navigate(redirectTo, { replace: true });
 
@@ -132,7 +228,7 @@ export default function Login() {
         </div>
 
         <div className="landing-authwrap">
-          <AuthCard initialMode={initialMode} redirectTo={redirectTo} />
+          <AuthCard initialMode={initialMode} redirectTo={redirectTo} initialNotice={initialNotice} initialError={initialError} />
         </div>
       </section>
 
