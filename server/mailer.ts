@@ -7,7 +7,7 @@
 //   • Repli Cloudflare Workers → pas de SMTP possible : MAILER absent, l'e-mail
 //     est simplement ignoré (l'app continue de fonctionner).
 import type { Bindings } from "./types";
-import { getEffectiveSettings } from "./settings";
+import { getEffectiveSettings, getEffectiveSmtpPass } from "./settings";
 
 export interface MailMessage {
   to: string;
@@ -89,9 +89,13 @@ export async function sendTestEmail(
   const target = (to || "").trim();
   if (!target) return { ok: false, error: "Aucun destinataire renseigné" };
   if (!env.MAILER) {
+    return { ok: false, error: "Envoi d'e-mails indisponible sur cet hébergement." };
+  }
+  const pass = await getEffectiveSmtpPass(env);
+  if (!pass) {
     return {
       ok: false,
-      error: "E-mails désactivés : le mot de passe SMTP (SMTP_PASS) n'est pas configuré sur le serveur.",
+      error: "Le mot de passe SMTP n'est pas encore renseigné. Saisis-le ci-dessus puis enregistre, et réessaie.",
     };
   }
 

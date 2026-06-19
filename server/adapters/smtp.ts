@@ -16,20 +16,41 @@ export interface SmtpOptions {
   port: number;
   secure: boolean; // true pour le port 465 (SSL), false pour 587 (STARTTLS)
   user: string;
-  pass: string;
   from: string;
+  // Le mot de passe est résolu À L'ENVOI (et non au démarrage) : il peut venir
+  // de la variable d'env SMTP_PASS ou du réglage posé depuis l'admin (en base).
+  // Ainsi, le changer dans l'app prend effet sans redémarrer le service.
+  getPass: () => Promise<string>;
 }
 
 export function createSmtpMailer(opts: SmtpOptions): Mailer {
-  const transport = nodemailer.createTransport({
-    host: opts.host,
-    port: opts.port,
-    secure: opts.secure,
-    auth: { user: opts.user, pass: opts.pass },
-  });
+  // On garde le transport en cache et on ne le recrée que si le mot de passe a
+  // changé (low volume : ne pas multiplier les connexions SMTP).
+  let cachedPass = "";
+  let transport: ReturnType<typeof nodemailer.createTransport> | null = null;
 
   return {
     async send(msg: MailMessage): Promise<boolean> {
+      let pass = "";
+      try {
+        pass = await opts.getPass();
+      } catch (err) {
+        console.error("[mail] impossible de lire le mot de passe SMTP :", err);
+        return false;
+      }
+      if (!pass) {
+        console.log("[mail] mot de passe SMTP absent — e-mail non envoyé");
+        return false;
+      }
+      if (!transport || pass !== cachedPass) {
+        transport = nodemailer.createTransport({
+          host: opts.host,
+          port: opts.port,
+          secure: opts.secure,
+          auth: { user: opts.user, pass },
+        });
+        cachedPass = pass;
+      }
       try {
         await transport.sendMail({
           from: opts.from,

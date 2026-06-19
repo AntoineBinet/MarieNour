@@ -56,7 +56,8 @@ export interface AdminEmailSettings {
 
 /** État de la config SMTP (diagnostic, dépend du runtime). */
 export interface AdminEmailStatus {
-  configured: boolean;
+  configured: boolean; // un envoi est réellement possible (runtime + mot de passe)
+  smtp_pass_set: boolean; // un mot de passe a été enregistré depuis l'admin
   from: string | null;
   host: string | null;
 }
@@ -365,7 +366,7 @@ export const api = {
 
   // Réglages e-mail (notifications)
   adminSettings: () => get<AdminSettingsResponse>("/admin/settings"),
-  adminUpdateSettings: (b: Partial<AdminEmailSettings>) =>
+  adminUpdateSettings: (b: Partial<AdminEmailSettings & { smtp_pass: string }>) =>
     patch<{ ok: true } & AdminSettingsResponse>("/admin/settings", b),
   adminTestEmail: (to?: string) =>
     post<{ ok: boolean; error?: string }>("/admin/settings/test-email", to ? { to } : {}),

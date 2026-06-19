@@ -177,6 +177,9 @@ function EmailSettingsCard() {
 
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifyOnSignup, setNotifyOnSignup] = useState(true);
+  // Mot de passe SMTP : champ volontairement vide au chargement (jamais renvoyé
+  // par le serveur). Saisir une valeur = remplacer ; laisser vide = conserver.
+  const [smtpPass, setSmtpPass] = useState("");
 
   // Synchronise les champs locaux quand les réglages arrivent du serveur.
   useEffect(() => {
@@ -187,9 +190,16 @@ function EmailSettingsCard() {
   }, [settingsQ.data]);
 
   const save = useMutation({
-    mutationFn: () => api.adminUpdateSettings({ notify_email: notifyEmail.trim(), notify_on_signup: notifyOnSignup }),
+    mutationFn: () =>
+      api.adminUpdateSettings({
+        notify_email: notifyEmail.trim(),
+        notify_on_signup: notifyOnSignup,
+        // N'envoie le mot de passe que si l'admin en a saisi un.
+        ...(smtpPass.trim() ? { smtp_pass: smtpPass.trim() } : {}),
+      }),
     onSuccess: (r) => {
       qc.setQueryData(["admin-settings"], { settings: r.settings, email: r.email });
+      setSmtpPass(""); // on vide le champ : le statut « enregistré » prend le relais
       toast.push("Réglages enregistrés");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -203,6 +213,12 @@ function EmailSettingsCard() {
 
   const email = settingsQ.data?.email;
   const configured = Boolean(email?.configured);
+  const passStored = Boolean(email?.smtp_pass_set);
+  const passPlaceholder = passStored
+    ? "•••••••••••••• (enregistré) — laisser vide pour conserver"
+    : configured
+      ? "Défini sur le serveur — laisser vide pour conserver"
+      : "Mot de passe d'application Gmail (16 caractères)";
 
   return (
     <section className="card" style={{ marginBottom: "var(--space-6)" }}>
@@ -231,10 +247,9 @@ function EmailSettingsCard() {
 
           {!configured && (
             <p className="small" style={{ color: "var(--danger)", marginBottom: "var(--space-4)" }}>
-              Le mot de passe SMTP (<code>SMTP_PASS</code>, « mot de passe d'application » Gmail) n'est pas encore
-              posé sur le serveur. Tant qu'il est absent, aucun e-mail ne part. Cette clé est un secret&nbsp;: elle se
-              renseigne une seule fois dans <code>/etc/marienour/marienour.env</code> (voir <code>docs/SETUP-MAIL-CHROME.md</code>),
-              jamais dans l'app.
+              Aucun mot de passe SMTP n'est encore renseigné&nbsp;: tant qu'il manque, aucun e-mail ne part.
+              Saisis ci-dessous le « mot de passe d'application » Gmail (voir <code>docs/SETUP-MAIL-CHROME.md</code> pour
+              le générer), puis enregistre.
             </p>
           )}
 
@@ -246,6 +261,21 @@ function EmailSettingsCard() {
               onChange={(e) => setNotifyEmail(e.target.value)}
               placeholder="toi@exemple.com"
             />
+          </Field>
+
+          <Field label="Mot de passe SMTP (Gmail)">
+            <input
+              className="input"
+              type="password"
+              autoComplete="new-password"
+              value={smtpPass}
+              onChange={(e) => setSmtpPass(e.target.value)}
+              placeholder={passPlaceholder}
+            />
+            <p className="muted small" style={{ marginTop: 4 }}>
+              « Mot de passe d'application » Gmail (16 caractères). Stocké de façon sécurisée côté serveur,
+              jamais réaffiché. Le saisir ici remplace l'ancien&nbsp;; le laisser vide le conserve.
+            </p>
           </Field>
 
           <label className="row gap-2" style={{ alignItems: "center", cursor: "pointer", marginTop: "var(--space-2)" }}>
@@ -262,7 +292,7 @@ function EmailSettingsCard() {
               className="btn btn-soft"
               onClick={() => test.mutate()}
               disabled={test.isPending || !configured}
-              title={!configured ? "Configure d'abord SMTP_PASS sur le serveur" : undefined}
+              title={!configured ? "Renseigne d'abord le mot de passe SMTP puis enregistre" : undefined}
             >
               {test.isPending ? "Envoi…" : "Envoyer un e-mail de test"}
             </button>

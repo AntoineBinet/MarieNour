@@ -102,7 +102,7 @@ ADMIN_EMAIL=binet.antoine215@yahoo.com ADMIN_PASSWORD=dev SESSION_SECRET=dev npm
 | `SESSION_SECRET` | (vide) | secret de session (`openssl rand -hex 32`) |
 | `APP_NAME` | `marienour` | nom affiché |
 | `SMTP_USER` | `binet.antoine2@gmail.com` | identifiant/expéditeur SMTP (compte Gmail) |
-| `SMTP_PASS` | (vide) | mot de passe SMTP (« mot de passe d'application » Gmail) — **seul élément à poser** ; vide = e-mails off |
+| `SMTP_PASS` | (vide) | mot de passe SMTP (« mot de passe d'application » Gmail). Peut aussi se poser **depuis l'admin** (réglage `smtp_pass` en base, résolu à l'envoi — pas de redémarrage) ; vide ET non posé en base = e-mails off |
 | `SMTP_HOST` | `smtp.gmail.com` | serveur SMTP |
 | `SMTP_PORT` | `465` | port SMTP (465 SSL / 587 STARTTLS) |
 | `MAIL_FROM` | `=SMTP_USER` | expéditeur affiché |

@@ -16,6 +16,7 @@ import { createD1 } from "./adapters/d1";
 import { createR2 } from "./adapters/r2";
 import { createSmtpMailer } from "./adapters/smtp";
 import { attachUser, requireAdmin } from "./auth";
+import { getEffectiveSmtpPass } from "./settings";
 import { getCurrentCommit, getStatus, startUpdate } from "./node-update";
 
 const ROOT = process.cwd();
@@ -29,26 +30,15 @@ const STATIC_DIR = process.env.MARIENOUR_STATIC_DIR || join(ROOT, "dist");
 
 mkdirSync(DATA_DIR, { recursive: true });
 
-// E-mail (SMTP) — optionnel. Configuré pour Gmail par défaut, expéditeur
-// binet.antoine2@gmail.com : il ne reste qu'à poser SMTP_PASS (« mot de passe
-// d'application » Gmail). Sans SMTP_PASS, MAILER reste undefined → e-mails off.
+// E-mail (SMTP) — configuré pour Gmail par défaut, expéditeur
+// binet.antoine2@gmail.com. Le « mot de passe d'application » Gmail peut être
+// posé DEPUIS L'ADMIN (réglage `smtp_pass` en base) ou via la variable d'env
+// SMTP_PASS. Il est résolu à l'envoi (cf. getPass) : aucun redémarrage requis.
 const SMTP_USER = process.env.SMTP_USER || "binet.antoine2@gmail.com";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
 const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER;
-const mailer =
-  SMTP_USER && SMTP_PASS
-    ? createSmtpMailer({
-        host: SMTP_HOST,
-        port: SMTP_PORT,
-        secure: SMTP_PORT === 465,
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-        from: MAIL_FROM,
-      })
-    : undefined;
-if (!mailer) console.log("[marienour] e-mails désactivés (SMTP_USER/SMTP_PASS absents)");
 
 // Bindings (équivalents des bindings Cloudflare, mais locaux).
 const env = {
@@ -61,8 +51,20 @@ const env = {
   NOTIFY_EMAIL: process.env.NOTIFY_EMAIL || "binet.antoine2@gmail.com",
   MAIL_FROM,
   SMTP_HOST,
-  MAILER: mailer,
+  SMTP_PASS,
+  MAILER: undefined,
 };
+// Mailer SMTP (Node) : toujours instancié. Le mot de passe est lu à l'envoi
+// (réglage admin en base puis repli SMTP_PASS) ; si aucun n'est posé, l'envoi
+// est un no-op silencieux.
+env.MAILER = createSmtpMailer({
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465,
+  user: SMTP_USER,
+  from: MAIL_FROM,
+  getPass: () => getEffectiveSmtpPass(env),
+});
 
 const indexHtmlPath = join(STATIC_DIR, "index.html");
 const hasBuild = existsSync(indexHtmlPath);

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { hashPassword, requireAdmin } from "../auth";
 import { sendTestEmail } from "../mailer";
-import { getEffectiveSettings, writeSetting } from "../settings";
+import { getEffectiveSettings, getEffectiveSmtpPass, isSmtpPassStoredInDb, writeSetting } from "../settings";
 import { bool, now, str } from "../util";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,11 +21,16 @@ app.get("/stats", async (c) => {
 });
 
 /* ── Réglages e-mail (notifications) ──────────────────────────────────────── */
-// L'état SMTP (configured) dépend du runtime : sur la VM Node, MAILER est défini
-// dès que SMTP_PASS est posé ; sur le repli serverless, MAILER est absent.
-function emailStatus(env: AppEnv["Bindings"]) {
+// État SMTP. `configured` = un envoi est réellement possible : runtime capable
+// (MAILER présent, donc VM Node) ET un mot de passe disponible (en base ou via
+// l'env). `smtp_pass_set` = un mot de passe a été posé DEPUIS L'ADMIN (en base) :
+// sert à afficher « enregistré » dans le champ. Le mot de passe n'est JAMAIS
+// renvoyé au client.
+async function emailStatus(env: AppEnv["Bindings"]) {
+  const pass = await getEffectiveSmtpPass(env);
   return {
-    configured: Boolean(env.MAILER),
+    configured: Boolean(env.MAILER) && pass.length > 0,
+    smtp_pass_set: await isSmtpPassStoredInDb(env.DB),
     from: env.MAIL_FROM || null,
     host: env.SMTP_HOST || null,
   };
@@ -33,7 +38,7 @@ function emailStatus(env: AppEnv["Bindings"]) {
 
 app.get("/settings", async (c) => {
   const settings = await getEffectiveSettings(c.env);
-  return c.json({ settings, email: emailStatus(c.env) });
+  return c.json({ settings, email: await emailStatus(c.env) });
 });
 
 app.patch("/settings", async (c) => {
@@ -46,8 +51,15 @@ app.patch("/settings", async (c) => {
   if (body.notify_on_signup !== undefined) {
     await writeSetting(c.env.DB, "notify_on_signup", bool(body.notify_on_signup) ? "1" : "0");
   }
+  // Mot de passe SMTP : on enregistre seulement si une valeur non vide est
+  // fournie (un champ laissé vide ne l'efface pas). Les espaces sont retirés
+  // (Gmail affiche le mot de passe d'application en groupes de 4).
+  if (typeof body.smtp_pass === "string" && body.smtp_pass.trim()) {
+    const pass = str(body.smtp_pass, 200).replace(/\s+/g, "");
+    await writeSetting(c.env.DB, "smtp_pass", pass);
+  }
   const settings = await getEffectiveSettings(c.env);
-  return c.json({ ok: true, settings, email: emailStatus(c.env) });
+  return c.json({ ok: true, settings, email: await emailStatus(c.env) });
 });
 
 app.post("/settings/test-email", async (c) => {

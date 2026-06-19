@@ -10,7 +10,7 @@ import type { Bindings } from "./types";
 import { now } from "./util";
 
 /** Clés de réglages connues (stockées en TEXT). */
-export type SettingKey = "notify_email" | "notify_on_signup";
+export type SettingKey = "notify_email" | "notify_on_signup" | "smtp_pass";
 
 /** Réglages effectifs après fusion base ← env ← défaut. */
 export interface EffectiveSettings {
@@ -60,4 +60,21 @@ export async function getEffectiveSettings(env: Bindings): Promise<EffectiveSett
   const notify_email = (raw.notify_email || env.NOTIFY_EMAIL || env.ADMIN_EMAIL || "").trim();
   const notify_on_signup = bool01(raw.notify_on_signup, true);
   return { notify_email, notify_on_signup };
+}
+
+/**
+ * Mot de passe SMTP effectif : réglage `smtp_pass` posé depuis l'admin (en base)
+ * en priorité, sinon la variable d'environnement SMTP_PASS du serveur. C'est le
+ * SEUL secret stocké en base ; il n'est jamais renvoyé au client (cf. routes
+ * admin) et data/ est hors arbre git.
+ */
+export async function getEffectiveSmtpPass(env: Bindings): Promise<string> {
+  const raw = await readRawSettings(env.DB);
+  return ((raw.smtp_pass || env.SMTP_PASS || "") as string).trim();
+}
+
+/** Indique si un mot de passe SMTP a été posé EN BASE (depuis l'admin). */
+export async function isSmtpPassStoredInDb(db: Bindings["DB"]): Promise<boolean> {
+  const raw = await readRawSettings(db);
+  return Boolean((raw.smtp_pass || "").trim());
 }
