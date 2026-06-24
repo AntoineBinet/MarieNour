@@ -100,6 +100,10 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+/* Garde-fou anti débordement horizontal (une ligne trop large ne doit jamais
+   provoquer de scroll latéral sur mobile). `clip` plutôt que `hidden` pour ne
+   pas casser les position: sticky (topbar). */
+html, body { overflow-x: clip; }
 
 /* ── Scrollbars discrètes & harmonisées ───────────────────────────────────
    Remplace la scrollbar native (moche, surtout sur la sidebar quand l'écran
@@ -196,11 +200,11 @@ a:hover { text-decoration: underline; }
 .badge { font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.5rem; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
 
 /* ── App shell ────────────────────────────────────────────────────────── */
-.shell { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; min-height: 100dvh; }
 .sidebar {
   background: var(--bg-2); border-right: 1px solid var(--border);
   padding: var(--space-5) var(--space-4); display: flex; flex-direction: column; gap: var(--space-5);
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  position: sticky; top: 0; height: 100vh; height: 100dvh; overflow-y: auto;
 }
 .brand { display: flex; align-items: center; gap: var(--space-3); }
 .brand-logo { width: 38px; height: 38px; border-radius: 11px; flex: none; }
@@ -220,7 +224,10 @@ a:hover { text-decoration: underline; }
 .topbar {
   display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-6);
   position: sticky; top: 0; background: color-mix(in srgb, var(--bg) 85%, transparent);
-  backdrop-filter: blur(8px); z-index: 20; border-bottom: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  /* Même précaution iOS que la bottom-nav (sticky + backdrop-filter). */
+  transform: translateZ(0); -webkit-transform: translateZ(0);
+  z-index: 20; border-bottom: 1px solid var(--border);
 }
 .content { padding: var(--space-6); max-width: 1180px; width: 100%; margin: 0 auto; }
 .page-head { margin-bottom: var(--space-5); }
@@ -383,7 +390,7 @@ a:hover { text-decoration: underline; }
 .swatch.sel { border-color: var(--ink); }
 
 /* ── Auth screen ──────────────────────────────────────────────────────── */
-.auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: var(--space-4); background: radial-gradient(120% 120% at 0% 0%, var(--bg-2), var(--bg)); }
+.auth-wrap { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: calc(env(safe-area-inset-top, 0px) + var(--space-4)) var(--space-4) calc(env(safe-area-inset-bottom, 0px) + var(--space-4)); background: radial-gradient(120% 120% at 0% 0%, var(--bg-2), var(--bg)); }
 .auth-card { width: 100%; max-width: 410px; }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
@@ -392,6 +399,9 @@ a:hover { text-decoration: underline; }
   .sidebar {
     position: fixed; left: 0; top: 0; bottom: 0; width: 270px; z-index: 200;
     transform: translateX(-100%); transition: transform 0.2s ease; height: 100%;
+    /* Les boutons du bas (thème, installer, déconnexion) doivent rester
+       au-dessus de la barre d'accueil (home indicator) de l'iPhone. */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-5));
   }
   .sidebar.open { transform: translateX(0); }
   .menu-btn { display: inline-flex; }
@@ -603,8 +613,13 @@ body { overscroll-behavior-y: none; }
   /* Champs ≥ 16px : empêche le zoom auto de Safari iOS au focus */
   .input, .textarea, .select { font-size: 16px; }
 
-  /* La barre du haut affiche la marque + reste collée sous l'encoche */
-  .topbar { padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-3)); }
+  /* La barre du haut affiche la marque + reste collée sous l'encoche (et
+     dégage les bords en paysage : encoche à gauche, indicateur à droite). */
+  .topbar {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-3));
+    padding-left: calc(env(safe-area-inset-left, 0px) + var(--space-4));
+    padding-right: calc(env(safe-area-inset-right, 0px) + var(--space-4));
+  }
   .topbar-brand { display: flex; }
 
   /* Sidebar off-canvas : on respecte aussi les encoches */
@@ -616,18 +631,30 @@ body { overscroll-behavior-y: none; }
   .bottomnav {
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    backdrop-filter: blur(12px); border-top: 1px solid var(--border);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    /* iOS Safari : un élément fixed + backdrop-filter n'est pas re-composité au
+       scroll et « gèle » au milieu de la page. On force sa propre couche de
+       composition (translateZ) pour qu'il reste collé en bas et se repeigne. */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
   }
 
   /* Toasts & bandeau MAJ au-dessus de la bottom-nav */
   .toast-wrap,
   .pwa-update { bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + var(--space-3)); }
 
-  /* Confort tactile : cibles plus grandes */
+  /* Confort tactile : cibles plus grandes (≥ 44px recommandé par Apple) */
   .btn { padding: 0.7rem 1.1rem; }
   .btn-sm { padding: 0.45rem 0.8rem; }
+  .btn-icon { width: 44px; height: 44px; }
   .nav-link { padding: 0.7rem 0.7rem; }
+  .notif-x { width: 40px; height: 40px; }
 
   /* Landing : une colonne, carte d'auth en premier visuellement after pitch */
   .landing-hero { grid-template-columns: 1fr; }
@@ -639,7 +666,7 @@ body { overscroll-behavior-y: none; }
   .overlay { align-items: flex-end; padding: 0; }
   .modal {
     max-width: 100%; width: 100%; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    max-height: 92vh; padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+    max-height: 92vh; max-height: 92dvh; padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
     animation: sheet 0.25s ease both;
   }
   .intro-modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
@@ -651,6 +678,81 @@ body { overscroll-behavior-y: none; }
   .content { padding-left: var(--space-3); padding-right: var(--space-3); }
   .page-head h1 { font-size: 1.6rem; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Tuto d'installation « Ajouter à l'écran d'accueil » (iOS / Android)
+   ════════════════════════════════════════════════════════════════════════ */
+.install-modal { max-width: 460px; }
+.install-lead { margin: 0; line-height: 1.55; }
+
+/* En-tête d'une étape : badge d'icône + titre + numéro */
+.install-step-head { display: flex; align-items: center; gap: var(--space-3); }
+.install-step-badge {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; flex: none;
+  color: var(--accent-ink);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 24%, transparent), color-mix(in srgb, var(--sky) 55%, transparent));
+}
+.install-step-n { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; color: var(--accent-ink); text-transform: uppercase; }
+.install-step-title { font-family: var(--font-display); font-weight: 600; font-size: 1.12rem; line-height: 1.2; }
+.install-step-body { line-height: 1.55; margin: 0; }
+
+/* Maquette d'iPhone (SVG) */
+.install-mock { display: flex; justify-content: center; }
+.install-mock svg { width: 100%; max-width: 240px; height: auto; display: block; }
+.install-phone-screen { fill: var(--surface); }
+.install-phone-frame { fill: var(--bg-2); stroke: var(--border-strong); }
+.install-mock-line { stroke: var(--border-strong); }
+.install-mock-soft { fill: var(--surface-2); }
+.install-mock-ink { fill: var(--ink); }
+.install-mock-muted { fill: var(--muted); }
+.install-mock-accent { fill: var(--accent); }
+.install-mock-accent-ink { fill: var(--accent-ink); }
+.install-mock-stroke { stroke: var(--ink-2); fill: none; }
+
+/* Cible mise en avant : anneau qui « pulse » + halo */
+.ios-target-glow { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 65%, transparent)); }
+.ios-pulse-ring {
+  fill: none; stroke: var(--accent); stroke-width: 2.5;
+  transform-box: fill-box; transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ios-pulse-ring { animation: ios-pulse 1.7s ease-out infinite; }
+}
+@keyframes ios-pulse {
+  0%   { transform: scale(0.96); opacity: 0.9; }
+  70%  { opacity: 0; }
+  100% { transform: scale(1.22); opacity: 0; }
+}
+
+/* Pastilles de progression */
+.install-dots { display: flex; align-items: center; gap: 7px; }
+.install-dot {
+  width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0; cursor: pointer;
+  background: var(--border-strong); transition: all 0.2s ease;
+}
+.install-dot.active { background: var(--accent); width: 22px; }
+
+/* Pied : navigation entre étapes */
+.install-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+
+/* Case « ne plus afficher » */
+.install-skip { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; user-select: none; }
+.install-skip input { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+
+/* Écran « ouvre-moi dans Safari » (navigateur intégré / Chrome iOS) */
+.install-guard-hero { display: flex; justify-content: center; }
+.install-guard-icon {
+  display: grid; place-items: center; width: 76px; height: 76px; border-radius: 22px; color: var(--accent-ink);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--sky) 55%, transparent));
+}
+
+/* Bandeau « astuce » discret */
+.install-tip {
+  display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3);
+  border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--ink-2); line-height: 1.45;
+}
+.install-tip svg { flex: none; margin-top: 1px; color: var(--accent-ink); }
 
 /* Réduit les animations si l'utilisateur le demande */
 @media (prefers-reduced-motion: reduce) {
