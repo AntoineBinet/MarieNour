@@ -88,6 +88,7 @@ function toPub(r: Record<string, unknown>): PublicUser {
     avatar_url: (r.avatar_url as string) ?? null,
     bio: (r.bio as string) ?? null,
     accent: (r.accent as string) ?? "terracotta",
+    prefs: {},
     created_at: r.created_at as number,
   };
 }

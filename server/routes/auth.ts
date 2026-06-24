@@ -13,7 +13,7 @@ import {
   writeSessionCookie,
 } from "../auth";
 import { notifyAdminNewUser, sendVerificationEmail, smtpReady } from "../mailer";
-import { now, slugifyHandle, str } from "../util";
+import { now, slugifyHandle, str, uid } from "../util";
 
 const VERIFY_TTL_MS = 1000 * 60 * 60 * 24; // 24 h
 
@@ -259,6 +259,74 @@ app.patch("/me", async (c) => {
   )
     .bind(user.id)
     .first();
+  return c.json({ user: toPublicUser(row as any, true) });
+});
+
+const AVATAR_MAX_BYTES = 25 * 1024 * 1024; // 25 Mo
+const SELF_COLS = "id, email, display_name, handle, role, avatar_url, bio, accent, prefs, created_at";
+
+/** Récupère l'objet media interne pointé par une URL d'avatar (ou null). */
+function avatarMediaId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = /^\/api\/media\/([^/]+)\/raw$/.exec(url);
+  return m ? m[1] : null;
+}
+
+// Envoi direct d'une photo de profil (multipart, champ "file"). On stocke
+// l'image comme un média « public » (un avatar est visible des autres) et on
+// pointe users.avatar_url dessus. L'ancien avatar interne est nettoyé.
+app.post("/me/avatar", async (c) => {
+  const user = c.var.user;
+  if (!user) return c.json({ error: "Non authentifié" }, 401);
+  const form = await c.req.formData();
+  const raw = form.get("file");
+  if (!raw || typeof raw === "string") return c.json({ error: "Fichier manquant" }, 400);
+  const file = raw as unknown as { size: number; name: string; type: string; arrayBuffer(): Promise<ArrayBuffer> };
+  if (file.type && !file.type.startsWith("image/")) return c.json({ error: "Choisis une image" }, 400);
+  if (file.size > AVATAR_MAX_BYTES) return c.json({ error: "Image trop volumineuse (max 25 Mo)" }, 413);
+
+  const id = uid();
+  const safeName = str(file.name || "avatar", 120).replace(/[^\w.\-]+/g, "_");
+  const key = `media/${user.id}/${id}-${safeName}`;
+  await c.env.MEDIA.put(key, await file.arrayBuffer(), {
+    httpMetadata: { contentType: file.type || "application/octet-stream" },
+  });
+  await c.env.DB.prepare(
+    "INSERT INTO media (id, user_id, r2_key, filename, content_type, size, caption, visibility, created_at) VALUES (?, ?, ?, ?, ?, ?, 'Photo de profil', 'public', ?)",
+  )
+    .bind(id, user.id, key, safeName, file.type || null, file.size, now())
+    .run();
+
+  const newUrl = `/api/media/${id}/raw`;
+  // Nettoyage de l'ancien avatar interne (best effort).
+  const prevId = avatarMediaId(user.avatar_url);
+  if (prevId && prevId !== id) {
+    const prev = await c.env.DB.prepare("SELECT r2_key FROM media WHERE id = ? AND user_id = ?").bind(prevId, user.id).first<{ r2_key: string }>();
+    if (prev) {
+      await c.env.MEDIA.delete(prev.r2_key).catch(() => {});
+      await c.env.DB.prepare("DELETE FROM media WHERE id = ? AND user_id = ?").bind(prevId, user.id).run();
+    }
+  }
+  await c.env.DB.prepare("UPDATE users SET avatar_url = ?, updated_at = ? WHERE id = ?").bind(newUrl, now(), user.id).run();
+
+  const row = await c.env.DB.prepare(`SELECT ${SELF_COLS} FROM users WHERE id = ?`).bind(user.id).first();
+  return c.json({ user: toPublicUser(row as any, true) });
+});
+
+// Retirer la photo de profil.
+app.delete("/me/avatar", async (c) => {
+  const user = c.var.user;
+  if (!user) return c.json({ error: "Non authentifié" }, 401);
+  const prevId = avatarMediaId(user.avatar_url);
+  if (prevId) {
+    const prev = await c.env.DB.prepare("SELECT r2_key FROM media WHERE id = ? AND user_id = ?").bind(prevId, user.id).first<{ r2_key: string }>();
+    if (prev) {
+      await c.env.MEDIA.delete(prev.r2_key).catch(() => {});
+      await c.env.DB.prepare("DELETE FROM media WHERE id = ? AND user_id = ?").bind(prevId, user.id).run();
+    }
+  }
+  await c.env.DB.prepare("UPDATE users SET avatar_url = NULL, updated_at = ? WHERE id = ?").bind(now(), user.id).run();
+  const row = await c.env.DB.prepare(`SELECT ${SELF_COLS} FROM users WHERE id = ?`).bind(user.id).first();
   return c.json({ user: toPublicUser(row as any, true) });
 });
 

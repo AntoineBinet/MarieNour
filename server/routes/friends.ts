@@ -21,6 +21,7 @@ function toPub(row: Record<string, unknown>): PublicUser {
     avatar_url: (row.avatar_url as string) ?? null,
     bio: (row.bio as string) ?? null,
     accent: (row.accent as string) ?? "terracotta",
+    prefs: {},
     created_at: row.created_at as number,
   };
 }

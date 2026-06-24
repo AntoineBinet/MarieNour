@@ -11,6 +11,7 @@ import tripsRoutes from "./routes/trips";
 import recipesRoutes from "./routes/recipes";
 import inspirationRoutes from "./routes/inspiration";
 import mediaRoutes from "./routes/media";
+import albumsRoutes from "./routes/albums";
 import socialRoutes from "./routes/social";
 import adminRoutes from "./routes/admin";
 import expensesRoutes from "./routes/expenses";
@@ -38,6 +39,7 @@ export function createApp() {
   app.route("/recipes", recipesRoutes);
   app.route("/inspiration", inspirationRoutes);
   app.route("/media", mediaRoutes);
+  app.route("/albums", albumsRoutes);
   app.route("/social", socialRoutes);
   app.route("/admin", adminRoutes);
   app.route("/expenses", expensesRoutes);

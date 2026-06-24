@@ -1,4 +1,6 @@
 import type {
+  Album,
+  AlbumDetail,
   AppNotification,
   Board,
   Comment,
@@ -197,6 +199,30 @@ export const api = {
   updateMedia: (id: string, b: Partial<{ caption: string; visibility: Visibility }>) =>
     patch<{ ok: true }>(`/media/${id}`, b),
   deleteMedia: (id: string) => del<{ ok: true }>(`/media/${id}`),
+
+  // Photo de profil (envoi direct)
+  uploadAvatar: async (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/auth/me/avatar", { method: "POST", body: form, credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new ApiError(data?.error || "Envoi échoué", res.status);
+    return data as { user: PublicUser };
+  },
+  removeAvatar: () => del<{ user: PublicUser }>("/auth/me/avatar"),
+
+  // Albums photo (regroupement + partage)
+  albums: (scope?: "mine" | "shared") => get<{ albums: Album[] }>(`/albums${scope === "shared" ? "?scope=shared" : ""}`),
+  album: (id: string) => get<{ album: AlbumDetail }>(`/albums/${id}`),
+  createAlbum: (b: { title: string; description?: string; visibility?: Visibility; media_ids?: string[] }) =>
+    post<{ album: Album }>("/albums", b),
+  updateAlbum: (id: string, b: Partial<{ title: string; description: string; visibility: Visibility; cover_media_id: string | null }>) =>
+    patch<{ ok: true }>(`/albums/${id}`, b),
+  deleteAlbum: (id: string) => del<{ ok: true }>(`/albums/${id}`),
+  addAlbumPhotos: (id: string, media_ids: string[]) => post<{ ok: true; added: number }>(`/albums/${id}/photos`, { media_ids }),
+  removeAlbumPhoto: (id: string, mediaId: string) => del<{ ok: true }>(`/albums/${id}/photos/${mediaId}`),
+  shareAlbum: (id: string, user_id: string) => post<{ ok: true }>(`/albums/${id}/shares`, { user_id }),
+  unshareAlbum: (id: string, userId: string) => del<{ ok: true }>(`/albums/${id}/shares/${userId}`),
 
   // Friends / social
   friends: () => get<{ friends: Friendship[]; incoming: Friendship[]; outgoing: Friendship[] }>("/friends"),

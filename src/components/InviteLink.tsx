@@ -14,6 +14,7 @@ const TITLES: Record<InviteKind, string> = {
   trip: "Rejoins le voyage",
   group: "Rejoins le groupe de dépenses",
   event: "Rejoins l'événement",
+  album: "Regarde mon album photo",
 };
 
 export interface InviteLinkProps {

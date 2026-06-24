@@ -13,7 +13,7 @@ import type { InviteKind, PublicUser } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 
-const KINDS: InviteKind[] = ["friend", "trip", "group", "event"];
+const KINDS: InviteKind[] = ["friend", "trip", "group", "event", "album"];
 
 // Alphabet sans caractères ambigus (0/O, 1/l/I) pour un code lisible sur un QR.
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghijkmnpqrstuvwxyz";
@@ -32,6 +32,7 @@ function toPub(row: Record<string, unknown>): PublicUser {
     avatar_url: (row.avatar_url as string) ?? null,
     bio: (row.bio as string) ?? null,
     accent: (row.accent as string) ?? "terracotta",
+    prefs: {},
     created_at: row.created_at as number,
   };
 }
@@ -75,6 +76,10 @@ async function targetTitle(db: AppEnv["Bindings"]["DB"], kind: string, targetId:
     const r = await db.prepare("SELECT title FROM events WHERE id = ?").bind(targetId).first<{ title: string }>();
     return r?.title ?? null;
   }
+  if (kind === "album") {
+    const r = await db.prepare("SELECT title FROM albums WHERE id = ?").bind(targetId).first<{ title: string }>();
+    return r?.title ?? null;
+  }
   return null;
 }
 
@@ -106,6 +111,9 @@ app.post("/", requireAuth, async (c) => {
       .bind(targetId, me, me)
       .first();
     if (!ok) return c.json({ error: "Événement introuvable" }, 404);
+  } else if (kind === "album") {
+    const ok = await c.env.DB.prepare("SELECT 1 FROM albums WHERE id = ? AND user_id = ?").bind(targetId, me).first();
+    if (!ok) return c.json({ error: "Album introuvable" }, 404);
   }
 
   const token = inviteToken();
@@ -230,6 +238,15 @@ app.post("/:token/accept", requireAuth, async (c) => {
           .bind(uid(), targetId, me.id, me.display_name, ts)
           .run();
       }
+    }
+  } else if (kind === "album" && targetId) {
+    // Rejoindre un album = recevoir un partage explicite de cet album.
+    if (creator !== me.id) {
+      await c.env.DB.prepare(
+        "INSERT OR IGNORE INTO shares (id, owner_id, entity_type, entity_id, shared_with_id, can_edit, created_at) VALUES (?, ?, 'album', ?, ?, 0, ?)",
+      )
+        .bind(uid(), creator, targetId, me.id, ts)
+        .run();
     }
   } else if (kind === "group" && targetId) {
     let claimed = false;

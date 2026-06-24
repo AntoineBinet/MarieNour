@@ -293,18 +293,19 @@ const TOPICS: Topic[] = [
     id: "photos",
     cat: "daily",
     icon: "photos",
-    title: "Photos",
-    summary: "Stocke et partage tes photos en toute confidentialité.",
-    keywords: "photos photo album image média importer partager privé",
+    title: "Photos & albums partagés",
+    summary: "Envoie tes photos (tous formats) et partage des albums.",
+    keywords: "photos photo album albums image média importer envoyer upload partager privé jpeg png heic iphone glisser déposer qr lien",
     to: "/photos",
     cta: "Ouvrir mes photos",
     body: (
       <>
         <p className="muted">Tes souvenirs, sur une infrastructure dédiée et jamais exposée publiquement.</p>
         <ul>
-          <li>Importe tes photos et organise-les.</li>
-          <li>Elles ne sont visibles que par toi et les personnes avec qui tu les partages.</li>
-          <li>Aucune reconnaissance faciale, aucun usage pour entraîner une IA.</li>
+          <li><strong>Envoi direct</strong> depuis ton appareil : glisse-dépose ou touche <strong>Importer</strong>. Tous les formats sont acceptés (JPEG, PNG, GIF, WebP, et le <strong>HEIC des iPhones</strong>), jusqu'à 25 Mo par photo.</li>
+          <li>Onglet <strong>Albums</strong> : regroupe tes photos en albums, choisis une <strong>couverture</strong> et une visibilité (Privé / Amis / Public).</li>
+          <li><strong>Partage un album</strong> à un ami précis, ou via un <strong>QR code / lien</strong> — il apparaît alors dans son onglet « Partagé avec moi ». Même une photo privée devient visible aux destinataires de l'album, sans changer sa visibilité ailleurs.</li>
+          <li>Tes photos ne sont visibles que par toi et les personnes que tu choisis. Aucune reconnaissance faciale, aucun usage pour entraîner une IA.</li>
         </ul>
       </>
     ),
@@ -384,7 +385,7 @@ const TOPICS: Topic[] = [
       <>
         <p className="muted">Personnalise la façon dont les autres te voient.</p>
         <ul>
-          <li>Modifie ton <strong>nom affiché</strong>, ta <strong>bio</strong> et ton <strong>avatar</strong>.</li>
+          <li>Modifie ton <strong>nom affiché</strong>, ta <strong>bio</strong> et ta <strong>photo de profil</strong> (envoi direct depuis ton appareil — JPEG, PNG, HEIC…).</li>
           <li>Ton <strong>pseudo</strong> (@handle) sert à te retrouver et à te mentionner.</li>
           <li>Pour les <strong>couleurs, le thème et tout le reste</strong>, ouvre la page <strong>Personnalisation</strong> (lien en bas de ta fiche profil).</li>
         </ul>
