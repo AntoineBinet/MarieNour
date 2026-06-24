@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { canView, friendIds } from "../access";
+import { canView, canViewMemory, friendIds } from "../access";
 import { cleanVisibility, now, str, uid } from "../util";
 import type { Comment, FeedItem, PublicUser, Visibility } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 app.use("*", requireAuth);
 
-const ENTITY_TYPES = ["note", "recipe", "trip", "board", "inspiration", "list", "media", "event"];
+const ENTITY_TYPES = ["note", "recipe", "trip", "board", "inspiration", "list", "media", "event", "memory"];
 
 interface EntityMeta {
   owner_id: string;
@@ -52,6 +52,13 @@ async function entityMeta(db: AppEnv["Bindings"]["DB"], type: string, id: string
       const r = await db.prepare("SELECT user_id, visibility, title, description, cover_url FROM events WHERE id = ?").bind(id).first<Record<string, unknown>>();
       return r ? { owner_id: r.user_id as string, visibility: cleanVisibility(r.visibility), title: r.title as string, preview: (r.description as string) ?? null, image_url: (r.cover_url as string) ?? null } : null;
     }
+    case "memory": {
+      // L'accès réel passe par la collection (cf. canAccessEntity) ; la visibilité
+      // renvoyée ici est seulement indicative (les collections 'custom' ne sont
+      // pas une Visibility standard).
+      const r = await db.prepare("SELECT user_id, kind, caption FROM memories WHERE id = ?").bind(id).first<Record<string, unknown>>();
+      return r ? { owner_id: r.user_id as string, visibility: "private", title: (r.caption as string) ?? "Souvenir", preview: null, image_url: null } : null;
+    }
     default:
       return null;
   }
@@ -67,6 +74,9 @@ async function canAccessEntity(
   entityId: string,
   meta: EntityMeta,
 ): Promise<boolean> {
+  // Un souvenir : l'accès est entièrement porté par sa collection (privé / amis /
+  // amis précis / public), y compris la visibilité 'custom'.
+  if (type === "memory") return canViewMemory(db, me, entityId);
   if (await canView(db, me, meta.owner_id, meta.visibility)) return true;
   if (type === "event") {
     const g = await db.prepare("SELECT 1 FROM event_guests WHERE event_id = ? AND user_id = ?").bind(entityId, me).first();

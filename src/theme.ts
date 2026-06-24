@@ -84,6 +84,9 @@ export function applyAppearance(app: Appearance, persist = true) {
   root.setAttribute("data-theme", theme);
   syncMetaThemeColor(theme);
 
+  // Style d'interface global (« pack » coordonné). 'default' = pas d'attribut.
+  setAttr(root, "data-design", prefs.design && prefs.design !== "default" ? prefs.design : null);
+
   // Couleur d'accent : preset (via data-accent) ou couleur libre (var inline).
   if (app.accent === "custom" && prefs.accent_custom) {
     root.setAttribute("data-accent", "custom");

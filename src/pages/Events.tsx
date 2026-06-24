@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { takeCompose } from "../compose";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
 import {
@@ -54,6 +55,14 @@ export default function Events() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<EventForm>(EMPTY_FORM);
   const [filter, setFilter] = useState<FilterKey>("upcoming");
+
+  // Ouverture pré-remplie depuis une note convertie (« Planifier l'activité »).
+  useEffect(() => {
+    const c = takeCompose("event");
+    if (!c) return;
+    setForm((f) => ({ ...f, ...(c.prefill as Partial<EventForm>) }));
+    setCreating(true);
+  }, []);
 
   const { data, isLoading } = useQuery({ queryKey: ["events"], queryFn: () => api.events() });
   const events = data?.events ?? [];

@@ -21,6 +21,7 @@ import onboardingRoutes from "./routes/onboarding";
 import financeRoutes from "./routes/finance";
 import eventsRoutes from "./routes/events";
 import notificationsRoutes from "./routes/notifications";
+import filRoutes from "./routes/fil";
 
 export function createApp() {
   const app = new Hono<AppEnv>().basePath("/api");
@@ -49,6 +50,7 @@ export function createApp() {
   app.route("/finance", financeRoutes);
   app.route("/events", eventsRoutes);
   app.route("/notifications", notificationsRoutes);
+  app.route("/fil", filRoutes);
 
   app.notFound((c) => c.json({ error: "Route introuvable" }, 404));
   app.onError((err, c) => {

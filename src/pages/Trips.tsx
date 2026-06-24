@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { takeCompose } from "../compose";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import type { Trip, TripKind, Visibility } from "@shared/types";
@@ -105,6 +106,14 @@ export default function Trips() {
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<TripForm>(EMPTY_FORM);
+
+  // Ouverture pré-remplie depuis une note convertie (« Préparer le voyage »).
+  useEffect(() => {
+    const c = takeCompose("trip");
+    if (!c) return;
+    setForm((f) => ({ ...f, ...(c.prefill as Partial<TripForm>) }));
+    setCreating(true);
+  }, []);
 
   const { data, isLoading } = useQuery({ queryKey: ["trips"], queryFn: () => api.trips() });
   const trips = data?.trips ?? [];

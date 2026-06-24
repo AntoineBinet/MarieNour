@@ -8,6 +8,10 @@ export type Role = "member" | "admin";
    (colonne users.prefs). Synchronisées sur tous ses appareils. Tous les champs
    sont optionnels : une valeur absente = la valeur par défaut de l'app. */
 export type ThemeMode = "system" | "light" | "dark";
+/** Style d'interface global (« pack » d'apparence coordonné). Neutre, sans
+ *  aucune notion de genre côté UI : 'default' = l'esprit chaleureux d'origine,
+ *  les autres sont des ambiances coordonnées (palette, contraste, géométrie). */
+export type DesignStyle = "default" | "graphite" | "editorial";
 export type RadiusStyle = "sharp" | "soft" | "round";
 export type DensityStyle = "compact" | "cozy" | "comfortable";
 export type FontChoice = "default" | "serif" | "sans" | "rounded" | "mono" | "humanist";
@@ -34,6 +38,10 @@ export type AccentPreset = (typeof ACCENT_PRESETS)[number];
 export interface UserPrefs {
   /** Prénom/surnom par lequel l'app s'adresse à toi (accueil, messages…). */
   nickname?: string;
+  /** Style d'interface coordonné (palette, contraste, géométrie). 'default' =
+   *  l'ambiance d'origine. Posé par défaut à l'inscription selon le profil,
+   *  puis librement modifiable. */
+  design?: DesignStyle;
   /** Mode de thème, synchronisé entre appareils ('system' = suit l'appareil). */
   theme_mode?: ThemeMode;
   /** Couleur d'accent personnalisée (hex), utilisée quand accent === 'custom'. */
@@ -62,6 +70,9 @@ export interface UserPrefs {
   greeting_emoji?: string;
 }
 
+/** Sexe (optionnel) — demandé à l'inscription pour proposer un style de départ. */
+export type Gender = "female" | "male" | "other";
+
 export interface PublicUser {
   id: string;
   email?: string; // présent uniquement pour soi-même
@@ -72,6 +83,7 @@ export interface PublicUser {
   bio: string | null;
   accent: string;
   prefs: UserPrefs; // préférences d'apparence (vide {} pour les autres membres)
+  gender?: Gender | null; // exposé uniquement pour soi-même
   created_at: number;
 }
 
@@ -412,6 +424,71 @@ export interface EventDetail extends EventSummary {
   agenda: EventAgendaItem[];
   bring: EventBringItem[];
   expense_group_id: string | null;
+}
+
+/* ── « Mon fil » : souvenirs & collections ────────────────────────────────── */
+// Un fil semi-privé de souvenirs (photos, vidéos, liens réseaux sociaux),
+// rangés en collections au partage choisi, avec récap hebdo « stories ».
+export type CollectionVisibility = "private" | "friends" | "custom" | "public";
+export type MemoryKind = "photo" | "video" | "link" | "text";
+
+export interface MemoryCollection {
+  id: string;
+  title: string;
+  description: string | null;
+  cover_url: string | null; // couverture explicite (sinon dérivée)
+  accent: string;
+  visibility: CollectionVisibility;
+  position: number;
+  created_at: number;
+  updated_at: number;
+  memory_count: number;
+  preview_urls: string[]; // jusqu'à 4 vignettes (souvenirs récents) pour la carte
+  is_owner: boolean;
+  owner: TripOwner | null; // créateur (mis en avant pour les collections partagées)
+  members?: PublicUser[]; // amis autorisés (visibilité 'custom'), seulement pour le propriétaire
+}
+
+export interface Memory {
+  id: string;
+  collection_id: string;
+  collection_title: string | null;
+  collection_accent: string;
+  kind: MemoryKind;
+  caption: string | null;
+  media_url: string | null; // photo/vidéo importée (servie depuis R2)
+  content_type: string | null;
+  url: string | null; // lien externe
+  link_title: string | null;
+  link_image: string | null; // vignette d'aperçu
+  link_provider: string | null; // youtube|tiktok|instagram|…
+  taken_at: number;
+  created_at: number;
+  updated_at: number;
+  author: PublicUser;
+  is_mine: boolean;
+  like_count: number;
+  comment_count: number;
+  liked_by_me: boolean;
+}
+
+/** Un « reel » de stories : tous les souvenirs récents d'un même auteur. */
+export interface MemoryReel {
+  author: PublicUser;
+  is_mine: boolean;
+  count: number;
+  latest_at: number;
+  cover_url: string | null;
+  memories: Memory[];
+}
+
+/** Aperçu d'un lien collé (métadonnées OpenGraph, best-effort côté serveur). */
+export interface LinkPreview {
+  url: string;
+  title: string | null;
+  image: string | null;
+  provider: string | null;
+  kind: MemoryKind; // 'video' pour les liens vidéo, sinon 'link'
 }
 
 /* ── Notifications (cloche en haut de l'app) ──────────────────────────────── */

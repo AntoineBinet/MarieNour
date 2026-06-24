@@ -17,6 +17,7 @@ import Inspiration from "./pages/Inspiration";
 import Photos from "./pages/Photos";
 import Friends from "./pages/Friends";
 import Feed from "./pages/Feed";
+import Fil from "./pages/Fil";
 import Expenses from "./pages/Expenses";
 import Finance from "./pages/Finance";
 import Profile from "./pages/Profile";
@@ -63,6 +64,7 @@ export default function App() {
                 <Route path="/depenses" element={<Expenses />} />
                 <Route path="/finances" element={<Finance />} />
                 <Route path="/feed" element={<Feed />} />
+                <Route path="/fil" element={<Fil />} />
                 <Route path="/amis" element={<Friends />} />
                 <Route path="/aide" element={<Help />} />
                 <Route path="/profil" element={<Profile />} />

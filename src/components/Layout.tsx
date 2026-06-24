@@ -26,8 +26,9 @@ const NAV: { section: string | null; items: { to: string; label: string; ic: Ico
   {
     section: "Partager",
     items: [
+      { to: "/fil", label: "Mon fil", ic: "memories" },
       { to: "/depenses", label: "Dépenses partagées", ic: "expenses" },
-      { to: "/feed", label: "Le fil", ic: "feed" },
+      { to: "/feed", label: "Le fil des amis", ic: "feed" },
       { to: "/amis", label: "Amis & sondages", ic: "friends" },
     ],
   },
@@ -36,9 +37,9 @@ const NAV: { section: string | null; items: { to: string; label: string; ic: Ico
 // Barre de navigation inférieure (mobile) : les 5 accès les plus utilisés.
 const BOTTOM_NAV: { to: string; label: string; ic: IconName; end?: boolean }[] = [
   { to: "/", label: "Accueil", ic: "home", end: true },
+  { to: "/fil", label: "Mon fil", ic: "memories" },
   { to: "/finances", label: "Finances", ic: "wallet" },
   { to: "/voyages", label: "Voyages", ic: "trips" },
-  { to: "/depenses", label: "Dépenses", ic: "expenses" },
   { to: "/amis", label: "Amis", ic: "friends" },
 ];
 

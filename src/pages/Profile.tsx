@@ -6,6 +6,14 @@ import { Spinner, Field, useToast } from "../ui";
 import { Icon } from "../components/Icon";
 import { useAuth } from "../auth";
 import { IMAGE_ACCEPT, isImageFile } from "../images";
+import type { Gender } from "@shared/types";
+
+const GENDERS: { key: Gender | ""; label: string }[] = [
+  { key: "", label: "Non précisé" },
+  { key: "female", label: "Femme" },
+  { key: "male", label: "Homme" },
+  { key: "other", label: "Autre" },
+];
 
 /** Aperçu du pseudo normalisé (miroir de slugifyHandle côté serveur). */
 function slugifyHandle(input: string): string {
@@ -27,6 +35,7 @@ export default function Profile() {
   const [bio, setBio] = useState(user?.bio ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [handle, setHandle] = useState(user?.handle ?? "");
+  const [gender, setGender] = useState<Gender | "">(user?.gender ?? "");
 
   const avatarInput = useRef<HTMLInputElement>(null);
 
@@ -37,6 +46,7 @@ export default function Profile() {
         bio: bio.trim(),
         email: email.trim(),
         handle: handle.trim(),
+        gender: gender || null,
       }),
     onSuccess: (res) => {
       setUser(res.user);
@@ -185,6 +195,18 @@ export default function Profile() {
           />
           <p className="muted small" style={{ marginTop: 4 }}>
             Sert à te connecter. En le changeant, tu te connecteras désormais avec ce nouvel e-mail.
+          </p>
+        </Field>
+
+        <Field label="Sexe">
+          <select className="select" value={gender} onChange={(e) => setGender(e.target.value as Gender | "")}>
+            {GENDERS.map((g) => (
+              <option key={g.key} value={g.key}>{g.label}</option>
+            ))}
+          </select>
+          <p className="muted small" style={{ marginTop: 4 }}>
+            Information privée. Le style de l'app se règle indépendamment dans{" "}
+            <Link to="/personnalisation">Personnalisation</Link>.
           </p>
         </Field>
 
