@@ -26,9 +26,13 @@ import type {
   Invite,
   InviteKind,
   InvitePreview,
+  LinkPreview,
   List,
   ListItem,
   MediaItem,
+  Memory,
+  MemoryCollection,
+  MemoryReel,
   Note,
   Poll,
   PublicUser,
@@ -357,6 +361,62 @@ export const api = {
   financePartners: () => get<{ partners: FinancePartner[] }>("/finance/partners"),
   addFinancePartner: (user_id: string, can_edit: boolean) => post<{ ok: true }>("/finance/partners", { user_id, can_edit }),
   removeFinancePartner: (user_id: string) => del<{ ok: true }>(`/finance/partners/${user_id}`),
+
+  // Mon fil — souvenirs & collections
+  memoryCollections: () => get<{ collections: MemoryCollection[]; shared: MemoryCollection[] }>("/fil/collections"),
+  memoryCollection: (id: string) =>
+    get<{ collection: MemoryCollection & { can_edit: boolean }; memories: Memory[] }>(`/fil/collections/${id}`),
+  createMemoryCollection: (b: {
+    title: string;
+    description?: string;
+    accent?: string;
+    visibility?: import("@shared/types").CollectionVisibility;
+    member_ids?: string[];
+  }) => post<{ id: string }>("/fil/collections", b),
+  updateMemoryCollection: (
+    id: string,
+    b: Partial<{
+      title: string;
+      description: string;
+      accent: string;
+      cover_url: string;
+      visibility: import("@shared/types").CollectionVisibility;
+      member_ids: string[];
+    }>,
+  ) => patch<{ ok: true }>(`/fil/collections/${id}`, b),
+  deleteMemoryCollection: (id: string) => del<{ ok: true }>(`/fil/collections/${id}`),
+  memories: (opts?: { collection_id?: string; scope?: "mine" | "all" }) => {
+    const p = new URLSearchParams();
+    if (opts?.collection_id) p.set("collection_id", opts.collection_id);
+    if (opts?.scope) p.set("scope", opts.scope);
+    const q = p.toString();
+    return get<{ memories: Memory[] }>(`/fil/memories${q ? `?${q}` : ""}`);
+  },
+  memoryRecap: (days?: number) => get<{ reels: MemoryReel[]; days: number }>(`/fil/recap${days ? `?days=${days}` : ""}`),
+  createMemory: (b: {
+    collection_id?: string;
+    caption?: string;
+    url?: string;
+    link_title?: string;
+    link_image?: string;
+    link_provider?: string;
+    taken_at?: number;
+  }) => post<{ id: string }>("/fil/memories", b),
+  uploadMemory: async (file: File, opts?: { collection_id?: string; caption?: string; taken_at?: number }) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (opts?.collection_id) form.append("collection_id", opts.collection_id);
+    if (opts?.caption) form.append("caption", opts.caption);
+    if (opts?.taken_at) form.append("taken_at", String(opts.taken_at));
+    const res = await fetch("/api/fil/memories", { method: "POST", body: form, credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new ApiError(data?.error || "Import échoué", res.status);
+    return data as { id: string };
+  },
+  updateMemory: (id: string, b: Partial<{ caption: string; collection_id: string; taken_at: number }>) =>
+    patch<{ ok: true }>(`/fil/memories/${id}`, b),
+  deleteMemory: (id: string) => del<{ ok: true }>(`/fil/memories/${id}`),
+  linkPreview: (url: string) => post<{ preview: LinkPreview }>("/fil/preview", { url }),
 
   // Notifications (cloche)
   notifications: () => get<{ notifications: AppNotification[] }>("/notifications"),
