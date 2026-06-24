@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Spinner, Field, useToast } from "../ui";
 import { Icon } from "../components/Icon";
 import { useAuth } from "../auth";
+import { IMAGE_ACCEPT, isImageFile } from "../images";
 import type { Gender } from "@shared/types";
 
 const GENDERS: { key: Gender | ""; label: string }[] = [
@@ -32,17 +33,17 @@ export default function Profile() {
 
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [handle, setHandle] = useState(user?.handle ?? "");
   const [gender, setGender] = useState<Gender | "">(user?.gender ?? "");
+
+  const avatarInput = useRef<HTMLInputElement>(null);
 
   const save = useMutation({
     mutationFn: () =>
       api.updateMe({
         display_name: displayName.trim(),
         bio: bio.trim(),
-        avatar_url: avatarUrl.trim(),
         email: email.trim(),
         handle: handle.trim(),
         gender: gender || null,
@@ -53,6 +54,35 @@ export default function Profile() {
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
+
+  const uploadAvatar = useMutation({
+    mutationFn: (file: File) => api.uploadAvatar(file),
+    onSuccess: (res) => {
+      setUser(res.user);
+      toast.push("Photo de profil mise à jour");
+    },
+    onError: (e: any) => toast.push(e.message || "Envoi échoué", true),
+  });
+
+  const removeAvatar = useMutation({
+    mutationFn: () => api.removeAvatar(),
+    onSuccess: (res) => {
+      setUser(res.user);
+      toast.push("Photo de profil retirée");
+    },
+    onError: (e: any) => toast.push(e.message || "Erreur", true),
+  });
+
+  const onPickAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!isImageFile(file)) {
+      toast.push("Choisis une image (JPEG, PNG, HEIC…)", true);
+      return;
+    }
+    uploadAvatar.mutate(file);
+  };
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -111,14 +141,37 @@ export default function Profile() {
           />
         </Field>
 
-        <Field label="Avatar (URL)">
-          <input
-            className="input"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            placeholder="https://…"
-          />
-        </Field>
+        <div className="field">
+          <label className="label">Photo de profil</label>
+          <div className="row gap-3 wrap" style={{ alignItems: "center" }}>
+            <span className="avatar-lg" aria-hidden>
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" />
+              ) : (
+                <Icon name="profile" size={30} />
+              )}
+            </span>
+            <div className="col gap-2">
+              <div className="row gap-2 wrap">
+                <button
+                  type="button"
+                  className="btn btn-soft btn-sm"
+                  onClick={() => avatarInput.current?.click()}
+                  disabled={uploadAvatar.isPending}
+                >
+                  <Icon name="camera" size={15} /> {uploadAvatar.isPending ? "Envoi…" : user.avatar_url ? "Changer la photo" : "Ajouter une photo"}
+                </button>
+                {user.avatar_url && (
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => removeAvatar.mutate()} disabled={removeAvatar.isPending}>
+                    <Icon name="trash" size={15} /> Retirer
+                  </button>
+                )}
+              </div>
+              <p className="muted small">Depuis ton appareil — JPEG, PNG, HEIC (iPhone)… jusqu'à 25 Mo.</p>
+            </div>
+          </div>
+          <input ref={avatarInput} type="file" accept={IMAGE_ACCEPT} hidden onChange={onPickAvatar} />
+        </div>
 
         <Field label="Pseudo">
           <input

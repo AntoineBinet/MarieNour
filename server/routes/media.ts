@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { attachUser, requireAuth } from "../auth";
-import { canView } from "../access";
+import { canView, mediaVisibleViaAlbum } from "../access";
 import { cleanVisibility, now, str, uid } from "../util";
 import type { MediaItem } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 
-const MAX_BYTES = 15 * 1024 * 1024; // 15 Mo
+const MAX_BYTES = 25 * 1024 * 1024; // 25 Mo (photos haute résolution / HEIC iPhone)
 
 function toMedia(r: Record<string, unknown>): MediaItem {
   return {
@@ -22,12 +22,16 @@ function toMedia(r: Record<string, unknown>): MediaItem {
   };
 }
 
-// Liste des médias de l'utilisateur (auth requise).
+// Liste des médias de l'utilisateur (auth requise). On exclut la photo de profil
+// (avatar) : c'est un média technique, elle n'a pas à encombrer la galerie.
 app.get("/", requireAuth, async (c) => {
+  const me = c.var.user!;
   const res = await c.env.DB.prepare("SELECT * FROM media WHERE user_id = ? ORDER BY created_at DESC")
-    .bind(c.var.user!.id)
+    .bind(me.id)
     .all<Record<string, unknown>>();
-  return c.json({ media: (res.results ?? []).map(toMedia) });
+  const avatarId = /^\/api\/media\/([^/]+)\/raw$/.exec(me.avatar_url ?? "")?.[1] ?? null;
+  const list = (res.results ?? []).map(toMedia).filter((m) => m.id !== avatarId);
+  return c.json({ media: list });
 });
 
 // Upload (multipart). Champ "file" + optionnels "caption", "visibility".
@@ -73,10 +77,15 @@ app.post("/", requireAuth, async (c) => {
 
 // Sert le binaire depuis R2 (vérifie la visibilité). Utilisé par <img src>.
 app.get("/:id/raw", attachUser, async (c) => {
-  const id = c.req.param("id");
+  const id = c.req.param("id")!;
   const row = await c.env.DB.prepare("SELECT * FROM media WHERE id = ?").bind(id).first<Record<string, unknown>>();
   if (!row) return c.json({ error: "Introuvable" }, 404);
-  const allowed = await canView(c.env.DB, c.var.user?.id ?? null, row.user_id as string, cleanVisibility(row.visibility));
+  const viewerId = c.var.user?.id ?? null;
+  // Visible si la photo elle-même est accessible, OU si elle figure dans un
+  // album partagé auquel le viewer a accès (partage par album).
+  const allowed =
+    (await canView(c.env.DB, viewerId, row.user_id as string, cleanVisibility(row.visibility))) ||
+    (await mediaVisibleViaAlbum(c.env.DB, viewerId, id));
   if (!allowed) return c.json({ error: "Accès refusé" }, 403);
 
   const obj = await c.env.MEDIA.get(row.r2_key as string);

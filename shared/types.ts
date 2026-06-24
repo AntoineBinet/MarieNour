@@ -249,6 +249,27 @@ export interface MediaItem {
   created_at: number;
 }
 
+/* ── Albums photo (regroupement + partage) ────────────────────────────────── */
+export interface Album {
+  id: string;
+  title: string;
+  description: string | null;
+  cover_url: string | null; // dérivé de cover_media_id (ou 1re photo)
+  visibility: Visibility;
+  position: number;
+  created_at: number;
+  updated_at: number;
+  photo_count: number;
+  is_owner: boolean; // false = album partagé avec moi
+  owner?: PublicUser | null; // créateur (mis en avant côté « Partagé avec moi »)
+  shared_count?: number; // nb d'amis avec qui je l'ai partagé (vue propriétaire)
+}
+
+export interface AlbumDetail extends Album {
+  photos: MediaItem[];
+  shared_with: PublicUser[]; // amis destinataires (vue propriétaire)
+}
+
 export interface FeedItem {
   entity_type: string;
   entity_id: string;
@@ -492,7 +513,7 @@ export interface AppNotification {
 }
 
 /* ── Invitations / QR ─────────────────────────────────────────────────────── */
-export type InviteKind = "friend" | "trip" | "group" | "event";
+export type InviteKind = "friend" | "trip" | "group" | "event" | "album";
 
 export interface Invite {
   token: string;

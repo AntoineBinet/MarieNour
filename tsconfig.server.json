@@ -10,9 +10,8 @@
     "noEmit": true,
     "strict": true,
     "types": ["@cloudflare/workers-types"],
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["shared/*"]
+      "@shared/*": ["./shared/*"]
     }
   },
   "include": ["functions", "server", "shared"],

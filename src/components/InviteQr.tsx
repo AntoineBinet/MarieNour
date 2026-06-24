@@ -14,6 +14,7 @@ const TITLES: Record<InviteKind, string> = {
   trip: "Rejoins le voyage",
   group: "Rejoins le groupe de dépenses",
   event: "Rejoins l'événement",
+  album: "Regarde mon album photo",
 };
 
 const HINTS: Record<InviteKind, string> = {
@@ -21,6 +22,7 @@ const HINTS: Record<InviteKind, string> = {
   trip: "La personne scanne, crée son compte si besoin, et rejoint automatiquement le voyage.",
   group: "La personne scanne et rejoint le groupe — ses dépenses seront partagées avec toi.",
   event: "La personne scanne, crée son compte si besoin, et rejoint l'événement pour répondre à l'invitation (RSVP).",
+  album: "La personne scanne, crée son compte si besoin, et l'album apparaît dans « Partagé avec moi ».",
 };
 
 export interface InviteQrProps {

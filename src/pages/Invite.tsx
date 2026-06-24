@@ -10,14 +10,15 @@ import { Spinner, useToast } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import type { InviteKind } from "@shared/types";
 
-const KIND_ICON: Record<InviteKind, IconName> = { friend: "friends", trip: "trips", group: "expenses", event: "confetti" };
+const KIND_ICON: Record<InviteKind, IconName> = { friend: "friends", trip: "trips", group: "expenses", event: "confetti", album: "photos" };
 const KIND_VERB: Record<InviteKind, string> = {
   friend: "veut t'ajouter en ami",
   trip: "t'invite à rejoindre un voyage",
   group: "t'invite dans un groupe de dépenses",
   event: "t'invite à un événement",
+  album: "partage un album photo avec toi",
 };
-const KIND_DEST: Record<InviteKind, string> = { friend: "/amis", trip: "/voyages", group: "/depenses", event: "/evenements" };
+const KIND_DEST: Record<InviteKind, string> = { friend: "/amis", trip: "/voyages", group: "/depenses", event: "/evenements", album: "/photos" };
 
 export default function Invite() {
   const { token = "" } = useParams();
