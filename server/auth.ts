@@ -1,7 +1,7 @@
 import type { Context, Next } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import type { AppEnv, Bindings } from "./types";
-import type { PublicUser, Role, UserPrefs } from "@shared/types";
+import type { Gender, PublicUser, Role, UserPrefs } from "@shared/types";
 import { now, uid } from "./util";
 
 const SESSION_COOKIE = "mn_session";
@@ -70,6 +70,7 @@ interface UserRow {
   bio: string | null;
   accent: string;
   prefs: string | null;
+  gender: Gender | null;
   created_at: number;
 }
 
@@ -86,6 +87,7 @@ export function parsePrefs(raw: string | null | undefined): UserPrefs {
 
 /* Valeurs autorisées pour les champs « énumérés » des préférences. */
 const THEME_MODES = ["system", "light", "dark"];
+const DESIGNS = ["default", "graphite", "editorial"];
 const RADIUS = ["sharp", "soft", "round"];
 const DENSITY = ["compact", "cozy", "comfortable"];
 const FONTS = ["default", "serif", "sans", "rounded", "mono", "humanist"];
@@ -125,6 +127,7 @@ export function mergePrefs(existing: UserPrefs, incoming: unknown): UserPrefs {
   setStr("nickname", 40);
   setStr("greeting_custom", 120);
   setStr("greeting_emoji", 8);
+  setEnum("design", DESIGNS);
   setEnum("theme_mode", THEME_MODES);
   setEnum("radius", RADIUS);
   setEnum("density", DENSITY);
@@ -160,11 +163,12 @@ export function toPublicUser(row: UserRow, includeEmail = false): PublicUser {
     accent: row.accent,
     // Les préférences (dont le surnom) ne sont exposées qu'à soi-même.
     prefs: includeEmail ? parsePrefs(row.prefs) : {},
+    gender: includeEmail ? row.gender ?? null : undefined,
     created_at: row.created_at,
   };
 }
 
-const USER_COLS = "id, email, display_name, handle, role, avatar_url, bio, accent, prefs, created_at";
+const USER_COLS = "id, email, display_name, handle, role, avatar_url, bio, accent, prefs, gender, created_at";
 const USER_COLS_U = USER_COLS.split(", ")
   .map((c) => `u.${c}`)
   .join(", ");
@@ -296,17 +300,24 @@ export async function createUser(
     email_verified?: boolean;
     verification_token_hash?: string | null;
     verification_expires?: number | null;
+    // Personnalisation de départ (semée à l'inscription selon le profil).
+    accent?: string;
+    prefs?: UserPrefs;
+    gender?: Gender | null;
   },
 ): Promise<PublicUser> {
   const { hash, salt } = await hashPassword(params.password);
   const id = uid();
   const ts = now();
   const handle = await ensureUniqueHandle(db, params.handle || params.display_name || params.email.split("@")[0]);
+  const accent = params.accent ?? "terracotta";
+  const prefs = params.prefs ?? {};
+  const gender = params.gender ?? null;
   await db
     .prepare(
-      `INSERT INTO users (id, email, display_name, handle, password_hash, password_salt, role, created_at, updated_at,
-         email_verified, verification_token_hash, verification_expires)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (id, email, display_name, handle, password_hash, password_salt, role, accent, prefs, gender,
+         created_at, updated_at, email_verified, verification_token_hash, verification_expires)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       id,
@@ -316,6 +327,9 @@ export async function createUser(
       hash,
       salt,
       params.role ?? "member",
+      accent,
+      JSON.stringify(prefs),
+      gender,
       ts,
       ts,
       params.email_verified ? 1 : 0,
@@ -331,8 +345,9 @@ export async function createUser(
     role: params.role ?? "member",
     avatar_url: null,
     bio: null,
-    accent: "terracotta",
-    prefs: {},
+    accent,
+    prefs,
+    gender,
     created_at: ts,
   };
 }

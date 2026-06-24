@@ -12,6 +12,7 @@ import { buildGreeting } from "../greeting";
 import type {
   BackgroundStyle,
   DensityStyle,
+  DesignStyle,
   FontChoice,
   GreetingStyle,
   RadiusStyle,
@@ -33,6 +34,15 @@ const ACCENTS: { key: string; label: string; color: string }[] = [
   { key: "forest", label: "Forêt", color: "#4a7a4e" },
   { key: "amber", label: "Ambre", color: "#c2871f" },
   { key: "slate", label: "Ardoise", color: "#5a6b7a" },
+];
+
+// Styles d'interface coordonnés (« packs »). Noms volontairement neutres : ce
+// sont des ambiances, sans aucune notion de genre. Chaque pack affiche une
+// pastille d'aperçu (3 teintes : fond, surface, accent indicatif).
+const DESIGNS: { key: DesignStyle; label: string; desc: string; swatch: [string, string, string] }[] = [
+  { key: "default", label: "Atelier", desc: "Chaleureux et tout en douceur", swatch: ["#f6efe7", "#fffdfa", "#c8694b"] },
+  { key: "graphite", label: "Graphite", desc: "Net, profond et structuré", swatch: ["#0e1116", "#1f2632", "#7f93a6"] },
+  { key: "editorial", label: "Encre", desc: "Minimal, contrasté, typographique", swatch: ["#f4f2ee", "#ffffff", "#1a1814"] },
 ];
 
 const THEMES: { key: ThemeMode; label: string; desc: string; icon: IconName }[] = [
@@ -81,7 +91,7 @@ const GREETINGS: { key: GreetingStyle; label: string; desc: string }[] = [
 const EMOJIS = ["", "👋", "✨", "☀️", "🌙", "🌸", "🌿", "☕️", "💛", "🚀", "🪐", "🔥", "🌈", "🦋", "🍃"];
 
 const CLEARED: Record<string, null> = {
-  nickname: null, theme_mode: null, accent_custom: null, font_scale: null,
+  nickname: null, design: null, theme_mode: null, accent_custom: null, font_scale: null,
   radius: null, density: null, font_display: null, font_body: null,
   contrast: null, reduce_motion: null, background: null,
   greeting_style: null, greeting_custom: null, greeting_emoji: null,
@@ -201,6 +211,36 @@ export default function Appearance() {
 
       <div className="appr-layout">
         <div>
+          {/* ── Style d'interface (pack coordonné) ────────────────────────── */}
+          <section className="card appr-section">
+            <SectionHead icon="sparkle" title="Style d'interface" sub="Une ambiance coordonnée, à changer quand tu veux." />
+            <div className="appr-opts appr-designs">
+              {DESIGNS.map((d) => {
+                const selected = (prefs.design ?? "default") === d.key;
+                return (
+                  <button
+                    key={d.key}
+                    type="button"
+                    className={`appr-opt appr-design${selected ? " sel" : ""}`}
+                    onClick={() => set({ design: d.key })}
+                    aria-pressed={selected}
+                  >
+                    <span className="appr-design-swatch" aria-hidden="true">
+                      {d.swatch.map((c, i) => (
+                        <span key={i} style={{ background: c }} />
+                      ))}
+                    </span>
+                    <span className="appr-opt-title">
+                      {d.label}
+                      {selected && <Icon name="check" size={13} />}
+                    </span>
+                    <span className="appr-opt-desc">{d.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           {/* ── Accueil & prénom ─────────────────────────────────────────── */}
           <section className="card appr-section">
             <SectionHead icon="chat" title="Comment je t'appelle" sub="Le prénom et le message qui t'accueillent." />

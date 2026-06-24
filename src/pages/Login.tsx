@@ -4,6 +4,15 @@ import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { Field } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
+import type { Gender } from "@shared/types";
+
+// Réponses proposées à la question (optionnelle) du sexe. Sert uniquement à
+// proposer un style d'interface de départ adapté — jamais affiché ensuite.
+const GENDERS: { key: Gender; label: string }[] = [
+  { key: "female", label: "Femme" },
+  { key: "male", label: "Homme" },
+  { key: "other", label: "Autre" },
+];
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: "grid", title: "Un tableau de bord à toi", text: "Compose ton accueil avec des widgets que tu glisses et redimensionnes." },
@@ -37,6 +46,7 @@ function AuthCard({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [gender, setGender] = useState<Gender | "">("");
   const [error, setError] = useState(initialError);
   const [notice, setNotice] = useState(initialNotice);
   const [busy, setBusy] = useState(false);
@@ -71,7 +81,7 @@ function AuthCard({
         setUser(res.user);
         navigate(redirectTo, { replace: true });
       } else {
-        const res = await api.register(email, password, name);
+        const res = await api.register(email, password, name, gender || undefined);
         if (res.user) {
           // Cas admin : vérifié d'emblée et connecté.
           setUser(res.user);
@@ -140,6 +150,27 @@ function AuthCard({
           <Field label="Prénom ou pseudo">
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Marie-Nour" required />
           </Field>
+        )}
+        {mode === "register" && (
+          <div className="field">
+            <label className="label">Tu es…</label>
+            <div className="seg seg-gender" role="group" aria-label="Sexe">
+              {GENDERS.map((g) => (
+                <button
+                  key={g.key}
+                  type="button"
+                  className={`seg-item${gender === g.key ? " active" : ""}`}
+                  aria-pressed={gender === g.key}
+                  onClick={() => setGender((cur) => (cur === g.key ? "" : g.key))}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted small" style={{ marginTop: 4 }}>
+              Facultatif&nbsp;: ça nous aide à choisir un style de départ. Tout reste personnalisable ensuite.
+            </p>
+          </div>
         )}
         <Field label="Email">
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@email.com" required autoComplete="email" />

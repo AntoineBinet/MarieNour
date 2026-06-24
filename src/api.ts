@@ -108,8 +108,8 @@ export const api = {
   login: (email: string, password: string) => post<{ user: PublicUser }>("/auth/login", { email, password }),
   // Inscription : renvoie { user } pour l'admin (connecté direct) ou
   // { pending: true } pour un membre (e-mail d'activation envoyé).
-  register: (email: string, password: string, display_name: string) =>
-    post<{ user?: PublicUser; pending?: boolean }>("/auth/register", { email, password, display_name }),
+  register: (email: string, password: string, display_name: string, gender?: import("@shared/types").Gender) =>
+    post<{ user?: PublicUser; pending?: boolean }>("/auth/register", { email, password, display_name, gender }),
   resendVerification: (email: string) => post<{ ok: true }>("/auth/resend-verification", { email }),
   logout: () => post<{ ok: true }>("/auth/logout"),
   updateMe: (
@@ -120,6 +120,7 @@ export const api = {
       accent: string;
       email: string;
       handle: string;
+      gender: import("@shared/types").Gender | null;
       prefs: import("@shared/types").UserPrefs;
     }>,
   ) => patch<{ user: PublicUser }>("/auth/me", patch_),
