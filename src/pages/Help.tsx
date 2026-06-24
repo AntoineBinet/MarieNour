@@ -103,18 +103,47 @@ const TOPICS: Topic[] = [
     id: "theme",
     cat: "start",
     icon: "palette",
-    title: "Thème clair/sombre & couleurs",
-    summary: "Mode sombre d'un geste et couleur d'accent au choix.",
-    keywords: "thème theme clair sombre dark mode couleur accent palette personnaliser apparence",
-    to: "/profil",
-    cta: "Choisir ma couleur",
+    title: "Personnaliser l'apparence (couleurs, thème, typo…)",
+    summary: "Rends l'app totalement à ton image, en quelques secondes.",
+    keywords: "thème theme clair sombre dark mode couleur accent palette personnaliser apparence police typographie taille texte arrondi densité fond ambiance contraste animation accessibilité personnalisation",
+    to: "/personnalisation",
+    cta: "Ouvrir la personnalisation",
     body: (
       <>
-        <p className="muted">MarieNour s'adapte à tes envies et à la lumière de la pièce.</p>
+        <p className="muted">
+          La page <strong>Personnalisation</strong> (dans la barre latérale, ou via <strong>Mon profil</strong>) réunit tous les réglages d'apparence.
+          Chaque changement s'applique <strong>en direct</strong>, avec un aperçu, et se mémorise sur tous tes appareils.
+        </p>
         <ul>
-          <li>Bascule <strong>Clair / Sombre</strong> depuis le bas de la barre latérale (par défaut, l'app suit ton système).</li>
-          <li>Dans <strong>Mon profil</strong>, choisis ta <strong>couleur d'accent</strong> : Terracotta, Prune, Sauge, Océan ou Baie.</li>
-          <li>Le changement est immédiat et mémorisé sur tous tes appareils.</li>
+          <li><strong>Thème</strong> : Clair, Sombre, ou « Système » (suit ton appareil). Bascule aussi en un geste depuis la barre latérale.</li>
+          <li><strong>Couleur d'accent</strong> : 12 teintes prêtes à l'emploi (Terracotta, Rose, Océan, Forêt, Ambre…) ou une <strong>couleur 100&nbsp;% libre</strong> grâce au sélecteur de couleur.</li>
+          <li><strong>Ambiance de fond</strong> : sobre, chaleureux, frais, aurore, pastel ou minimal.</li>
+          <li><strong>Typographie</strong> : choisis la police des titres et du texte, et règle la <strong>taille du texte</strong> au curseur.</li>
+          <li><strong>Forme &amp; espace</strong> : arrondi des coins (net / doux / rond) et densité (compact / confort / aéré).</li>
+          <li><strong>Confort</strong> : contraste renforcé et réduction des animations pour plus de lisibilité.</li>
+          <li>Un bouton <strong>Réinitialiser</strong> remet tout à zéro à tout moment.</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "nickname",
+    cat: "start",
+    icon: "chat",
+    title: "Choisir comment l'app t'appelle",
+    summary: "Ton prénom d'accueil et ton message de bienvenue.",
+    keywords: "prénom prenom surnom nom accueil bienvenue message salutation bonjour appeler adresse tutoiement personnaliser",
+    to: "/personnalisation",
+    cta: "Régler mon accueil",
+    body: (
+      <>
+        <p className="muted">
+          Dans <strong>Personnalisation → « Comment je t'appelle »</strong>, décide du prénom et du ton de l'accueil.
+        </p>
+        <ul>
+          <li><strong>Prénom d'accueil</strong> : le prénom ou surnom par lequel l'app te parle (sur l'accueil, les messages de bienvenue…). Différent de ton nom public.</li>
+          <li><strong>Message d'accueil</strong> : « selon l'heure » (Bonjour / Bonne soirée…), « simple », « juste le prénom », ou un <strong>message personnalisé</strong> où tu écris <strong>{"{prenom}"}</strong> à l'endroit voulu.</li>
+          <li>Ajoute un petit <strong>emoji</strong> d'accueil si tu aimes 👋.</li>
         </ul>
       </>
     ),
@@ -357,7 +386,7 @@ const TOPICS: Topic[] = [
         <ul>
           <li>Modifie ton <strong>nom affiché</strong>, ta <strong>bio</strong> et ton <strong>avatar</strong>.</li>
           <li>Ton <strong>pseudo</strong> (@handle) sert à te retrouver et à te mentionner.</li>
-          <li>Choisis ta <strong>couleur d'accent</strong> préférée.</li>
+          <li>Pour les <strong>couleurs, le thème et tout le reste</strong>, ouvre la page <strong>Personnalisation</strong> (lien en bas de ta fiche profil).</li>
         </ul>
       </>
     ),

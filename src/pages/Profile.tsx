@@ -18,15 +18,6 @@ function slugifyHandle(input: string): string {
   );
 }
 
-/* ── Accents disponibles ─────────────────────────────────────────────────── */
-const ACCENTS: { key: string; label: string; color: string }[] = [
-  { key: "terracotta", label: "Terracotta", color: "#c8694b" },
-  { key: "plum", label: "Prune", color: "#8a5a7e" },
-  { key: "sage", label: "Sauge", color: "#6f8a5f" },
-  { key: "ocean", label: "Océan", color: "#3f7d8a" },
-  { key: "berry", label: "Baie", color: "#b04a63" },
-];
-
 export default function Profile() {
   const { user, setUser } = useAuth();
   const toast = useToast();
@@ -53,21 +44,6 @@ export default function Profile() {
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
 
-  const setAccent = useMutation({
-    mutationFn: (accent: string) => api.updateMe({ accent }),
-    onSuccess: (res) => {
-      setUser(res.user);
-      toast.push("Couleur appliquée");
-    },
-    onError: (e: any) => toast.push(e.message || "Erreur", true),
-  });
-
-  const pickAccent = (accent: string) => {
-    // Aperçu immédiat
-    document.documentElement.setAttribute("data-accent", accent);
-    setAccent.mutate(accent);
-  };
-
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const submit = () => {
@@ -89,8 +65,6 @@ export default function Profile() {
   if (!user) {
     return <Spinner />;
   }
-
-  const currentAccent = user.accent || "terracotta";
 
   return (
     <div>
@@ -161,44 +135,22 @@ export default function Profile() {
           </p>
         </Field>
 
-        <div className="field">
-          <label className="label">Couleur du thème</label>
-          <div className="row gap-2 wrap">
-            {ACCENTS.map((a) => {
-              const selected = currentAccent === a.key;
-              return (
-                <button
-                  key={a.key}
-                  type="button"
-                  className={`btn ${selected ? "btn-ghost" : "btn-soft"} btn-sm`}
-                  onClick={() => pickAccent(a.key)}
-                  disabled={setAccent.isPending}
-                  aria-pressed={selected}
-                >
-                  <span
-                    style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      background: a.color,
-                      display: "inline-block",
-                      border: "1px solid rgba(0,0,0,0.12)",
-                    }}
-                  />
-                  {a.label}
-                  {selected && <Icon name="check" size={14} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="row" style={{ justifyContent: "flex-end", marginTop: "var(--space-5)" }}>
           <button className="btn btn-primary" onClick={submit} disabled={save.isPending}>
             {save.isPending ? "…" : "Enregistrer"}
           </button>
         </div>
       </div>
+
+      {/* Renvoi vers le centre de personnalisation (couleurs, thème, typo…). */}
+      <Link to="/personnalisation" className="card fin-click" style={{ maxWidth: 620, marginTop: "var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-4)", textDecoration: "none", color: "inherit" }}>
+        <span className="appr-section-ic"><Icon name="palette" size={22} /></span>
+        <span className="grow col" style={{ gap: 2 }}>
+          <strong>Personnaliser l'apparence</strong>
+          <span className="muted small">Couleurs, thème, fond, typographie, prénom d'accueil… à ton image.</span>
+        </span>
+        <Icon name="arrowRight" size={18} />
+      </Link>
     </div>
   );
 }

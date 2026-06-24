@@ -7,6 +7,9 @@ import {
   createUser,
   generateToken,
   hashToken,
+  mergePrefs,
+  parsePrefs,
+  toPublicUser,
   writeSessionCookie,
 } from "../auth";
 import { notifyAdminNewUser, sendVerificationEmail, smtpReady } from "../mailer";
@@ -231,6 +234,19 @@ app.patch("/me", async (c) => {
     fields.push("accent = ?");
     values.push(str(body.accent, 40));
   }
+
+  // Préférences d'apparence & d'accueil : fusionnées avec l'existant (un champ
+  // absent reste inchangé ; un champ à `null` revient au défaut). Tout est
+  // validé/borné par mergePrefs.
+  if (body.prefs && typeof body.prefs === "object") {
+    const current = await c.env.DB.prepare("SELECT prefs FROM users WHERE id = ?")
+      .bind(user.id)
+      .first<{ prefs: string | null }>();
+    const merged = mergePrefs(parsePrefs(current?.prefs), body.prefs);
+    fields.push("prefs = ?");
+    values.push(JSON.stringify(merged));
+  }
+
   if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
 
   fields.push("updated_at = ?");
@@ -239,11 +255,11 @@ app.patch("/me", async (c) => {
   await c.env.DB.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
 
   const row = await c.env.DB.prepare(
-    "SELECT id, email, display_name, handle, role, avatar_url, bio, accent, created_at FROM users WHERE id = ?",
+    "SELECT id, email, display_name, handle, role, avatar_url, bio, accent, prefs, created_at FROM users WHERE id = ?",
   )
     .bind(user.id)
     .first();
-  return c.json({ user: { ...row, email: (row as { email: string }).email } });
+  return c.json({ user: toPublicUser(row as any, true) });
 });
 
 export default app;

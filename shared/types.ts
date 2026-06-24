@@ -3,6 +3,65 @@
 export type Visibility = "private" | "friends" | "public";
 export type Role = "member" | "admin";
 
+/* ── Personnalisation (apparence & accueil) ───────────────────────────────────
+   Toutes les préférences d'un membre, stockées côté serveur dans un blob JSON
+   (colonne users.prefs). Synchronisées sur tous ses appareils. Tous les champs
+   sont optionnels : une valeur absente = la valeur par défaut de l'app. */
+export type ThemeMode = "system" | "light" | "dark";
+export type RadiusStyle = "sharp" | "soft" | "round";
+export type DensityStyle = "compact" | "cozy" | "comfortable";
+export type FontChoice = "default" | "serif" | "sans" | "rounded" | "mono" | "humanist";
+export type BackgroundStyle = "default" | "plain" | "warm" | "cool" | "dawn" | "mesh";
+export type GreetingStyle = "time" | "custom" | "simple" | "none";
+
+/** Les clés d'accent préréglées proposées dans l'interface. */
+export const ACCENT_PRESETS = [
+  "terracotta",
+  "plum",
+  "sage",
+  "ocean",
+  "berry",
+  "rose",
+  "amber",
+  "teal",
+  "indigo",
+  "forest",
+  "coral",
+  "slate",
+] as const;
+export type AccentPreset = (typeof ACCENT_PRESETS)[number];
+
+export interface UserPrefs {
+  /** Prénom/surnom par lequel l'app s'adresse à toi (accueil, messages…). */
+  nickname?: string;
+  /** Mode de thème, synchronisé entre appareils ('system' = suit l'appareil). */
+  theme_mode?: ThemeMode;
+  /** Couleur d'accent personnalisée (hex), utilisée quand accent === 'custom'. */
+  accent_custom?: string;
+  /** Échelle de la typographie (1 = normal). Bornée ~0.85–1.3. */
+  font_scale?: number;
+  /** Arrondi des coins de l'interface. */
+  radius?: RadiusStyle;
+  /** Densité (espacement) de l'interface. */
+  density?: DensityStyle;
+  /** Police des titres. */
+  font_display?: FontChoice;
+  /** Police du corps de texte. */
+  font_body?: FontChoice;
+  /** Contraste renforcé (bordures/texte plus marqués). */
+  contrast?: boolean;
+  /** Réduit les animations et transitions. */
+  reduce_motion?: boolean;
+  /** Ambiance de l'arrière-plan. */
+  background?: BackgroundStyle;
+  /** Style du message d'accueil sur la page d'accueil. */
+  greeting_style?: GreetingStyle;
+  /** Message d'accueil personnalisé (placeholder {prenom}). */
+  greeting_custom?: string;
+  /** Affiche un petit emoji à côté du message d'accueil. */
+  greeting_emoji?: string;
+}
+
 export interface PublicUser {
   id: string;
   email?: string; // présent uniquement pour soi-même
@@ -12,6 +71,7 @@ export interface PublicUser {
   avatar_url: string | null;
   bio: string | null;
   accent: string;
+  prefs: UserPrefs; // préférences d'apparence (vide {} pour les autres membres)
   created_at: number;
 }
 

@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
+import { api } from "../api";
 import { Icon, type IconName } from "./Icon";
 import { IntroTour } from "./IntroTour";
 import InstallApp from "./InstallApp";
 import NotificationBell from "./NotificationBell";
-import { applyTheme, currentTheme, type Theme } from "../theme";
+import { resolvedTheme, toggleThemeMode } from "../theme";
 
 const NAV: { section: string | null; items: { to: string; label: string; ic: IconName; end?: boolean }[] }[] = [
   { section: null, items: [{ to: "/", label: "Accueil", ic: "home", end: true }] },
@@ -42,15 +43,19 @@ const BOTTOM_NAV: { to: string; label: string; ic: IconName; end?: boolean }[] =
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [theme, setTheme] = useState<Theme>(currentTheme());
+  const [theme, setTheme] = useState(resolvedTheme());
 
   const toggleTheme = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    applyTheme(next);
+    const mode = toggleThemeMode(); // applique immédiatement clair/sombre
+    setTheme(resolvedTheme());
+    // Mémorise le choix côté serveur pour le retrouver sur tous les appareils.
+    api
+      .updateMe({ prefs: { theme_mode: mode } })
+      .then((res) => setUser(res.user))
+      .catch(() => {});
   };
 
   const close = () => setOpen(false);
@@ -95,6 +100,10 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="spacer" />
 
         <div className="col gap-2">
+          <NavLink to="/personnalisation" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
+            <span className="ic"><Icon name="palette" size={19} /></span>
+            Personnalisation
+          </NavLink>
           <NavLink to="/aide" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
             <span className="ic"><Icon name="lightbulb" size={19} /></span>
             Aide &amp; support

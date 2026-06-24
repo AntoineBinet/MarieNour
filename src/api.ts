@@ -109,7 +109,15 @@ export const api = {
   resendVerification: (email: string) => post<{ ok: true }>("/auth/resend-verification", { email }),
   logout: () => post<{ ok: true }>("/auth/logout"),
   updateMe: (
-    patch_: Partial<{ display_name: string; bio: string; avatar_url: string; accent: string; email: string; handle: string }>,
+    patch_: Partial<{
+      display_name: string;
+      bio: string;
+      avatar_url: string;
+      accent: string;
+      email: string;
+      handle: string;
+      prefs: import("@shared/types").UserPrefs;
+    }>,
   ) => patch<{ user: PublicUser }>("/auth/me", patch_),
 
   // Widgets

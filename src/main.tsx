@@ -5,15 +5,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { AuthProvider } from "./auth";
 import { ToastProvider } from "./ui";
-import { initTheme } from "./theme";
+import { initAppearance } from "./theme";
 import "./styles.css";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000 } },
 });
 
-// Thème clair/sombre : suit le système au 1er lancement, puis le choix mémorisé.
-initTheme();
+// Apparence (thème, couleur, typo, densité…) : repose la dernière apparence
+// connue pour éviter tout flash, puis la session utilisateur la confirmera.
+initAppearance();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
