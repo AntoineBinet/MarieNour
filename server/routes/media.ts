@@ -22,12 +22,16 @@ function toMedia(r: Record<string, unknown>): MediaItem {
   };
 }
 
-// Liste des médias de l'utilisateur (auth requise).
+// Liste des médias de l'utilisateur (auth requise). On exclut la photo de profil
+// (avatar) : c'est un média technique, elle n'a pas à encombrer la galerie.
 app.get("/", requireAuth, async (c) => {
+  const me = c.var.user!;
   const res = await c.env.DB.prepare("SELECT * FROM media WHERE user_id = ? ORDER BY created_at DESC")
-    .bind(c.var.user!.id)
+    .bind(me.id)
     .all<Record<string, unknown>>();
-  return c.json({ media: (res.results ?? []).map(toMedia) });
+  const avatarId = /^\/api\/media\/([^/]+)\/raw$/.exec(me.avatar_url ?? "")?.[1] ?? null;
+  const list = (res.results ?? []).map(toMedia).filter((m) => m.id !== avatarId);
+  return c.json({ media: list });
 });
 
 // Upload (multipart). Champ "file" + optionnels "caption", "visibility".
