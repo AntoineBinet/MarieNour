@@ -20,6 +20,7 @@ import Feed from "./pages/Feed";
 import Expenses from "./pages/Expenses";
 import Finance from "./pages/Finance";
 import Profile from "./pages/Profile";
+import Appearance from "./pages/Appearance";
 import PublicProfile from "./pages/PublicProfile";
 import Admin from "./pages/Admin";
 import Invite from "./pages/Invite";
@@ -65,6 +66,7 @@ export default function App() {
                 <Route path="/amis" element={<Friends />} />
                 <Route path="/aide" element={<Help />} />
                 <Route path="/profil" element={<Profile />} />
+                <Route path="/personnalisation" element={<Appearance />} />
                 <Route path="/u/:handle" element={<PublicProfile />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

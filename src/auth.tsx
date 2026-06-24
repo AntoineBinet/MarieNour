@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { PublicUser } from "@shared/types";
 import { api } from "./api";
+import { appearanceFromUser, applyAppearance } from "./theme";
 
 interface AuthCtx {
   user: PublicUser | null;
@@ -27,13 +28,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
-    // appliquer l'accent stocké tôt
   }, []);
 
-  // Applique l'accent de l'utilisateur sur <html>.
+  // Applique l'apparence complète de l'utilisateur (thème, couleur, typo…) dès
+  // qu'elle change. On dépend du JSON des prefs + de l'accent pour réagir à
+  // toute modification (y compris depuis la page Personnalisation).
   useEffect(() => {
-    if (user?.accent) document.documentElement.setAttribute("data-accent", user.accent);
-  }, [user?.accent]);
+    if (user) applyAppearance(appearanceFromUser(user));
+  }, [user?.accent, JSON.stringify(user?.prefs)]);
 
   const logout = async () => {
     await api.logout().catch(() => {});

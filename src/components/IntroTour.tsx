@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "./Icon";
+import { useAuth } from "../auth";
+import { addressName } from "../greeting";
 
 const HIDE_KEY = "mn_hide_intro";
 
@@ -42,6 +44,7 @@ const STEPS: Step[] = [
 
 export function IntroTour() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [hidden, setHidden] = useState(() => {
     try {
       return localStorage.getItem(HIDE_KEY) === "1";
@@ -67,6 +70,8 @@ export function IntroTour() {
 
   const s = STEPS[step];
   const last = step === STEPS.length - 1;
+  // Premier écran personnalisé avec le prénom d'accueil choisi par l'utilisateur.
+  const title = step === 0 && user ? `Bienvenue dans ton atelier, ${addressName(user)}` : s.title;
 
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && close()}>
@@ -79,7 +84,7 @@ export function IntroTour() {
           <span className="intro-hero-icon"><Icon name={s.icon} size={40} strokeWidth={1.5} /></span>
         </div>
 
-        <h2 style={{ marginBottom: "var(--space-2)" }}>{s.title}</h2>
+        <h2 style={{ marginBottom: "var(--space-2)" }}>{title}</h2>
         <p className="muted" style={{ minHeight: 66 }}>{s.body}</p>
 
         <div className="intro-dots" role="tablist" aria-label="Étapes">

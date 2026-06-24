@@ -12,6 +12,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@d
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { buildGreeting, addressName } from "../greeting";
 import { Modal, Spinner, useToast } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { WIDGET_CATALOG, WIDGET_DEFS, WidgetContent } from "../widgets";
@@ -112,20 +113,14 @@ export default function Dashboard() {
     reorder.mutate(next.map((w) => w.id));
   };
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 6) return "Bonne nuit";
-    if (h < 12) return "Bonjour";
-    if (h < 18) return "Bel après-midi";
-    return "Bonne soirée";
-  })();
+  const greeting = buildGreeting(user);
 
   return (
     <div>
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Ton atelier</p>
-          <h1>{greeting}, {user?.display_name}</h1>
+          <h1>{greeting.text}{greeting.emoji ? ` ${greeting.emoji}` : ""}</h1>
           <p className="muted">Tout ce que tu gardes, planifies et partages, au même endroit.</p>
         </div>
         <div className="row gap-2">
@@ -142,7 +137,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="empty">
             <span className="empty-icon"><Icon name="sparkle" size={34} strokeWidth={1.6} /></span>
-            <h3>Bienvenue dans ton atelier</h3>
+            <h3>Bienvenue dans ton atelier, {addressName(user)}</h3>
             <p className="muted">Démarre en un clic : on te prépare quelques listes, une note et un week-end à imaginer, puis tu personnalises tout.</p>
             <div className="row gap-2 wrap" style={{ justifyContent: "center", marginTop: "var(--space-4)" }}>
               <button className="btn btn-primary" onClick={() => seed.mutate()} disabled={seed.isPending}>
