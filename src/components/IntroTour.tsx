@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "./Icon";
+import { useFirstSteps } from "../firstSteps";
+import { FirstStepsList } from "./FirstSteps";
 
 const HIDE_KEY = "mn_hide_intro";
 
@@ -10,6 +12,7 @@ interface Step {
   icon: IconName;
   title: string;
   body: string;
+  interactive?: boolean;
 }
 
 const STEPS: Step[] = [
@@ -38,7 +41,27 @@ const STEPS: Step[] = [
     title: "Invite d'un simple scan",
     body: "Un QR code suffit pour ajouter quelqu'un en ami, à un voyage ou à un groupe de dépenses. Pratique, instantané, sans friction.",
   },
+  {
+    icon: "rocket",
+    title: "À toi de jouer",
+    body: "Quelques gestes pour démarrer — clique pour t'y rendre, ça se coche en direct dès que c'est fait.",
+    interactive: true,
+  },
 ];
+
+// Mini-checklist interactive (montée seulement sur la dernière étape → on ne
+// déclenche les requêtes que si l'utilisateur va jusque-là).
+function IntroChecklist({ onGo }: { onGo: (to: string) => void }) {
+  const { steps, doneCount, total } = useFirstSteps();
+  return (
+    <div className="intro-checklist">
+      <p className="small muted" style={{ marginBottom: "var(--space-2)" }}>
+        {doneCount} / {total} déjà fait{doneCount > 1 ? "s" : ""}
+      </p>
+      <FirstStepsList steps={steps} onGo={onGo} />
+    </div>
+  );
+}
 
 export function IntroTour() {
   const navigate = useNavigate();
@@ -80,7 +103,16 @@ export function IntroTour() {
         </div>
 
         <h2 style={{ marginBottom: "var(--space-2)" }}>{s.title}</h2>
-        <p className="muted" style={{ minHeight: 66 }}>{s.body}</p>
+        <p className="muted" style={{ minHeight: s.interactive ? undefined : 66 }}>{s.body}</p>
+
+        {s.interactive && (
+          <IntroChecklist
+            onGo={(to) => {
+              close();
+              navigate(to);
+            }}
+          />
+        )}
 
         <div className="intro-dots" role="tablist" aria-label="Étapes">
           {STEPS.map((_, i) => (

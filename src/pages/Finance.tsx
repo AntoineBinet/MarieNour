@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm, SwatchRow } from "../ui";
+import { takeCompose } from "../compose";
 import Icon, { type IconName } from "../components/Icon";
 import type {
   AccountKind,
@@ -140,7 +141,16 @@ export default function Finance() {
   const [owner, setOwner] = useState<string>(""); // "" = moi ; sinon id du partenaire
 
   const [quickAdd, setQuickAdd] = useState(false);
+  const [txPrefill, setTxPrefill] = useState<Partial<TxForm> | null>(null);
   const [txFilter, setTxFilter] = useState<TxFilter | null>(null);
+
+  // Ouverture pré-remplie depuis une note convertie (« Ajouter au portefeuille »).
+  useEffect(() => {
+    const c = takeCompose("finance");
+    if (!c) return;
+    setTxPrefill(c.prefill as Partial<TxForm>);
+    setQuickAdd(true);
+  }, []);
   // Navigue vers l'onglet Transactions en pré-filtrant (clic depuis l'Accueil).
   const goToTx = (f: TxFilter) => {
     setTxFilter(f);
@@ -254,7 +264,17 @@ export default function Finance() {
       {tab === "partners" && <PartnersTab partners={partners} loading={partnersQ.isLoading} />}
 
       {quickAdd && (
-        <TxModal tx={null} accounts={accounts} categories={categories} owner={owner} onClose={() => setQuickAdd(false)} />
+        <TxModal
+          tx={null}
+          initial={txPrefill ?? undefined}
+          accounts={accounts}
+          categories={categories}
+          owner={owner}
+          onClose={() => {
+            setQuickAdd(false);
+            setTxPrefill(null);
+          }}
+        />
       )}
     </div>
   );
@@ -1004,12 +1024,14 @@ function TransactionsTab({
 
 function TxModal({
   tx,
+  initial,
   accounts,
   categories,
   owner,
   onClose,
 }: {
   tx: FinanceTransaction | null;
+  initial?: Partial<TxForm>;
   accounts: FinanceAccount[];
   categories: FinanceCategory[];
   owner: string;
@@ -1029,7 +1051,7 @@ function TxModal({
           payee: tx.payee ?? "",
           note: tx.note ?? "",
         }
-      : { ...emptyTxForm(), account_id: accounts[0]?.id ?? "" },
+      : { ...emptyTxForm(), account_id: accounts[0]?.id ?? "", ...initial },
   );
 
   // Dès qu'un compte existe (ex. après le démarrage guidé), on le présélectionne.
