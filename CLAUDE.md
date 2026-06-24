@@ -60,7 +60,12 @@ server/routes/*.ts          → auth, friends, widgets, lists, notes, trips,
                               polls (sondages), invites (QR codes),
                               onboarding (seed de démarrage),
                               events (planification : RSVP, sondage de dates,
-                              tâches, programme, « qui apporte quoi »)
+                              tâches, programme, « qui apporte quoi »),
+                              fil (« Mon fil » : souvenirs photos/vidéos/liens,
+                              collections au partage choisi privé/amis/amis
+                              précis/public, récap hebdo « stories »)
+src/pages/Fil.tsx           → page « Mon fil » (fil, collections, compositeur)
+src/components/StoryViewer.tsx → lecteur de stories plein écran (récap hebdo)
 src/components/Icon.tsx      → jeu d'icônes SVG « maison » (remplace les emojis)
 src/components/QrCode.tsx    → QR en SVG (lib qrcode-generator, hors-ligne)
 src/components/InviteQr.tsx  → bouton « Inviter par QR » (ami / voyage / groupe)

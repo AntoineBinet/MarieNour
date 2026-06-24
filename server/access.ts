@@ -41,3 +41,44 @@ export async function canView(
   if (visibility === "friends" && viewerId) return areFriends(db, viewerId, ownerId);
   return false;
 }
+
+/** Le viewer peut-il voir une collection de souvenirs ? Étend `canView` avec la
+ *  visibilité 'custom' (amis explicitement listés dans memory_collection_members). */
+export async function canViewCollection(
+  db: Bindings["DB"],
+  viewerId: string | null,
+  ownerId: string,
+  visibility: string,
+  collectionId: string,
+): Promise<boolean> {
+  if (viewerId === ownerId) return true;
+  if (visibility === "public") return true;
+  if (!viewerId) return false;
+  if (visibility === "friends") return areFriends(db, viewerId, ownerId);
+  if (visibility === "custom") {
+    const m = await db
+      .prepare("SELECT 1 FROM memory_collection_members WHERE collection_id = ? AND user_id = ?")
+      .bind(collectionId, viewerId)
+      .first();
+    return !!m;
+  }
+  return false; // private
+}
+
+/** Le viewer peut-il voir un souvenir précis (via la collection qui le porte) ? */
+export async function canViewMemory(
+  db: Bindings["DB"],
+  viewerId: string | null,
+  memoryId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT m.collection_id AS cid, c.user_id AS owner_id, c.visibility AS visibility
+       FROM memories m JOIN memory_collections c ON c.id = m.collection_id
+       WHERE m.id = ?`,
+    )
+    .bind(memoryId)
+    .first<{ cid: string; owner_id: string; visibility: string }>();
+  if (!row) return false;
+  return canViewCollection(db, viewerId, row.owner_id, row.visibility, row.cid);
+}

@@ -92,7 +92,9 @@ export type IconName =
   | "confetti"
   | "cake"
   | "glass"
-  | "gift";
+  | "gift"
+  | "memories"
+  | "play";
 
 const P: Record<IconName, JSX.Element> = {
   home: <path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" />,
@@ -518,6 +520,15 @@ const P: Record<IconName, JSX.Element> = {
       <path d="M12 9.5C12 6.5 10.3 5 8.8 5.8S8.5 9.5 12 9.5Zm0 0c0-3 1.7-4.5 3.2-3.7S15.5 9.5 12 9.5Z" />
     </>
   ),
+  memories: (
+    <>
+      <rect x="6.5" y="6.5" width="14" height="13" rx="2.5" />
+      <path d="M3.5 4.5v13a2 2 0 0 0 2 2" />
+      <circle cx="11" cy="11" r="1.6" />
+      <path d="m8 17 3.5-3 2.5 2 2-1.8 3.5 3" />
+    </>
+  ),
+  play: <path d="M7 5.5v13l11-6.5-11-6.5Z" />,
 };
 
 export interface IconProps {
