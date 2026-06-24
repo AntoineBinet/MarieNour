@@ -1,7 +1,7 @@
 import type { Context, Next } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import type { AppEnv, Bindings } from "./types";
-import type { PublicUser, Role } from "@shared/types";
+import type { PublicUser, Role, UserPrefs } from "@shared/types";
 import { now, uid } from "./util";
 
 const SESSION_COOKIE = "mn_session";
@@ -69,7 +69,83 @@ interface UserRow {
   avatar_url: string | null;
   bio: string | null;
   accent: string;
+  prefs: string | null;
   created_at: number;
+}
+
+/** Parse le blob JSON des préférences en objet sûr (jamais d'exception). */
+export function parsePrefs(raw: string | null | undefined): UserPrefs {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as UserPrefs) : {};
+  } catch {
+    return {};
+  }
+}
+
+/* Valeurs autorisées pour les champs « énumérés » des préférences. */
+const THEME_MODES = ["system", "light", "dark"];
+const RADIUS = ["sharp", "soft", "round"];
+const DENSITY = ["compact", "cozy", "comfortable"];
+const FONTS = ["default", "serif", "sans", "rounded", "mono", "humanist"];
+const BACKGROUNDS = ["default", "plain", "warm", "cool", "dawn", "mesh"];
+const GREETINGS = ["time", "custom", "simple", "none"];
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Fusionne des préférences entrantes avec les préférences existantes, en ne
+ * gardant que des valeurs valides et bornées. Une valeur `null` efface le champ
+ * (retour au défaut). Renvoie un objet propre prêt à être stocké en JSON.
+ */
+export function mergePrefs(existing: UserPrefs, incoming: unknown): UserPrefs {
+  const out: UserPrefs = { ...existing };
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) return out;
+  const p = incoming as Record<string, unknown>;
+
+  const setStr = (key: keyof UserPrefs, max: number) => {
+    if (!(key in p)) return;
+    const v = p[key];
+    if (v === null || v === "") delete out[key];
+    else if (typeof v === "string") (out as Record<string, unknown>)[key] = v.slice(0, max);
+  };
+  const setEnum = (key: keyof UserPrefs, allowed: string[]) => {
+    if (!(key in p)) return;
+    const v = p[key];
+    if (v === null) delete out[key];
+    else if (typeof v === "string" && allowed.includes(v)) (out as Record<string, unknown>)[key] = v;
+  };
+  const setBool = (key: keyof UserPrefs) => {
+    if (!(key in p)) return;
+    const v = p[key];
+    if (v === null) delete out[key];
+    else if (typeof v === "boolean") (out as Record<string, unknown>)[key] = v;
+  };
+
+  setStr("nickname", 40);
+  setStr("greeting_custom", 120);
+  setStr("greeting_emoji", 8);
+  setEnum("theme_mode", THEME_MODES);
+  setEnum("radius", RADIUS);
+  setEnum("density", DENSITY);
+  setEnum("font_display", FONTS);
+  setEnum("font_body", FONTS);
+  setEnum("background", BACKGROUNDS);
+  setEnum("greeting_style", GREETINGS);
+  setBool("contrast");
+  setBool("reduce_motion");
+
+  if ("accent_custom" in p) {
+    const v = p.accent_custom;
+    if (v === null || v === "") delete out.accent_custom;
+    else if (typeof v === "string" && HEX_RE.test(v)) out.accent_custom = v.toLowerCase();
+  }
+  if ("font_scale" in p) {
+    const v = p.font_scale;
+    if (v === null) delete out.font_scale;
+    else if (typeof v === "number" && isFinite(v)) out.font_scale = Math.min(1.3, Math.max(0.85, Math.round(v * 100) / 100));
+  }
+  return out;
 }
 
 export function toPublicUser(row: UserRow, includeEmail = false): PublicUser {
@@ -82,11 +158,13 @@ export function toPublicUser(row: UserRow, includeEmail = false): PublicUser {
     avatar_url: row.avatar_url,
     bio: row.bio,
     accent: row.accent,
+    // Les préférences (dont le surnom) ne sont exposées qu'à soi-même.
+    prefs: includeEmail ? parsePrefs(row.prefs) : {},
     created_at: row.created_at,
   };
 }
 
-const USER_COLS = "id, email, display_name, handle, role, avatar_url, bio, accent, created_at";
+const USER_COLS = "id, email, display_name, handle, role, avatar_url, bio, accent, prefs, created_at";
 const USER_COLS_U = USER_COLS.split(", ")
   .map((c) => `u.${c}`)
   .join(", ");
@@ -254,6 +332,7 @@ export async function createUser(
     avatar_url: null,
     bio: null,
     accent: "terracotta",
+    prefs: {},
     created_at: ts,
   };
 }

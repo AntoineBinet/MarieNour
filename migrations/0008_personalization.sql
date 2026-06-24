@@ -1,0 +1,12 @@
+-- Personnalisation avancée par utilisateur.
+--
+-- Un seul blob JSON (`prefs`) regroupe toutes les préférences d'apparence et
+-- d'accueil : surnom d'adresse, mode de thème (système/clair/sombre), couleur
+-- d'accent personnalisée, typographie (police + taille), arrondi des coins,
+-- densité, ambiance de fond, options d'accessibilité (contraste, animations) et
+-- le message d'accueil. Le format JSON évite une migration à chaque nouvelle
+-- option : le serveur fusionne/valide les champs connus à l'écriture.
+--
+-- La couleur d'accent « préréglée » reste dans la colonne `accent` (clé de
+-- preset, ou la valeur spéciale 'custom' qui pointe vers prefs.accent_custom).
+ALTER TABLE users ADD COLUMN prefs TEXT NOT NULL DEFAULT '{}';

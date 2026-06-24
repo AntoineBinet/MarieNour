@@ -80,23 +80,54 @@
 [data-accent="ocean"] { --accent: #3f7d8a; --accent-soft: #8fbac4; --accent-ink: #2a5560; }
 [data-accent="berry"] { --accent: #b04a63; --accent-soft: #d99aab; --accent-ink: #7c3144; }
 
+[data-accent="rose"]   { --accent: #c4577f; --accent-soft: #e6a6bd; --accent-ink: #8c3556; }
+[data-accent="amber"]  { --accent: #c2871f; --accent-soft: #e6c277; --accent-ink: #8a5d12; }
+[data-accent="teal"]   { --accent: #2f8c80; --accent-soft: #8fc7bf; --accent-ink: #1f6359; }
+[data-accent="indigo"] { --accent: #5b5fc0; --accent-soft: #a9abe0; --accent-ink: #3d3f8a; }
+[data-accent="forest"] { --accent: #4a7a4e; --accent-soft: #9cc09e; --accent-ink: #325636; }
+[data-accent="coral"]  { --accent: #d56a52; --accent-soft: #eea995; --accent-ink: #9c4631; }
+[data-accent="slate"]  { --accent: #5a6b7a; --accent-soft: #a6b3bf; --accent-ink: #3b4853; }
+
 /* Variantes sombres des accents : « encre » claire pour rester lisible.
    Placées après les règles [data-accent] pour gagner en spécificité. */
 [data-theme="dark"][data-accent="plum"] { --accent: #b27ca4; --accent-soft: #543049; --accent-ink: #e7bdda; }
 [data-theme="dark"][data-accent="sage"] { --accent: #8fab7d; --accent-soft: #3f5036; --accent-ink: #c4d9b3; }
 [data-theme="dark"][data-accent="ocean"] { --accent: #5ea4b3; --accent-soft: #2f4d56; --accent-ink: #abd6e0; }
 [data-theme="dark"][data-accent="berry"] { --accent: #d07288; --accent-soft: #5c2e3b; --accent-ink: #edaebd; }
+[data-theme="dark"][data-accent="rose"]   { --accent: #d97ea0; --accent-soft: #5a2c41; --accent-ink: #f0b3c8; }
+[data-theme="dark"][data-accent="amber"]  { --accent: #d9a648; --accent-soft: #4d3c1a; --accent-ink: #ecc985; }
+[data-theme="dark"][data-accent="teal"]   { --accent: #4fab9d; --accent-soft: #244d47; --accent-ink: #a3d8cf; }
+[data-theme="dark"][data-accent="indigo"] { --accent: #8688d6; --accent-soft: #2f3060; --accent-ink: #c3c4ef; }
+[data-theme="dark"][data-accent="forest"] { --accent: #74a877; --accent-soft: #2b4430; --accent-ink: #b6d4b8; }
+[data-theme="dark"][data-accent="coral"]  { --accent: #e2876f; --accent-soft: #5a3026; --accent-ink: #f2b6a4; }
+[data-theme="dark"][data-accent="slate"]  { --accent: #8597a6; --accent-soft: #2f3b45; --accent-ink: #bcc8d2; }
+
+/* Couleur d'accent personnalisée : --accent est posé en ligne (sur <html>) par
+   le moteur d'apparence ; on dérive ici « soft » et « ink » automatiquement avec
+   color-mix pour garder des contrastes corrects dans les deux thèmes. */
+[data-accent="custom"] {
+  --accent-soft: color-mix(in srgb, var(--accent) 42%, #ffffff);
+  --accent-ink: color-mix(in srgb, var(--accent) 78%, #000000);
+}
+[data-theme="dark"][data-accent="custom"] {
+  --accent-soft: color-mix(in srgb, var(--accent) 38%, #000000);
+  --accent-ink: color-mix(in srgb, var(--accent) 55%, #ffffff);
+}
 
 * { box-sizing: border-box; }
 
 html, body, #root { height: 100%; }
+
+/* Échelle typographique globale : --font-scale (réglable dans Personnalisation)
+   agit sur la taille de base, donc sur toutes les tailles en rem. */
+html { font-size: calc(100% * var(--font-scale, 1)); }
 
 body {
   margin: 0;
   font-family: var(--font-body);
   background: var(--bg);
   color: var(--ink);
-  font-size: 15px;
+  font-size: 0.95rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -705,3 +736,134 @@ body { overscroll-behavior-y: none; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Personnalisation — arrondis, densité, contraste, animations, fond
+   (pilotés par des attributs data-* posés sur <html> par src/theme.ts)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Arrondi des coins (« soft » = défaut, non émis). */
+[data-radius="sharp"] { --radius: 8px;  --radius-sm: 6px;  --radius-lg: 12px; }
+[data-radius="round"] { --radius: 26px; --radius-sm: 18px; --radius-lg: 34px; }
+
+/* Densité / espacement (« cozy » = défaut, non émis). */
+[data-density="compact"] {
+  --space-1: 3px; --space-2: 6px; --space-3: 9px; --space-4: 12px;
+  --space-5: 18px; --space-6: 24px; --space-7: 36px;
+}
+[data-density="comfortable"] {
+  --space-1: 5px; --space-2: 10px; --space-3: 15px; --space-4: 20px;
+  --space-5: 30px; --space-6: 42px; --space-7: 60px;
+}
+
+/* Contraste renforcé : bordures et textes secondaires plus marqués. */
+[data-contrast="high"] {
+  --border: #cbb89e; --border-strong: #a98f6c; --muted: #6a5d4e; --ink-2: #463d34;
+}
+[data-theme="dark"][data-contrast="high"] {
+  --border: #5a4f44; --border-strong: #7a6c5c; --muted: #c2b4a2; --ink-2: #e4d7c7;
+}
+[data-contrast="high"] .input, [data-contrast="high"] .textarea, [data-contrast="high"] .select { border-width: 2px; }
+
+/* Désactive animations & transitions à la demande (en plus du média système). */
+[data-motion="off"] *, [data-motion="off"] *::before, [data-motion="off"] *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+}
+
+/* Ambiances de fond (décor doux derrière toute l'app, teinté par l'accent). */
+[data-bg="plain"] body { background: var(--surface-2); }
+[data-bg="warm"] body {
+  background:
+    radial-gradient(120% 90% at 100% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(90% 70% at 0% 0%, var(--bg-2), var(--bg));
+  background-attachment: fixed;
+}
+[data-bg="cool"] body {
+  background:
+    radial-gradient(120% 90% at 0% -10%, color-mix(in srgb, var(--sky) 60%, transparent), transparent 60%),
+    radial-gradient(90% 70% at 100% 0%, var(--bg-2), var(--bg));
+  background-attachment: fixed;
+}
+[data-bg="dawn"] body {
+  background:
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--accent) 12%, var(--bg)),
+      color-mix(in srgb, var(--blush) 50%, var(--bg)) 55%,
+      var(--bg));
+  background-attachment: fixed;
+}
+[data-bg="mesh"] body {
+  background:
+    radial-gradient(40% 40% at 12% 18%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(45% 45% at 88% 12%, color-mix(in srgb, var(--sky) 55%, transparent), transparent 70%),
+    radial-gradient(50% 50% at 80% 90%, color-mix(in srgb, var(--lilac) 55%, transparent), transparent 70%),
+    radial-gradient(45% 45% at 10% 95%, color-mix(in srgb, var(--butter) 55%, transparent), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Page Personnalisation
+   ════════════════════════════════════════════════════════════════════════ */
+.appr-section + .appr-section { margin-top: var(--space-5); }
+.appr-section-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.appr-section-ic {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; flex: none;
+  color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.appr-section-head h2 { font-size: 1.12rem; }
+
+/* Grille d'options sélectionnables (thème, fond, formes, densité, polices…). */
+.appr-opts { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.appr-opt {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  min-width: 120px; padding: 0.7rem 0.9rem; border-radius: var(--radius-sm); cursor: pointer;
+  background: var(--surface); border: 1.5px solid var(--border); color: var(--ink);
+  font-family: var(--font-body); text-align: left; transition: border-color 0.12s, box-shadow 0.12s, transform 0.06s;
+}
+.appr-opt:hover { border-color: var(--border-strong); }
+.appr-opt:active { transform: translateY(1px); }
+.appr-opt.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.appr-opt-title { font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px; }
+.appr-opt-desc { font-size: 0.76rem; color: var(--muted); }
+
+/* Pastilles de couleur d'accent. */
+.appr-accents { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.appr-accent {
+  position: relative; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; padding: 0;
+  border: 2px solid var(--border); transition: transform 0.1s, box-shadow 0.12s; display: grid; place-items: center; color: #fff;
+}
+.appr-accent:hover { transform: scale(1.06); }
+.appr-accent.sel { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent); }
+.appr-accent-custom { background: conic-gradient(from 0deg, #e35d5b, #f3c14a, #58c46c, #4aa3e3, #9a6ae0, #e35d5b); }
+
+/* Curseur (échelle de police). */
+.appr-range { display: flex; align-items: center; gap: var(--space-3); max-width: 360px; }
+.appr-range input[type="range"] { flex: 1; accent-color: var(--accent); }
+.appr-range-val { min-width: 3.2rem; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Interrupteur (toggle) accessible. */
+.appr-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) 0; }
+.appr-toggle + .appr-toggle { border-top: 1px solid var(--border); }
+.switch { position: relative; width: 46px; height: 26px; flex: none; }
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch-track {
+  position: absolute; inset: 0; border-radius: 999px; background: var(--border-strong);
+  transition: background 0.15s; pointer-events: none;
+}
+.switch-track::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.15s;
+}
+.switch input:checked + .switch-track { background: var(--accent); }
+.switch input:checked + .switch-track::after { transform: translateX(20px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Aperçu en direct. */
+.appr-preview { position: sticky; top: calc(var(--space-4) + 56px); }
+.appr-preview-greeting { font-family: var(--font-display); font-size: 1.4rem; line-height: 1.15; }
+@media (max-width: 900px) { .appr-preview { position: static; } }
+
+.appr-layout { display: grid; grid-template-columns: 1fr; gap: var(--space-5); }
+@media (min-width: 1024px) { .appr-layout { grid-template-columns: 1fr 320px; align-items: start; } }
