@@ -16,6 +16,7 @@ import { buildGreeting, addressName } from "../greeting";
 import { Modal, Spinner, useToast } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { WIDGET_CATALOG, WIDGET_DEFS, WidgetContent } from "../widgets";
+import FirstSteps from "../components/FirstSteps";
 import type { Widget, WidgetSize } from "@shared/types";
 
 function SortableWidget({
@@ -130,6 +131,8 @@ export default function Dashboard() {
           <button className="btn btn-primary" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Ajouter</button>
         </div>
       </div>
+
+      <FirstSteps />
 
       {isLoading ? (
         <Spinner />

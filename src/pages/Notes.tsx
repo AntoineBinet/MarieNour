@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import {
   Modal,
@@ -12,7 +13,21 @@ import {
   NOTE_COLORS,
 } from "../ui";
 import { Icon } from "../components/Icon";
+import { NoteSuggestions } from "../components/NoteSuggestions";
+import { setCompose } from "../compose";
+import type { NoteSuggestion } from "../noteIntel";
 import type { Note, Visibility } from "@shared/types";
+
+// Destination lisible des suggestions (pour la fenêtre de conversion).
+const ROUTE_LABEL: Record<string, string> = {
+  "/finances": "Mes finances",
+  "/evenements": "Événements",
+  "/listes": "Listes & checklists",
+  "/voyages": "Voyages",
+  "/recettes": "Recettes",
+  "/inspiration": "Inspiration",
+  "/amis": "Amis & sondages",
+};
 
 const VISIBILITIES: { value: Visibility; label: string }[] = [
   { value: "private", label: "Privé" },
@@ -110,11 +125,13 @@ function NoteCard({
   onEdit,
   onTogglePin,
   onDelete,
+  onPick,
 }: {
   note: Note;
   onEdit: () => void;
   onTogglePin: () => void;
   onDelete: () => void;
+  onPick: (s: NoteSuggestion) => void;
 }) {
   return (
     <div
@@ -152,6 +169,8 @@ function NoteCard({
         </p>
       )}
 
+      <NoteSuggestions note={note} onPick={onPick} />
+
       <div className="row wrap gap-2" style={{ marginTop: "var(--space-3)" }}>
         <span className="chip">{visLabel(note.visibility)}</span>
         <span className="spacer" />
@@ -186,11 +205,13 @@ function NoteCard({
 export default function Notes() {
   const qc = useQueryClient();
   const toast = useToast();
+  const navigate = useNavigate();
   const { confirm, confirmNode } = useConfirm();
 
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Note | null>(null);
+  const [converting, setConverting] = useState<{ note: Note; s: NoteSuggestion } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["notes", q],
@@ -219,6 +240,23 @@ export default function Notes() {
   const askDelete = async (note: Note) => {
     const ok = await confirm(`Supprimer définitivement « ${note.title || "cette note"} » ?`);
     if (ok) remove.mutate(note.id);
+  };
+
+  // Conversion d'une note en activité / dépense / liste / voyage…
+  const runConvert = (deleteNote: boolean) => {
+    if (!converting) return;
+    const { note, s } = converting;
+    if (s.target && s.prefill) {
+      setCompose({
+        target: s.target,
+        prefill: s.prefill,
+        sourceNoteId: note.id,
+        sourceLabel: note.title ?? undefined,
+      });
+    }
+    setConverting(null);
+    if (deleteNote) remove.mutate(note.id);
+    navigate(s.route);
   };
 
   return (
@@ -263,6 +301,7 @@ export default function Notes() {
               onEdit={() => setEditing(note)}
               onTogglePin={() => togglePin.mutate(note)}
               onDelete={() => askDelete(note)}
+              onPick={(s) => setConverting({ note, s })}
             />
           ))}
         </div>
@@ -270,6 +309,29 @@ export default function Notes() {
 
       {creating && <NoteForm onClose={() => setCreating(false)} />}
       {editing && <NoteForm initial={editing} onClose={() => setEditing(null)} />}
+
+      {converting && (
+        <Modal
+          title={converting.s.label}
+          onClose={() => setConverting(null)}
+          footer={
+            <>
+              <button className="btn btn-soft" onClick={() => setConverting(null)}>Annuler</button>
+              <button className="btn btn-soft" onClick={() => runConvert(false)}>Garder la note</button>
+              <button className="btn btn-primary" onClick={() => runConvert(true)}>
+                <Icon name="check" size={15} /> Convertir & supprimer
+              </button>
+            </>
+          }
+        >
+          <p>{converting.s.hint}</p>
+          <p className="muted small" style={{ marginTop: "var(--space-2)" }}>
+            Direction <strong>{ROUTE_LABEL[converting.s.route] ?? "la bonne catégorie"}</strong>
+            {converting.s.target ? " avec un brouillon déjà prérempli" : ""}. Veux-tu garder cette
+            note ou la supprimer une fois convertie ?
+          </p>
+        </Modal>
+      )}
 
       {confirmNode}
     </div>

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { takeCompose } from "../compose";
 import {
   Modal,
   Spinner,
@@ -82,13 +83,19 @@ function ListCard({ list, onOpen }: { list: List; onOpen: () => void }) {
 }
 
 /* ── Modal de création ──────────────────────────────────────────────────── */
-function CreateListModal({ onClose }: { onClose: () => void }) {
+function CreateListModal({
+  onClose,
+  initial,
+}: {
+  onClose: () => void;
+  initial?: { title?: string; emoji?: string; kind?: List["kind"] };
+}) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [emoji, setEmoji] = useState("📝");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [emoji, setEmoji] = useState(initial?.emoji ?? "📝");
   const [color, setColor] = useState(NOTE_COLORS[0]);
-  const [kind, setKind] = useState<List["kind"]>("checklist");
+  const [kind, setKind] = useState<List["kind"]>(initial?.kind ?? "checklist");
   const [visibility, setVisibility] = useState<Visibility>("private");
 
   const create = useMutation({
@@ -378,6 +385,15 @@ export default function Lists() {
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [prefill, setPrefill] = useState<{ title?: string; emoji?: string; kind?: List["kind"] } | null>(null);
+
+  // Ouverture pré-remplie depuis une note convertie (« Transformer en liste »).
+  useEffect(() => {
+    const c = takeCompose("list");
+    if (!c) return;
+    setPrefill(c.prefill as { title?: string; emoji?: string; kind?: List["kind"] });
+    setCreating(true);
+  }, []);
 
   const { data, isLoading } = useQuery({ queryKey: ["lists"], queryFn: () => api.lists() });
   const lists = data?.lists ?? [];
@@ -447,7 +463,15 @@ export default function Lists() {
         </div>
       )}
 
-      {creating && <CreateListModal onClose={() => setCreating(false)} />}
+      {creating && (
+        <CreateListModal
+          initial={prefill ?? undefined}
+          onClose={() => {
+            setCreating(false);
+            setPrefill(null);
+          }}
+        />
+      )}
       {openId && <ListDetailModal listId={openId} onClose={() => setOpenId(null)} />}
     </div>
   );
