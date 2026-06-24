@@ -8,6 +8,10 @@ export type Role = "member" | "admin";
    (colonne users.prefs). Synchronisées sur tous ses appareils. Tous les champs
    sont optionnels : une valeur absente = la valeur par défaut de l'app. */
 export type ThemeMode = "system" | "light" | "dark";
+/** Style d'interface global (« pack » d'apparence coordonné). Neutre, sans
+ *  aucune notion de genre côté UI : 'default' = l'esprit chaleureux d'origine,
+ *  les autres sont des ambiances coordonnées (palette, contraste, géométrie). */
+export type DesignStyle = "default" | "graphite" | "editorial";
 export type RadiusStyle = "sharp" | "soft" | "round";
 export type DensityStyle = "compact" | "cozy" | "comfortable";
 export type FontChoice = "default" | "serif" | "sans" | "rounded" | "mono" | "humanist";
@@ -34,6 +38,10 @@ export type AccentPreset = (typeof ACCENT_PRESETS)[number];
 export interface UserPrefs {
   /** Prénom/surnom par lequel l'app s'adresse à toi (accueil, messages…). */
   nickname?: string;
+  /** Style d'interface coordonné (palette, contraste, géométrie). 'default' =
+   *  l'ambiance d'origine. Posé par défaut à l'inscription selon le profil,
+   *  puis librement modifiable. */
+  design?: DesignStyle;
   /** Mode de thème, synchronisé entre appareils ('system' = suit l'appareil). */
   theme_mode?: ThemeMode;
   /** Couleur d'accent personnalisée (hex), utilisée quand accent === 'custom'. */
@@ -62,6 +70,9 @@ export interface UserPrefs {
   greeting_emoji?: string;
 }
 
+/** Sexe (optionnel) — demandé à l'inscription pour proposer un style de départ. */
+export type Gender = "female" | "male" | "other";
+
 export interface PublicUser {
   id: string;
   email?: string; // présent uniquement pour soi-même
@@ -72,6 +83,7 @@ export interface PublicUser {
   bio: string | null;
   accent: string;
   prefs: UserPrefs; // préférences d'apparence (vide {} pour les autres membres)
+  gender?: Gender | null; // exposé uniquement pour soi-même
   created_at: number;
 }
 

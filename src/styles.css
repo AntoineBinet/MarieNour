@@ -906,6 +906,71 @@ body { overscroll-behavior-y: none; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
+   Styles d'interface coordonnés (« packs ») — data-design sur <html>
+   Redéfinissent la palette/géométrie de base ; restent compatibles avec
+   l'accent, le thème clair/sombre et tous les autres réglages.
+   ('default' n'émet aucun attribut → l'esprit chaleureux d'origine.)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Graphite — net, profond, structuré (esprit « 2026 » : neutres froids,
+   bordures franches, géométrie resserrée, ombres marquées). */
+[data-design="graphite"] {
+  --bg: #eceef2;
+  --bg-2: #e2e6ec;
+  --surface: #f8f9fb;
+  --surface-2: #eaedf2;
+  --border: #d1d7df;
+  --border-strong: #b4bcc7;
+  --ink: #1a1f26;
+  --ink-2: #424a55;
+  --muted: #69717c;
+  --radius: 14px; --radius-sm: 10px; --radius-lg: 20px;
+  --shadow: 0 1px 2px rgba(18, 26, 38, 0.06), 0 10px 30px rgba(18, 26, 38, 0.10);
+  --shadow-lg: 0 16px 48px rgba(14, 20, 30, 0.22);
+}
+[data-theme="dark"][data-design="graphite"] {
+  --bg: #0e1116;
+  --bg-2: #141922;
+  --surface: #181e27;
+  --surface-2: #1f2632;
+  --border: #2a323d;
+  --border-strong: #3a4350;
+  --ink: #eef1f5;
+  --ink-2: #b9c2cd;
+  --muted: #7e8a98;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 36px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 18px 56px rgba(0, 0, 0, 0.7);
+}
+
+/* Encre — minimal, contrasté, typographique (papier & encre, géométrie sèche,
+   ombres quasi nulles). */
+[data-design="editorial"] {
+  --bg: #f4f2ee;
+  --bg-2: #ece9e3;
+  --surface: #ffffff;
+  --surface-2: #f3f1ec;
+  --border: #e1ddd5;
+  --border-strong: #c8c2b7;
+  --ink: #1a1814;
+  --ink-2: #4a463f;
+  --muted: #837d73;
+  --radius: 6px; --radius-sm: 4px; --radius-lg: 10px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+[data-theme="dark"][data-design="editorial"] {
+  --bg: #121110;
+  --bg-2: #181614;
+  --surface: #1d1b18;
+  --surface-2: #24211d;
+  --border: #322e29;
+  --border-strong: #4a443c;
+  --ink: #f4f1ea;
+  --ink-2: #cbc4b8;
+  --muted: #968d7f;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
    Page Personnalisation
    ════════════════════════════════════════════════════════════════════════ */
 .appr-section + .appr-section { margin-top: var(--space-5); }
@@ -929,6 +994,14 @@ body { overscroll-behavior-y: none; }
 .appr-opt.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
 .appr-opt-title { font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px; }
 .appr-opt-desc { font-size: 0.76rem; color: var(--muted); }
+
+/* Cartes de choix du style d'interface (avec pastille d'aperçu 3 teintes). */
+.appr-designs .appr-design { min-width: 150px; }
+.appr-design-swatch {
+  display: inline-flex; border-radius: 8px; overflow: hidden; margin-bottom: 6px;
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.appr-design-swatch span { width: 22px; height: 28px; display: block; }
 
 /* Pastilles de couleur d'accent. */
 .appr-accents { display: flex; flex-wrap: wrap; gap: var(--space-3); }

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Gender, UserPrefs } from "@shared/types";
 import type { AppEnv } from "../types";
 import {
   authenticate,
@@ -30,11 +31,31 @@ const app = new Hono<AppEnv>();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Normalise le sexe optionnel reçu à l'inscription/édition de profil. */
+function parseGender(v: unknown): Gender | null {
+  return v === "female" || v === "male" || v === "other" ? v : null;
+}
+
+/**
+ * Personnalisation de départ proposée selon le profil. Choix purement cosmétique
+ * et entièrement réversible depuis les réglages : on pose simplement un « style »
+ * coordonné par défaut (ex. plus net/sombre/structuré, dans l'esprit des codes
+ * 2026), que la personne peut changer à tout moment. L'interface ne mentionne
+ * jamais de genre.
+ */
+function seedAppearance(gender: Gender | null): { accent?: string; prefs?: UserPrefs } {
+  if (gender === "male") {
+    return { accent: "slate", prefs: { design: "graphite", theme_mode: "dark" } };
+  }
+  return {};
+}
+
 app.post("/register", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const email = str(body.email, 200).trim().toLowerCase();
   const password = str(body.password, 200);
   const displayName = str(body.display_name, 60).trim();
+  const gender = parseGender(body.gender);
 
   if (!EMAIL_RE.test(email)) return c.json({ error: "Email invalide" }, 400);
   if (password.length < 6) return c.json({ error: "Mot de passe trop court (min. 6 caractères)" }, 400);
@@ -43,6 +64,7 @@ app.post("/register", async (c) => {
   const exists = await c.env.DB.prepare("SELECT 1 FROM users WHERE email = ?").bind(email).first();
   if (exists) return c.json({ error: "Un compte existe déjà avec cet email" }, 409);
 
+  const seed = seedAppearance(gender);
   const isAdminEmail = email === (c.env.ADMIN_EMAIL || "").trim().toLowerCase();
 
   // Le compte propriétaire (ADMIN_EMAIL) est créé vérifié et connecté direct :
@@ -55,6 +77,8 @@ app.post("/register", async (c) => {
       display_name: displayName,
       role: "admin",
       email_verified: true,
+      gender,
+      ...seed,
     });
     const token = await createSession(c.env.DB, admin.id, c.req.header("user-agent") ?? null);
     writeSessionCookie(c, token);
@@ -81,6 +105,8 @@ app.post("/register", async (c) => {
     email_verified: false,
     verification_token_hash: tokenHash,
     verification_expires: now() + VERIFY_TTL_MS,
+    gender,
+    ...seed,
   });
 
   const verifyUrl = `${appOrigin(c.req.url)}/api/auth/verify-email/${rawToken}`;
@@ -235,6 +261,13 @@ app.patch("/me", async (c) => {
     values.push(str(body.accent, 40));
   }
 
+  // Sexe : modifiable depuis le profil. N'altère PAS le style en place — c'est
+  // juste une donnée de profil (le style reste piloté par les réglages).
+  if (typeof body.gender === "string" || body.gender === null) {
+    fields.push("gender = ?");
+    values.push(parseGender(body.gender));
+  }
+
   // Préférences d'apparence & d'accueil : fusionnées avec l'existant (un champ
   // absent reste inchangé ; un champ à `null` revient au défaut). Tout est
   // validé/borné par mergePrefs.
@@ -255,7 +288,7 @@ app.patch("/me", async (c) => {
   await c.env.DB.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
 
   const row = await c.env.DB.prepare(
-    "SELECT id, email, display_name, handle, role, avatar_url, bio, accent, prefs, created_at FROM users WHERE id = ?",
+    "SELECT id, email, display_name, handle, role, avatar_url, bio, accent, prefs, gender, created_at FROM users WHERE id = ?",
   )
     .bind(user.id)
     .first();
