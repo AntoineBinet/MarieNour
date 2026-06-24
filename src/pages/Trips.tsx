@@ -5,13 +5,8 @@ import { api } from "../api";
 import { takeCompose } from "../compose";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import type { Trip, TripKind, Visibility } from "@shared/types";
-
-const VIS_LABEL: Record<Visibility, string> = {
-  private: "Privé",
-  friends: "Amis",
-  public: "Public",
-};
 
 const TRIP_KINDS: { value: TripKind; label: string; icon: IconName }[] = [
   { value: "trip", label: "Voyage", icon: "trips" },
@@ -106,6 +101,7 @@ export default function Trips() {
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<TripForm>(EMPTY_FORM);
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
 
   // Ouverture pré-remplie depuis une note convertie (« Préparer le voyage »).
   useEffect(() => {
@@ -125,6 +121,7 @@ export default function Trips() {
       toast.push("Voyage créé");
       setCreating(false);
       setForm(EMPTY_FORM);
+      setSharedWith([]);
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });
@@ -153,6 +150,7 @@ export default function Trips() {
       currency: form.currency.trim() || "EUR",
       cover_url: form.cover_url.trim() || null,
       visibility: form.visibility,
+      shared_with: sharedWith,
       kind: form.kind,
     });
   };
@@ -203,7 +201,7 @@ export default function Trips() {
         <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1 }}>
           <div className="row wrap" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
             <h3 style={{ flex: 1 }}>{trip.title}</h3>
-            <span className="chip">{VIS_LABEL[trip.visibility]}</span>
+            <VisibilityChip visibility={trip.visibility} sharedWith={trip.shared_with} />
           </div>
 
           {isShared && trip.owner && <OwnerBadge owner={trip.owner} />}
@@ -378,15 +376,12 @@ export default function Trips() {
               />
             </Field>
             <Field label="Visibilité">
-              <select
-                className="select"
+              <VisibilityField
                 value={form.visibility}
-                onChange={(e) => setForm({ ...form, visibility: e.target.value as Visibility })}
-              >
-                <option value="private">Privé</option>
-                <option value="friends">Amis</option>
-                <option value="public">Public</option>
-              </select>
+                sharedWith={sharedWith}
+                onChange={(v) => setForm({ ...form, visibility: v })}
+                onSharedWithChange={setSharedWith}
+              />
             </Field>
           </form>
         </Modal>

@@ -1,6 +1,13 @@
 // Types partagés entre le front (React) et l'API (Hono/Workers).
 
-export type Visibility = "private" | "friends" | "public";
+// Visibilité d'un contenu partageable :
+//  - 'private'  : visible par moi seul
+//  - 'friends'  : visible par tous mes amis
+//  - 'public'   : visible par tout le monde
+//  - 'shared'   : visible uniquement par les amis explicitement choisis
+//    (la liste des amis est portée par `shared_with`, stockée côté serveur dans
+//    la table `shares`).
+export type Visibility = "private" | "friends" | "public" | "shared";
 export type Role = "member" | "admin";
 
 /* ── Personnalisation (apparence & accueil) ───────────────────────────────────
@@ -116,6 +123,8 @@ export interface List {
   kind: "checklist" | "list";
   archived: boolean;
   visibility: Visibility;
+  /** Amis choisis quand visibility === 'shared' (ids). Présent pour le propriétaire. */
+  shared_with?: string[];
   position: number;
   created_at: number;
   updated_at: number;
@@ -142,6 +151,7 @@ export interface Note {
   pinned: boolean;
   tags: string[];
   visibility: Visibility;
+  shared_with?: string[];
   created_at: number;
   updated_at: number;
 }
@@ -157,6 +167,7 @@ export interface Trip {
   budget: number | null;
   currency: string;
   visibility: Visibility;
+  shared_with?: string[];
   kind: TripKind;
   created_at: number;
   updated_at: number;
@@ -207,6 +218,7 @@ export interface Recipe {
   source_url: string | null;
   favorite: boolean;
   visibility: Visibility;
+  shared_with?: string[];
   created_at: number;
   updated_at: number;
 }
@@ -217,6 +229,7 @@ export interface Board {
   description: string | null;
   cover_url: string | null;
   visibility: Visibility;
+  shared_with?: string[];
   position: number;
   created_at: number;
   updated_at: number;
@@ -234,6 +247,7 @@ export interface Inspiration {
   tags: string[];
   status: "inbox" | "kept" | "done";
   visibility: Visibility;
+  shared_with?: string[];
   created_at: number;
   updated_at: number;
 }
@@ -246,6 +260,7 @@ export interface MediaItem {
   size: number | null;
   caption: string | null;
   visibility: Visibility;
+  shared_with?: string[];
   created_at: number;
 }
 
@@ -408,6 +423,7 @@ export interface EventSummary {
   status: EventStatus;
   date_decided: boolean;
   visibility: Visibility;
+  shared_with?: string[];
   created_at: number;
   updated_at: number;
   is_host: boolean; // suis-je organisateur/co-hôte ?
@@ -548,6 +564,7 @@ export interface Poll {
   closes_at: number | null;
   closed: boolean;
   visibility: Visibility;
+  shared_with?: string[];
   author: PublicUser;
   created_at: number;
   options: PollOption[];

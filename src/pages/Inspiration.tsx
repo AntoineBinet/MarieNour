@@ -4,13 +4,8 @@ import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
 import type { IconName } from "../components/Icon";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import type { Board, Inspiration, Visibility } from "@shared/types";
-
-const VIS_LABEL: Record<Visibility, string> = {
-  private: "Privé",
-  friends: "Amis",
-  public: "Public",
-};
 
 const SOURCES: { value: string; icon: IconName; label: string }[] = [
   { value: "instagram", icon: "camera", label: "Instagram" },
@@ -44,6 +39,7 @@ function InspoCard({
         {ins.title && <strong style={{ fontFamily: "var(--font-display)" }}>{ins.title}</strong>}
         <div className="row gap-2 wrap">
           <span className="chip"><Icon name={sourceIcon(ins.source)} size={14} /> {sourceLabel(ins.source)}</span>
+          <VisibilityChip visibility={ins.visibility} sharedWith={ins.shared_with} />
         </div>
         {ins.note && <p className="muted small">{ins.note}</p>}
         {ins.url && (
@@ -124,12 +120,14 @@ function BoardForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [coverUrl, setCoverUrl] = useState(initial?.cover_url ?? "");
   const [visibility, setVisibility] = useState<Visibility>(initial?.visibility ?? "private");
+  const [sharedWith, setSharedWith] = useState<string[]>(initial?.shared_with ?? []);
 
   const buildBody = (): Partial<Board> => ({
     title: title.trim(),
     description: description.trim() || null,
     cover_url: coverUrl.trim() || null,
     visibility,
+    shared_with: sharedWith,
   });
 
   const save = useMutation({
@@ -176,11 +174,8 @@ function BoardForm({
         <input className="input" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
       </Field>
       <Field label="Visibilité">
-        <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value as Visibility)}>
-          <option value="private">Privé</option>
-          <option value="friends">Amis</option>
-          <option value="public">Public</option>
-        </select>
+        <VisibilityField value={visibility} sharedWith={sharedWith}
+          onChange={setVisibility} onSharedWithChange={setSharedWith} />
       </Field>
     </Modal>
   );
@@ -212,7 +207,7 @@ function BoardView({
         )}
         {board.description && <p className="muted">{board.description}</p>}
         <div className="row gap-2 wrap">
-          <span className="chip">{VIS_LABEL[board.visibility]}</span>
+          <VisibilityChip visibility={board.visibility} sharedWith={board.shared_with} />
           {board.item_count != null && <span className="chip">{board.item_count} élément{board.item_count > 1 ? "s" : ""}</span>}
         </div>
 
@@ -248,6 +243,8 @@ function InboxTab() {
   const [imageUrl, setImageUrl] = useState("");
   const [source, setSource] = useState("instagram");
   const [note, setNote] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>("private");
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [keeping, setKeeping] = useState<Inspiration | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -265,6 +262,8 @@ function InboxTab() {
         image_url: imageUrl.trim() || null,
         source,
         note: note.trim() || null,
+        visibility,
+        shared_with: sharedWith,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inspirations"] });
@@ -325,6 +324,10 @@ function InboxTab() {
             <input className="input grow" style={{ minWidth: 160 }} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL (optionnel)" />
           </div>
           <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une note pour te souvenir pourquoi ça t'a plu…" />
+          <Field label="Visibilité">
+            <VisibilityField value={visibility} sharedWith={sharedWith}
+              onChange={setVisibility} onSharedWithChange={setSharedWith} />
+          </Field>
           <div className="row" style={{ justifyContent: "flex-end" }}>
             <button className="btn btn-primary" onClick={submit} disabled={add.isPending}>
               {add.isPending ? "…" : "Ajouter à la boîte"}
@@ -421,7 +424,7 @@ function BoardsTab() {
                 <strong style={{ fontFamily: "var(--font-display)", fontSize: "1.02rem" }}>{b.title}</strong>
                 <div className="row gap-2 wrap">
                   <span className="chip">{b.item_count ?? 0} élément{(b.item_count ?? 0) > 1 ? "s" : ""}</span>
-                  <span className="chip">{VIS_LABEL[b.visibility]}</span>
+                  <VisibilityChip visibility={b.visibility} sharedWith={b.shared_with} />
                 </div>
               </div>
             </div>

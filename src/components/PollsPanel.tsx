@@ -4,6 +4,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { Modal, Field, EmptyState, Spinner, useToast, useConfirm } from "../ui";
 import { Icon } from "./Icon";
+import { VisibilityField, VisibilityChip } from "./VisibilityField";
 import type { Poll, PollOption, PublicUser, Visibility } from "@shared/types";
 
 /* ── Temps relatif en français ──────────────────────────────────────────── */
@@ -102,6 +103,7 @@ function PollCard({
           </span>
         </div>
         <div className="row gap-2" style={{ flex: "none" }}>
+          {isAuthor && <VisibilityChip visibility={poll.visibility} sharedWith={poll.shared_with} />}
           {poll.closed && <span className="chip">Clôturé</span>}
           {isAuthor && !poll.closed && (
             <button className="btn btn-soft btn-icon btn-sm" title="Clôturer" onClick={onClose} disabled={busy}>
@@ -183,11 +185,13 @@ function PollCard({
 }
 
 /* ── Modale de création ─────────────────────────────────────────────────── */
-function CreateModal({ onClose, onCreate, busy }: { onClose: () => void; onCreate: (b: { question: string; options: string[]; multi: boolean; closes_at: number | null; visibility: Visibility }) => void; busy: boolean }) {
+function CreateModal({ onClose, onCreate, busy }: { onClose: () => void; onCreate: (b: { question: string; options: string[]; multi: boolean; closes_at: number | null; visibility: Visibility; shared_with: string[] }) => void; busy: boolean }) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
   const [multi, setMulti] = useState(false);
   const [closeDate, setCloseDate] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>("friends");
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
 
   const setOpt = (i: number, v: string) => setOptions((o) => o.map((x, idx) => (idx === i ? v : x)));
   const addOpt = () => setOptions((o) => (o.length >= 10 ? o : [...o, ""]));
@@ -196,7 +200,7 @@ function CreateModal({ onClose, onCreate, busy }: { onClose: () => void; onCreat
   const submit = () => {
     const clean = options.map((o) => o.trim()).filter(Boolean);
     const closes_at = closeDate ? new Date(closeDate + "T23:59:59").getTime() : null;
-    onCreate({ question: question.trim(), options: clean, multi, closes_at, visibility: "friends" });
+    onCreate({ question: question.trim(), options: clean, multi, closes_at, visibility, shared_with: sharedWith });
   };
 
   const valid = question.trim().length > 0 && options.map((o) => o.trim()).filter(Boolean).length >= 2;
@@ -256,6 +260,15 @@ function CreateModal({ onClose, onCreate, busy }: { onClose: () => void; onCreat
         <input className="input" type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />
       </Field>
 
+      <Field label="Visibilité">
+        <VisibilityField
+          value={visibility}
+          sharedWith={sharedWith}
+          onChange={setVisibility}
+          onSharedWithChange={setSharedWith}
+        />
+      </Field>
+
       <label className="row gap-2" style={{ cursor: "pointer", marginTop: "var(--space-2)" }}>
         <input type="checkbox" checked={multi} onChange={(e) => setMulti(e.target.checked)} />
         <span>Autoriser les choix multiples</span>
@@ -282,7 +295,7 @@ export default function PollsPanel() {
   const onErr = (e: any) => toast.push(e?.message || "Erreur", true);
 
   const createPoll = useMutation({
-    mutationFn: (b: { question: string; options: string[]; multi: boolean; closes_at: number | null; visibility: Visibility }) => api.createPoll(b),
+    mutationFn: (b: { question: string; options: string[]; multi: boolean; closes_at: number | null; visibility: Visibility; shared_with: string[] }) => api.createPoll(b),
     onSuccess: () => {
       invalidate();
       setCreating(false);

@@ -13,24 +13,8 @@ import {
   NOTE_COLORS,
 } from "../ui";
 import { Icon } from "../components/Icon";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import type { List, ListItem, Visibility } from "@shared/types";
-
-const VISIBILITIES: { value: Visibility; label: string }[] = [
-  { value: "private", label: "Privé" },
-  { value: "friends", label: "Amis" },
-  { value: "public", label: "Public" },
-];
-const visLabel = (v: Visibility) => VISIBILITIES.find((x) => x.value === v)?.label ?? v;
-
-function VisibilitySelect({ value, onChange }: { value: Visibility; onChange: (v: Visibility) => void }) {
-  return (
-    <select className="select" value={value} onChange={(e) => onChange(e.target.value as Visibility)}>
-      {VISIBILITIES.map((v) => (
-        <option key={v.value} value={v.value}>{v.label}</option>
-      ))}
-    </select>
-  );
-}
 
 function ProgressBar({ done, total }: { done: number; total: number }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -74,7 +58,7 @@ function ListCard({ list, onOpen }: { list: List; onOpen: () => void }) {
       <ProgressBar done={done} total={total} />
       <div className="row wrap gap-2" style={{ marginTop: "var(--space-4)" }}>
         <span className="chip">{list.kind === "checklist" ? "Checklist" : "Liste"}</span>
-        <span className="chip chip-accent">{visLabel(list.visibility)}</span>
+        <VisibilityChip visibility={list.visibility} sharedWith={list.shared_with} />
         <span className="spacer" />
         <button className="btn btn-soft btn-sm" onClick={onOpen}>Ouvrir</button>
       </div>
@@ -97,9 +81,10 @@ function CreateListModal({
   const [color, setColor] = useState(NOTE_COLORS[0]);
   const [kind, setKind] = useState<List["kind"]>(initial?.kind ?? "checklist");
   const [visibility, setVisibility] = useState<Visibility>("private");
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
 
   const create = useMutation({
-    mutationFn: () => api.createList({ title: title.trim(), emoji: emoji || "📝", color, kind, visibility }),
+    mutationFn: () => api.createList({ title: title.trim(), emoji: emoji || "📝", color, kind, visibility, shared_with: sharedWith }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lists"] });
       toast.push("Liste créée");
@@ -154,7 +139,12 @@ function CreateListModal({
         <SwatchRow value={color} onChange={setColor} />
       </Field>
       <Field label="Visibilité">
-        <VisibilitySelect value={visibility} onChange={setVisibility} />
+        <VisibilityField
+          value={visibility}
+          sharedWith={sharedWith}
+          onChange={setVisibility}
+          onSharedWithChange={setSharedWith}
+        />
       </Field>
     </Modal>
   );
@@ -177,6 +167,7 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
   const [emoji, setEmoji] = useState("📝");
   const [color, setColor] = useState(NOTE_COLORS[0]);
   const [visibility, setVisibility] = useState<Visibility>("private");
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
 
   const startEdit = () => {
     if (!list) return;
@@ -184,6 +175,7 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
     setEmoji(list.emoji || "📝");
     setColor(list.color || NOTE_COLORS[0]);
     setVisibility(list.visibility);
+    setSharedWith(list.shared_with ?? []);
     setEditing(true);
   };
 
@@ -193,7 +185,7 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
   };
 
   const saveList = useMutation({
-    mutationFn: () => api.updateList(listId, { title: title.trim(), emoji: emoji || "📝", color, visibility }),
+    mutationFn: () => api.updateList(listId, { title: title.trim(), emoji: emoji || "📝", color, visibility, shared_with: sharedWith }),
     onSuccess: () => {
       invalidate();
       toast.push("Liste mise à jour");
@@ -282,7 +274,12 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
               </div>
               <div className="grow">
                 <Field label="Visibilité">
-                  <VisibilitySelect value={visibility} onChange={setVisibility} />
+                  <VisibilityField
+                    value={visibility}
+                    sharedWith={sharedWith}
+                    onChange={setVisibility}
+                    onSharedWithChange={setSharedWith}
+                  />
                 </Field>
               </div>
             </div>
@@ -300,7 +297,7 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
           <div>
             <div className="row wrap gap-2" style={{ marginBottom: "var(--space-4)" }}>
               <span className="chip">{list.kind === "checklist" ? "Checklist" : "Liste"}</span>
-              <span className="chip chip-accent">{visLabel(list.visibility)}</span>
+              <VisibilityChip visibility={list.visibility} sharedWith={list.shared_with} />
               <span className="spacer" />
               <button className="btn btn-soft btn-sm" onClick={startEdit}><Icon name="edit" size={15} /> Modifier</button>
               <button className="btn btn-soft btn-sm" onClick={() => archive.mutate()} disabled={archive.isPending}><Icon name="archive" size={15} /> Archiver</button>

@@ -1,5 +1,12 @@
 import type { Bindings } from "./types";
 import type { Visibility } from "@shared/types";
+import { now, uid } from "./util";
+
+/** Référence générique vers un contenu partageable (clé de la table `shares`). */
+export interface EntityRef {
+  type: string;
+  id: string;
+}
 
 /** Deux utilisateurs sont-ils amis (amitié acceptée, dans un sens ou l'autre) ? */
 export async function areFriends(db: Bindings["DB"], a: string, b: string): Promise<boolean> {
@@ -29,16 +36,36 @@ export async function friendIds(db: Bindings["DB"], userId: string): Promise<str
   return (res.results ?? []).map((r) => r.fid);
 }
 
-/** Le viewer peut-il voir un contenu d'owner avec cette visibilité ? */
+/** Le viewer fait-il partie des amis explicitement choisis pour cette entité ? */
+export async function isSharedWith(
+  db: Bindings["DB"],
+  viewerId: string | null,
+  ref: EntityRef,
+): Promise<boolean> {
+  if (!viewerId) return false;
+  const row = await db
+    .prepare(
+      "SELECT 1 FROM shares WHERE entity_type = ? AND entity_id = ? AND shared_with_id = ? LIMIT 1",
+    )
+    .bind(ref.type, ref.id, viewerId)
+    .first();
+  return !!row;
+}
+
+/** Le viewer peut-il voir un contenu d'owner avec cette visibilité ?
+ *  Pour la visibilité 'shared', passe `ref` (type+id de l'entité) afin de
+ *  vérifier la liste d'amis choisis dans la table `shares`. */
 export async function canView(
   db: Bindings["DB"],
   viewerId: string | null,
   ownerId: string,
   visibility: Visibility,
+  ref?: EntityRef,
 ): Promise<boolean> {
   if (viewerId === ownerId) return true;
   if (visibility === "public") return true;
   if (visibility === "friends" && viewerId) return areFriends(db, viewerId, ownerId);
+  if (visibility === "shared" && viewerId && ref) return isSharedWith(db, viewerId, ref);
   return false;
 }
 
@@ -121,4 +148,74 @@ export async function canViewMemory(
     .first<{ cid: string; owner_id: string; visibility: string }>();
   if (!row) return false;
   return canViewCollection(db, viewerId, row.owner_id, row.visibility, row.cid);
+}
+
+/** Remplace la liste des amis avec qui une entité est partagée. Seuls les amis
+ *  réellement acceptés de l'owner sont conservés (validation anti-triche). */
+export async function setEntityShares(
+  db: Bindings["DB"],
+  ownerId: string,
+  ref: EntityRef,
+  ids: string[],
+): Promise<void> {
+  await db
+    .prepare("DELETE FROM shares WHERE entity_type = ? AND entity_id = ?")
+    .bind(ref.type, ref.id)
+    .run();
+  if (!ids.length) return;
+  const friends = new Set(await friendIds(db, ownerId));
+  const ts = now();
+  const stmts = [];
+  for (const fid of new Set(ids)) {
+    if (fid === ownerId || !friends.has(fid)) continue;
+    stmts.push(
+      db
+        .prepare(
+          "INSERT OR IGNORE INTO shares (id, owner_id, entity_type, entity_id, shared_with_id, can_edit, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
+        )
+        .bind(uid(), ownerId, ref.type, ref.id, fid, ts),
+    );
+  }
+  if (stmts.length) await db.batch(stmts);
+}
+
+/** Supprime toutes les lignes de partage d'une entité (à appeler à sa suppression). */
+export async function deleteEntityShares(db: Bindings["DB"], ref: EntityRef): Promise<void> {
+  await db
+    .prepare("DELETE FROM shares WHERE entity_type = ? AND entity_id = ?")
+    .bind(ref.type, ref.id)
+    .run();
+}
+
+/** Ids des amis avec qui une entité est partagée. */
+export async function getEntityShares(db: Bindings["DB"], ref: EntityRef): Promise<string[]> {
+  const res = await db
+    .prepare("SELECT shared_with_id FROM shares WHERE entity_type = ? AND entity_id = ?")
+    .bind(ref.type, ref.id)
+    .all<{ shared_with_id: string }>();
+  return (res.results ?? []).map((r) => r.shared_with_id);
+}
+
+/** Partages groupés pour plusieurs entités du même type (évite le N+1 sur les
+ *  listes). Renvoie une Map id d'entité → ids d'amis. */
+export async function getEntitySharesBulk(
+  db: Bindings["DB"],
+  type: string,
+  ids: string[],
+): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (!ids.length) return map;
+  const placeholders = ids.map(() => "?").join(",");
+  const res = await db
+    .prepare(
+      `SELECT entity_id, shared_with_id FROM shares WHERE entity_type = ? AND entity_id IN (${placeholders})`,
+    )
+    .bind(type, ...ids)
+    .all<{ entity_id: string; shared_with_id: string }>();
+  for (const r of res.results ?? []) {
+    const list = map.get(r.entity_id) ?? [];
+    list.push(r.shared_with_id);
+    map.set(r.entity_id, list);
+  }
+  return map;
 }

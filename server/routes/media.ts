@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { attachUser, requireAuth } from "../auth";
-import { canView, mediaVisibleViaAlbum } from "../access";
-import { cleanVisibility, now, str, uid } from "../util";
+import { canView, mediaVisibleViaAlbum, setEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
+import { cleanVisibility, cleanSharedWith, now, str, uid } from "../util";
 import type { MediaItem } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -30,8 +30,13 @@ app.get("/", requireAuth, async (c) => {
     .bind(me.id)
     .all<Record<string, unknown>>();
   const avatarId = /^\/api\/media\/([^/]+)\/raw$/.exec(me.avatar_url ?? "")?.[1] ?? null;
-  const list = (res.results ?? []).map(toMedia).filter((m) => m.id !== avatarId);
-  return c.json({ media: list });
+  const items = (res.results ?? []).map(toMedia).filter((m) => m.id !== avatarId);
+  const shareMap = await getEntitySharesBulk(c.env.DB, "media", items.map((i) => i.id));
+  for (const it of items) {
+    const s = shareMap.get(it.id);
+    if (s && s.length) it.shared_with = s;
+  }
+  return c.json({ media: items });
 });
 
 // Upload (multipart). Champ "file" + optionnels "caption", "visibility".
@@ -71,6 +76,15 @@ app.post("/", requireAuth, async (c) => {
     )
     .run();
 
+  const _swRaw = form.get("shared_with");
+  let _sw: string[] | null = null;
+  try {
+    _sw = cleanSharedWith(_swRaw ? JSON.parse(String(_swRaw)) : null);
+  } catch {
+    _sw = null;
+  }
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "media", id }, _sw);
+
   const row = await c.env.DB.prepare("SELECT * FROM media WHERE id = ?").bind(id).first<Record<string, unknown>>();
   return c.json({ media: toMedia(row!) });
 });
@@ -81,10 +95,10 @@ app.get("/:id/raw", attachUser, async (c) => {
   const row = await c.env.DB.prepare("SELECT * FROM media WHERE id = ?").bind(id).first<Record<string, unknown>>();
   if (!row) return c.json({ error: "Introuvable" }, 404);
   const viewerId = c.var.user?.id ?? null;
-  // Visible si la photo elle-même est accessible, OU si elle figure dans un
-  // album partagé auquel le viewer a accès (partage par album).
+  // Visible si la photo elle-même est accessible (visibilité standard ou amis
+  // choisis), OU si elle figure dans un album partagé auquel le viewer a accès.
   const allowed =
-    (await canView(c.env.DB, viewerId, row.user_id as string, cleanVisibility(row.visibility))) ||
+    (await canView(c.env.DB, viewerId, row.user_id as string, cleanVisibility(row.visibility), { type: "media", id })) ||
     (await mediaVisibleViaAlbum(c.env.DB, viewerId, id));
   if (!allowed) return c.json({ error: "Accès refusé" }, 403);
 
@@ -98,7 +112,7 @@ app.get("/:id/raw", attachUser, async (c) => {
 
 app.patch("/:id", requireAuth, async (c) => {
   const me = c.var.user!.id;
-  const id = c.req.param("id");
+  const id = c.req.param("id")!;
   const body = await c.req.json().catch(() => ({}));
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -110,21 +124,26 @@ app.patch("/:id", requireAuth, async (c) => {
     fields.push("visibility = ?");
     values.push(cleanVisibility(body.visibility));
   }
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  values.push(id, me);
-  await c.env.DB.prepare(`UPDATE media SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (!fields.length && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (fields.length) {
+    values.push(id, me);
+    await c.env.DB.prepare(`UPDATE media SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  }
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "media", id }, _sw);
   return c.json({ ok: true });
 });
 
 app.delete("/:id", requireAuth, async (c) => {
   const me = c.var.user!.id;
-  const id = c.req.param("id");
+  const id = c.req.param("id")!;
   const row = await c.env.DB.prepare("SELECT r2_key FROM media WHERE id = ? AND user_id = ?")
     .bind(id, me)
     .first<{ r2_key: string }>();
   if (!row) return c.json({ error: "Introuvable" }, 404);
   await c.env.MEDIA.delete(row.r2_key);
   await c.env.DB.prepare("DELETE FROM media WHERE id = ? AND user_id = ?").bind(id, me).run();
+  await deleteEntityShares(c.env.DB, { type: "media", id });
   return c.json({ ok: true });
 });
 

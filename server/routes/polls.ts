@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanVisibility, now, str, uid } from "../util";
-import { friendIds } from "../access";
-import type { Poll, PollOption, PublicUser } from "@shared/types";
+import { bool, cleanSharedWith, cleanVisibility, now, str, uid } from "../util";
+import { friendIds, setEntityShares, getEntityShares, deleteEntityShares } from "../access";
+import type { Poll, PollOption, PublicUser, Visibility } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 app.use("*", requireAuth);
@@ -44,16 +44,17 @@ interface PollRow {
 }
 
 /** Visibilité d'un sondage : par défaut 'friends' (la section vit côté « Amis »). */
-function pollVisibility(v: unknown): "private" | "friends" | "public" {
+function pollVisibility(v: unknown): Visibility {
   if (v === undefined || v === null || v === "") return "friends";
   return cleanVisibility(v);
 }
 
 /** Le sondage est-il visible par le viewer (auteur, ami avec visibilité, ou public) ? */
-function isVisible(poll: PollRow, me: string, friends: Set<string>): boolean {
+function isVisible(poll: PollRow, me: string, friends: Set<string>, sharedPollIds: Set<string>): boolean {
   if (poll.user_id === me) return true;
   if (poll.visibility === "public") return true;
   if (poll.visibility === "friends" && friends.has(poll.user_id)) return true;
+  if (poll.visibility === "shared" && sharedPollIds.has(poll.id)) return true;
   return false;
 }
 
@@ -100,7 +101,7 @@ async function buildPoll(
     voters: votersByOption.get(o.id) ?? [],
   }));
 
-  return {
+  const result: Poll = {
     id: poll.id,
     question: poll.question,
     multi: bool(poll.multi),
@@ -113,6 +114,12 @@ async function buildPoll(
     total_votes: voteRows.length,
     my_votes: myVotes,
   };
+
+  // Liste des amis choisis : visible seulement pour l'auteur du sondage.
+  const _s = await getEntityShares(c.env.DB, { type: "poll", id: poll.id });
+  if (poll.user_id === me && _s.length) result.shared_with = _s;
+
+  return result;
 }
 
 // Liste : mes sondages + ceux de mes amis (visibilité friends/public) + tout public.
@@ -120,6 +127,14 @@ app.get("/", async (c) => {
   const me = c.var.user!.id;
   const friends = await friendIds(c.env.DB, me);
   const friendSet = new Set(friends);
+
+  // Sondages partagés explicitement avec moi (visibilité 'shared').
+  const sharedRows = await c.env.DB.prepare(
+    "SELECT entity_id FROM shares WHERE entity_type='poll' AND shared_with_id = ?",
+  )
+    .bind(me)
+    .all<{ entity_id: string }>();
+  const sharedPollIds = new Set((sharedRows.results ?? []).map((r) => r.entity_id));
 
   // NB : on aliase l'id/created_at du sondage pour éviter la collision de noms
   // avec les colonnes de l'auteur (u.id / u.created_at) — sinon le dernier nom
@@ -143,7 +158,7 @@ app.get("/", async (c) => {
       created_at: r.poll_created_at as number,
       updated_at: r.updated_at as number,
     };
-    if (!isVisible(poll, me, friendSet)) continue;
+    if (!isVisible(poll, me, friendSet, sharedPollIds)) continue;
     polls.push(await buildPoll(c, poll, toPub(r), me));
   }
   return c.json({ polls });
@@ -194,6 +209,10 @@ app.post("/", async (c) => {
       .bind(uid(), id, label, position++)
       .run();
   }
+
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "poll", id }, _sw);
+
   return c.json({ id });
 });
 
@@ -209,7 +228,14 @@ app.post("/:id/vote", async (c) => {
   if (!poll) return c.json({ error: "Sondage introuvable" }, 404);
 
   const friends = await friendIds(c.env.DB, me);
-  if (!isVisible(poll, me, new Set(friends))) return c.json({ error: "Sondage introuvable" }, 404);
+  // Le sondage m'est-il explicitement partagé (visibilité 'shared') ?
+  const sharedRow = await c.env.DB.prepare(
+    "SELECT 1 FROM shares WHERE entity_type='poll' AND entity_id = ? AND shared_with_id = ?",
+  )
+    .bind(id, me)
+    .first<{ 1: number }>();
+  const sharedPollIds = new Set(sharedRow ? [id] : []);
+  if (!isVisible(poll, me, new Set(friends), sharedPollIds)) return c.json({ error: "Sondage introuvable" }, 404);
   if (poll.closes_at != null && poll.closes_at < now()) return c.json({ error: "Sondage clôturé" }, 400);
 
   const body = await c.req.json().catch(() => ({}));
@@ -258,6 +284,7 @@ app.delete("/:id", async (c) => {
   const poll = await c.env.DB.prepare("SELECT user_id FROM polls WHERE id = ?").bind(id).first<{ user_id: string }>();
   if (!poll || poll.user_id !== me) return c.json({ error: "Sondage introuvable" }, 404);
   await c.env.DB.prepare("DELETE FROM polls WHERE id = ?").bind(id).run();
+  await deleteEntityShares(c.env.DB, { type: "poll", id });
   return c.json({ ok: true });
 });
 

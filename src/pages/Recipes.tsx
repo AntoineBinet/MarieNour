@@ -3,13 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import type { Recipe, Visibility } from "@shared/types";
-
-const VIS_LABEL: Record<Visibility, string> = {
-  private: "Privé",
-  friends: "Amis",
-  public: "Public",
-};
 
 function totalTime(r: Recipe): string | null {
   const t = (r.prep_minutes ?? 0) + (r.cook_minutes ?? 0);
@@ -38,6 +33,7 @@ function RecipeForm({
   const [tags, setTags] = useState((initial?.tags ?? []).join(", "));
   const [sourceUrl, setSourceUrl] = useState(initial?.source_url ?? "");
   const [visibility, setVisibility] = useState<Visibility>(initial?.visibility ?? "private");
+  const [sharedWith, setSharedWith] = useState<string[]>(initial?.shared_with ?? []);
 
   const buildBody = (): Partial<Recipe> => ({
     title: title.trim(),
@@ -51,6 +47,7 @@ function RecipeForm({
     tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
     source_url: sourceUrl.trim() || null,
     visibility,
+    shared_with: sharedWith,
   });
 
   const save = useMutation({
@@ -125,11 +122,8 @@ function RecipeForm({
         <input className="input" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" />
       </Field>
       <Field label="Visibilité">
-        <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value as Visibility)}>
-          <option value="private">Privé</option>
-          <option value="friends">Amis</option>
-          <option value="public">Public</option>
-        </select>
+        <VisibilityField value={visibility} sharedWith={sharedWith}
+          onChange={setVisibility} onSharedWithChange={setSharedWith} />
       </Field>
     </Modal>
   );
@@ -170,7 +164,7 @@ function RecipeReader({
             {r.servings != null && <span className="chip"><Icon name="fork" size={14} /> {r.servings} portions</span>}
             {r.prep_minutes != null && <span className="chip"><Icon name="clock" size={14} /> Prépa {r.prep_minutes} min</span>}
             {r.cook_minutes != null && <span className="chip"><Icon name="fire" size={14} /> Cuisson {r.cook_minutes} min</span>}
-            <span className="chip">{VIS_LABEL[r.visibility]}</span>
+            <VisibilityChip visibility={r.visibility} sharedWith={r.shared_with} />
           </div>
 
           {r.tags.length > 0 && (

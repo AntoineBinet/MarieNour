@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { cleanVisibility, now, parseJson, str, uid } from "../util";
+import { cleanSharedWith, cleanVisibility, now, parseJson, str, uid } from "../util";
+import { setEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
 import type { Board, Inspiration } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -48,7 +49,13 @@ app.get("/boards", async (c) => {
   )
     .bind(c.var.user!.id)
     .all<Record<string, unknown>>();
-  return c.json({ boards: (res.results ?? []).map(toBoard) });
+  const boards = (res.results ?? []).map(toBoard);
+  const shareMap = await getEntitySharesBulk(c.env.DB, "board", boards.map((b) => b.id));
+  for (const b of boards) {
+    const s = shareMap.get(b.id);
+    if (s && s.length) b.shared_with = s;
+  }
+  return c.json({ boards });
 });
 
 app.post("/boards", async (c) => {
@@ -75,6 +82,8 @@ app.post("/boards", async (c) => {
       ts,
     )
     .run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "board", id }, _sw);
   return c.json({ id });
 });
 
@@ -98,13 +107,17 @@ app.patch("/boards/:id", async (c) => {
   fields.push("updated_at = ?");
   values.push(now(), id, me);
   await c.env.DB.prepare(`UPDATE boards SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "board", id }, _sw);
   return c.json({ ok: true });
 });
 
 app.delete("/boards/:id", async (c) => {
+  const id = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM boards WHERE id = ? AND user_id = ?")
-    .bind(c.req.param("id"), c.var.user!.id)
+    .bind(id, c.var.user!.id)
     .run();
+  await deleteEntityShares(c.env.DB, { type: "board", id });
   return c.json({ ok: true });
 });
 
@@ -128,7 +141,13 @@ app.get("/items", async (c) => {
   )
     .bind(...binds)
     .all<Record<string, unknown>>();
-  return c.json({ items: (res.results ?? []).map(toInsp) });
+  const items = (res.results ?? []).map(toInsp);
+  const shareMap = await getEntitySharesBulk(c.env.DB, "inspiration", items.map((i) => i.id));
+  for (const it of items) {
+    const s = shareMap.get(it.id);
+    if (s && s.length) it.shared_with = s;
+  }
+  return c.json({ items });
 });
 
 app.post("/items", async (c) => {
@@ -156,6 +175,8 @@ app.post("/items", async (c) => {
       ts,
     )
     .run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "inspiration", id }, _sw);
   return c.json({ id });
 });
 
@@ -188,13 +209,17 @@ app.patch("/items/:id", async (c) => {
   await c.env.DB.prepare(`UPDATE inspirations SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`)
     .bind(...values)
     .run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "inspiration", id }, _sw);
   return c.json({ ok: true });
 });
 
 app.delete("/items/:id", async (c) => {
+  const id = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM inspirations WHERE id = ? AND user_id = ?")
-    .bind(c.req.param("id"), c.var.user!.id)
+    .bind(id, c.var.user!.id)
     .run();
+  await deleteEntityShares(c.env.DB, { type: "inspiration", id });
   return c.json({ ok: true });
 });
 

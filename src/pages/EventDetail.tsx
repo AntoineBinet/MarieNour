@@ -6,6 +6,7 @@ import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
 import { InviteLink } from "../components/InviteLink";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import {
   BRING_CAT_META,
   EVENT_KINDS,
@@ -30,7 +31,6 @@ import type {
   Visibility,
 } from "@shared/types";
 
-const VIS_LABEL: Record<Visibility, string> = { private: "Privé", friends: "Amis", public: "Public" };
 const RSVP_ORDER: Rsvp[] = ["yes", "maybe", "no", "pending"];
 const IDEAS = "__ideas__";
 
@@ -172,10 +172,11 @@ export default function EventDetail() {
 
       <div className="page-head row wrap" style={{ justifyContent: "space-between", marginTop: "var(--space-4)" }}>
         <div>
-          <p className="eyebrow">
-            {meta?.label ?? "Événement"} · {VIS_LABEL[ev.visibility]}
-          </p>
+          <p className="eyebrow">{meta?.label ?? "Événement"}</p>
           <h1>{ev.title}</h1>
+          <div style={{ marginTop: "var(--space-2)" }}>
+            <VisibilityChip visibility={ev.visibility} sharedWith={ev.shared_with} />
+          </div>
           <div className="row wrap gap-3" style={{ marginTop: "var(--space-2)" }}>
             <span className="tag-pill">
               <Icon name={meta?.icon ?? "confetti"} size={13} /> {meta?.label}
@@ -921,6 +922,7 @@ function EditEventModal({ ev, onClose, onSave, pending }: { ev: EventDetailT; on
     rsvp_deadline: ev.rsvp_deadline ?? "",
     visibility: ev.visibility as Visibility,
   });
+  const [sharedWith, setSharedWith] = useState<string[]>(ev.shared_with ?? []);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.title.trim()) return;
@@ -941,6 +943,7 @@ function EditEventModal({ ev, onClose, onSave, pending }: { ev: EventDetailT; on
       capacity: f.capacity ? Number(f.capacity) : null,
       rsvp_deadline: f.rsvp_deadline || null,
       visibility: f.visibility,
+      shared_with: sharedWith,
     });
   };
   return (
@@ -1047,11 +1050,12 @@ function EditEventModal({ ev, onClose, onSave, pending }: { ev: EventDetailT; on
           </div>
           <div className="grow">
             <Field label="Visibilité">
-              <select className="select" value={f.visibility} onChange={(e) => setF({ ...f, visibility: e.target.value as Visibility })}>
-                <option value="private">Privé</option>
-                <option value="friends">Amis</option>
-                <option value="public">Public</option>
-              </select>
+              <VisibilityField
+                value={f.visibility}
+                sharedWith={sharedWith}
+                onChange={(v) => setF({ ...f, visibility: v })}
+                onSharedWithChange={setSharedWith}
+              />
             </Field>
           </div>
         </div>

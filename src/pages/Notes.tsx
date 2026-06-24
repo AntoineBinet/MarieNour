@@ -13,6 +13,7 @@ import {
   NOTE_COLORS,
 } from "../ui";
 import { Icon } from "../components/Icon";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import { NoteSuggestions } from "../components/NoteSuggestions";
 import { setCompose } from "../compose";
 import type { NoteSuggestion } from "../noteIntel";
@@ -29,23 +30,6 @@ const ROUTE_LABEL: Record<string, string> = {
   "/amis": "Amis & sondages",
 };
 
-const VISIBILITIES: { value: Visibility; label: string }[] = [
-  { value: "private", label: "Privé" },
-  { value: "friends", label: "Amis" },
-  { value: "public", label: "Public" },
-];
-const visLabel = (v: Visibility) => VISIBILITIES.find((x) => x.value === v)?.label ?? v;
-
-function VisibilitySelect({ value, onChange }: { value: Visibility; onChange: (v: Visibility) => void }) {
-  return (
-    <select className="select" value={value} onChange={(e) => onChange(e.target.value as Visibility)}>
-      {VISIBILITIES.map((v) => (
-        <option key={v.value} value={v.value}>{v.label}</option>
-      ))}
-    </select>
-  );
-}
-
 /* ── Formulaire création / édition ──────────────────────────────────────── */
 function NoteForm({ initial, onClose }: { initial?: Note; onClose: () => void }) {
   const qc = useQueryClient();
@@ -55,12 +39,14 @@ function NoteForm({ initial, onClose }: { initial?: Note; onClose: () => void })
   const [body, setBody] = useState(initial?.body ?? "");
   const [color, setColor] = useState(initial?.color ?? NOTE_COLORS[0]);
   const [visibility, setVisibility] = useState<Visibility>(initial?.visibility ?? "private");
+  const [sharedWith, setSharedWith] = useState<string[]>(initial?.shared_with ?? []);
 
   const buildBody = (): Partial<Note> => ({
     title: title.trim() || null,
     body: body.trim() || null,
     color,
     visibility,
+    shared_with: sharedWith,
   });
 
   const save = useMutation({
@@ -113,7 +99,8 @@ function NoteForm({ initial, onClose }: { initial?: Note; onClose: () => void })
         <SwatchRow value={color} onChange={setColor} />
       </Field>
       <Field label="Visibilité">
-        <VisibilitySelect value={visibility} onChange={setVisibility} />
+        <VisibilityField value={visibility} sharedWith={sharedWith}
+          onChange={setVisibility} onSharedWithChange={setSharedWith} />
       </Field>
     </Modal>
   );
@@ -172,7 +159,7 @@ function NoteCard({
       <NoteSuggestions note={note} onPick={onPick} />
 
       <div className="row wrap gap-2" style={{ marginTop: "var(--space-3)" }}>
-        <span className="chip">{visLabel(note.visibility)}</span>
+        <VisibilityChip visibility={note.visibility} sharedWith={note.shared_with} />
         <span className="spacer" />
         <button
           className="btn btn-icon btn-soft btn-sm"

@@ -1,8 +1,14 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanVisibility, intOrNull, now, numOrNull, str, uid } from "../util";
-import { canView as canViewContent } from "../access";
+import { bool, cleanSharedWith, cleanVisibility, intOrNull, now, numOrNull, str, uid } from "../util";
+import {
+  canView as canViewContent,
+  setEntityShares,
+  getEntityShares,
+  getEntitySharesBulk,
+  deleteEntityShares,
+} from "../access";
 import type {
   EventAgendaItem,
   EventBringItem,
@@ -148,7 +154,13 @@ async function loadCtx(c: { env: AppEnv["Bindings"]; var: AppEnv["Variables"] },
   const isOwner = ev.user_id === me;
   const role = (guest?.role as string) ?? null;
   const canEdit = isOwner || role === "owner" || role === "cohost";
-  const canView = canEdit || !!guest || (await canViewContent(c.env.DB, me, ev.user_id as string, cleanVisibility(ev.visibility)));
+  const canView =
+    canEdit ||
+    !!guest ||
+    (await canViewContent(c.env.DB, me, ev.user_id as string, cleanVisibility(ev.visibility), {
+      type: "event",
+      id: ev.id as string,
+    }));
   return { ev, guest, isOwner, canEdit, canView };
 }
 
@@ -184,7 +196,17 @@ app.get("/", async (c) => {
   )
     .bind(me, me, me, me)
     .all<Record<string, unknown>>();
-  return c.json({ events: (res.results ?? []).map((r) => toSummary(r, me)) });
+  const events = (res.results ?? []).map((r) => toSummary(r, me));
+  // N'expose la liste des amis choisis que pour les événements dont je suis
+  // l'organisateur (évite de divulguer les destinataires aux invités).
+  const ownIds = events.filter((e) => e.is_host).map((e) => e.id);
+  const shareMap = await getEntitySharesBulk(c.env.DB, "event", ownIds);
+  for (const ev of events) {
+    if (!ev.is_host) continue;
+    const s = shareMap.get(ev.id);
+    if (s && s.length) ev.shared_with = s;
+  }
+  return c.json({ events });
 });
 
 /* ── Détail complet ────────────────────────────────────────────────────────*/
@@ -240,6 +262,11 @@ app.get("/:id", async (c) => {
     bring: (bring.results ?? []).map(toBring),
     expense_group_id: group?.id ?? null,
   };
+  // Liste des amis choisis : visible uniquement par l'organisateur (propriétaire).
+  if (ctx.isOwner) {
+    const _s = await getEntityShares(c.env.DB, { type: "event", id });
+    if (_s.length) detail.shared_with = _s;
+  }
   return c.json({ event: detail });
 });
 
@@ -284,6 +311,8 @@ app.post("/", async (c) => {
   )
     .bind(uid(), id, me.id, me.display_name, ts)
     .run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me.id, { type: "event", id }, _sw);
   return c.json({ id });
 });
 
@@ -323,6 +352,9 @@ app.patch("/:id", async (c) => {
   fields.push("updated_at = ?");
   values.push(now(), id);
   await c.env.DB.prepare(`UPDATE events SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  // Les partages appartiennent à l'organisateur (propriétaire), pas au co-hôte.
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, ctx.ev.user_id as string, { type: "event", id }, _sw);
   return c.json({ ok: true });
 });
 
@@ -330,6 +362,7 @@ app.delete("/:id", async (c) => {
   const id = c.req.param("id");
   // Seul le créateur peut supprimer l'événement entier.
   await c.env.DB.prepare("DELETE FROM events WHERE id = ? AND user_id = ?").bind(id, c.var.user!.id).run();
+  await deleteEntityShares(c.env.DB, { type: "event", id });
   return c.json({ ok: true });
 });
 
