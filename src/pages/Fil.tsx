@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
@@ -388,6 +388,10 @@ function AddMemoryModal({
   const [preview, setPreview] = useState<{ title: string | null; image: string | null; provider: string | null } | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Libère l'aperçu (ObjectURL) à la fermeture/au démontage, pas seulement en cas
+  // de succès — évite de fuiter des blob: si on annule ou en cas d'erreur.
+  useEffect(() => () => { if (filePreview) URL.revokeObjectURL(filePreview); }, [filePreview]);
 
   const pickFile = (f: File | null) => {
     setFile(f);

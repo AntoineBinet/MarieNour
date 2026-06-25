@@ -425,10 +425,16 @@ app.delete("/:id/guests/:gid", async (c) => {
   const ctx = await loadCtx(c, id);
   if (!ctx) return c.json({ error: "Introuvable" }, 404);
   if (!ctx.canEdit) return c.json({ error: "Action réservée à l'organisateur" }, 403);
+  const gid = c.req.param("gid");
   // On ne retire jamais l'organisateur d'origine.
   await c.env.DB.prepare("DELETE FROM event_guests WHERE id = ? AND event_id = ? AND role != 'owner'")
-    .bind(c.req.param("gid"), id)
+    .bind(gid, id)
     .run();
+  // Détache explicitement ses tâches et lignes « qui apporte quoi » : le schéma
+  // déclare ON DELETE SET NULL, mais D1 (repli serverless) n'applique pas les clés
+  // étrangères — sans ça, l'invité supprimé resterait « assigné » dans l'UI.
+  await c.env.DB.prepare("UPDATE event_tasks SET assignee_id = NULL WHERE assignee_id = ? AND event_id = ?").bind(gid, id).run();
+  await c.env.DB.prepare("UPDATE event_bring SET claimed_by = NULL WHERE claimed_by = ? AND event_id = ?").bind(gid, id).run();
   await touch(c, id);
   return c.json({ ok: true });
 });

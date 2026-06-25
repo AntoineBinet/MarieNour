@@ -755,6 +755,79 @@ export interface FinanceOverview {
   upcoming: FinanceRecurring[];
 }
 
+/* ── Assistant « Aujourd'hui » (digest intelligent, dérivé) ───────────────── */
+// Un condensé priorisé de ce qui mérite ton attention aujourd'hui, calculé côté
+// serveur à partir de TOUTES tes données (événements, tâches, listes, budget,
+// dépenses partagées, voyages, amis, souvenirs). Comme les notifications, il est
+// 100 % dérivé : rien n'est stocké. Chaque « insight » porte un score qui sert au
+// classement et une sévérité qui pilote la couleur.
+export type InsightSeverity = "celebrate" | "info" | "attention" | "urgent";
+export type InsightCategory =
+  | "event"
+  | "task"
+  | "trip"
+  | "list"
+  | "finance"
+  | "expense"
+  | "friend"
+  | "memory"
+  | "inspiration";
+
+export interface AssistantInsight {
+  /** Clé stable (utile pour le rendu / d'éventuels « écartés » plus tard). */
+  key: string;
+  category: InsightCategory;
+  severity: InsightSeverity;
+  icon: string; // nom d'icône (src/components/Icon.tsx)
+  title: string;
+  body: string | null;
+  /** Route in-app vers l'élément concerné. */
+  link: string;
+  /** Libellé du bouton d'action (ex. « Répondre », « Voir »). */
+  action_label: string | null;
+  /** Score de priorité (décroissant) — sert uniquement au tri. */
+  score: number;
+}
+
+export interface AssistantStats {
+  upcoming_events: number; // événements datés à venir (≤ 14 j)
+  pending_rsvp: number; // invitations en attente de réponse
+  tasks_due: number; // tâches (événement) + items de liste à échéance/échus
+  budget_alerts: number; // catégories de budget proches/au-dessus du seuil
+  owed_to_me: number; // total qu'on te doit (toutes devises confondues, indicatif)
+  i_owe: number; // total que tu dois (indicatif)
+}
+
+export interface AssistantDigest {
+  generated_at: number;
+  /** Résumé d'une ligne, ex. « 3 choses à regarder aujourd'hui ». */
+  focus: string;
+  insights: AssistantInsight[];
+  stats: AssistantStats;
+}
+
+/* ── Recherche universelle (palette ⌘K) ───────────────────────────────────── */
+export type SearchResultType =
+  | "note"
+  | "list"
+  | "trip"
+  | "event"
+  | "recipe"
+  | "inspiration"
+  | "collection"
+  | "expense_group"
+  | "transaction"
+  | "friend";
+
+export interface SearchResult {
+  type: SearchResultType;
+  id: string;
+  title: string;
+  subtitle: string | null;
+  icon: string; // nom d'icône (src/components/Icon.tsx)
+  link: string; // route in-app
+}
+
 /* ── Statistiques (suivi visuel des dépenses sur plusieurs mois) ──────────── */
 export interface FinanceMonthPoint {
   month: string; // 'YYYY-MM'

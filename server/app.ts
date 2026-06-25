@@ -22,6 +22,8 @@ import financeRoutes from "./routes/finance";
 import eventsRoutes from "./routes/events";
 import notificationsRoutes from "./routes/notifications";
 import filRoutes from "./routes/fil";
+import assistantRoutes from "./routes/assistant";
+import searchRoutes from "./routes/search";
 
 export function createApp() {
   const app = new Hono<AppEnv>().basePath("/api");
@@ -51,6 +53,8 @@ export function createApp() {
   app.route("/events", eventsRoutes);
   app.route("/notifications", notificationsRoutes);
   app.route("/fil", filRoutes);
+  app.route("/assistant", assistantRoutes);
+  app.route("/search", searchRoutes);
 
   app.notFound((c) => c.json({ error: "Route introuvable" }, 404));
   app.onError((err, c) => {

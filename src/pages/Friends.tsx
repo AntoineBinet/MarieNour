@@ -100,7 +100,8 @@ export default function Friends() {
   const askRemove = async (f: Friendship) => {
     const ok = await confirm(`Retirer ${f.user.display_name} de tes amis ?`);
     if (ok) {
-      removeFriend.mutate(f.id, { onSuccess: () => { invalidate(); toast.push("Ami retiré"); } });
+      // La mutation invalide déjà la liste en onSuccess : on ajoute juste le toast.
+      removeFriend.mutate(f.id, { onSuccess: () => toast.push("Ami retiré") });
     }
   };
 
@@ -152,7 +153,7 @@ export default function Friends() {
                     <button
                       className="btn btn-soft btn-sm"
                       onClick={() => requestFriend.mutate(u.id)}
-                      disabled={requestFriend.isPending}
+                      disabled={requestFriend.isPending && requestFriend.variables === u.id}
                     >
                       Ajouter
                     </button>

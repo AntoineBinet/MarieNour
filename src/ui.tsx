@@ -1,9 +1,13 @@
 import {
+  cloneElement,
   createContext,
+  isValidElement,
   useCallback,
   useContext,
   useEffect,
+  useId,
   useState,
+  type ReactElement,
   type ReactNode,
 } from "react";
 import { Icon, type IconName } from "./components/Icon";
@@ -99,11 +103,20 @@ export function EmptyState({
 }
 
 /* ── Field helper ───────────────────────────────────────────────────────── */
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+// Associe le <label> à son champ (htmlFor/id) pour l'accessibilité : un clic sur
+// le libellé donne le focus au champ, et les lecteurs d'écran l'annoncent. L'id
+// est injecté dans l'unique enfant s'il n'en porte pas déjà un.
+export function Field({ label, children, htmlFor }: { label: string; children: ReactNode; htmlFor?: string }) {
+  const autoId = useId();
+  const id = htmlFor ?? autoId;
+  const child =
+    isValidElement(children) && (children as { props?: { id?: string } }).props?.id == null
+      ? cloneElement(children as ReactElement<{ id?: string }>, { id })
+      : children;
   return (
     <div className="field">
-      <label className="label">{label}</label>
-      {children}
+      <label className="label" htmlFor={id}>{label}</label>
+      {child}
     </div>
   );
 }
