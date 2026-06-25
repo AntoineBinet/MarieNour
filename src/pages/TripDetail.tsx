@@ -6,13 +6,8 @@ import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
 import { InviteLink } from "../components/InviteLink";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import type { Friendship, Trip, TripItem, TripKind, TripParticipant, Visibility } from "@shared/types";
-
-const VIS_LABEL: Record<Visibility, string> = {
-  private: "Privé",
-  friends: "Amis",
-  public: "Public",
-};
 
 const TRIP_KINDS: { value: TripKind; label: string; icon: IconName }[] = [
   { value: "trip", label: "Voyage", icon: "trips" },
@@ -67,6 +62,7 @@ interface TripForm {
   cover_url: string;
   notes: string;
   visibility: Visibility;
+  shared_with: string[];
   kind: TripKind;
 }
 
@@ -81,6 +77,7 @@ function tripToForm(t: Trip): TripForm {
     cover_url: t.cover_url ?? "",
     notes: t.notes ?? "",
     visibility: t.visibility,
+    shared_with: t.shared_with ?? [],
     kind: t.kind ?? "trip",
   };
 }
@@ -314,6 +311,7 @@ export default function TripDetail() {
       cover_url: tripForm.cover_url.trim() || null,
       notes: tripForm.notes.trim() || null,
       visibility: tripForm.visibility,
+      shared_with: tripForm.shared_with,
       kind: tripForm.kind,
     });
   };
@@ -350,10 +348,11 @@ export default function TripDetail() {
 
       <div className="page-head row wrap" style={{ justifyContent: "space-between", marginTop: "var(--space-3)" }}>
         <div>
-          <p className="eyebrow">{TRIP_KIND_MAP[trip.kind]?.label ?? "Voyage"} · {VIS_LABEL[trip.visibility]}</p>
+          <p className="eyebrow">{TRIP_KIND_MAP[trip.kind]?.label ?? "Voyage"}</p>
           <h1>{trip.title}</h1>
           <div className="row wrap gap-3" style={{ marginTop: "var(--space-2)" }}>
             <span className="tag-pill"><Icon name={TRIP_KIND_MAP[trip.kind]?.icon ?? "trips"} size={13} /> {TRIP_KIND_MAP[trip.kind]?.label}</span>
+            <VisibilityChip visibility={trip.visibility} sharedWith={trip.shared_with} />
             {trip.destination && <span className="muted row gap-2"><Icon name="map" size={14} /> {trip.destination}</span>}
             {range && <span className="muted row gap-2"><Icon name="calendar" size={14} /> {range}</span>}
             {trip.budget != null && <span className="chip chip-accent"><Icon name="wallet" size={13} /> {trip.budget} {trip.currency}</span>}
@@ -597,11 +596,12 @@ export default function TripDetail() {
               <textarea className="textarea" value={tripForm.notes} onChange={(e) => setTripForm({ ...tripForm, notes: e.target.value })} placeholder="Choses à ne pas oublier, réservations…" />
             </Field>
             <Field label="Visibilité">
-              <select className="select" value={tripForm.visibility} onChange={(e) => setTripForm({ ...tripForm, visibility: e.target.value as Visibility })}>
-                <option value="private">Privé</option>
-                <option value="friends">Amis</option>
-                <option value="public">Public</option>
-              </select>
+              <VisibilityField
+                value={tripForm.visibility}
+                sharedWith={tripForm.shared_with}
+                onChange={(v) => setTripForm({ ...tripForm, visibility: v })}
+                onSharedWithChange={(ids) => setTripForm({ ...tripForm, shared_with: ids })}
+              />
             </Field>
           </form>
         </Modal>

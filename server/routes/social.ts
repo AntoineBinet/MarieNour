@@ -77,7 +77,7 @@ async function canAccessEntity(
   // Un souvenir : l'accès est entièrement porté par sa collection (privé / amis /
   // amis précis / public), y compris la visibilité 'custom'.
   if (type === "memory") return canViewMemory(db, me, entityId);
-  if (await canView(db, me, meta.owner_id, meta.visibility)) return true;
+  if (await canView(db, me, meta.owner_id, meta.visibility, { type, id: entityId })) return true;
   if (type === "event") {
     const g = await db.prepare("SELECT 1 FROM event_guests WHERE event_id = ? AND user_id = ?").bind(entityId, me).first();
     return !!g;
@@ -125,16 +125,22 @@ app.get("/feed", async (c) => {
     { type: "inspiration", sql: "SELECT id, user_id, title, note AS preview, image_url, visibility, updated_at FROM inspirations" },
   ];
 
+  // Mes partages « shared » (par un ami qui m'a explicitement choisi).
+  const myShares = await c.env.DB.prepare("SELECT entity_type, entity_id FROM shares WHERE shared_with_id = ?").bind(me).all<Record<string, unknown>>();
+  const sharedSet = new Set((myShares.results ?? []).map((r) => (r.entity_type as string) + ":" + (r.entity_id as string)));
+
   const raw: (FeedItem & { _ts: number })[] = [];
   for (const q of queries) {
     const res = await c.env.DB.prepare(
-      `${q.sql} WHERE user_id IN (${placeholders}) AND visibility IN ('friends','public') ORDER BY updated_at DESC LIMIT 30`,
+      `${q.sql} WHERE user_id IN (${placeholders}) AND visibility IN ('friends','public','shared') ORDER BY updated_at DESC LIMIT 30`,
     )
       .bind(...fids)
       .all<Record<string, unknown>>();
     for (const r of res.results ?? []) {
       const author = authors.get(r.user_id as string);
       if (!author) continue;
+      // Un contenu « shared » n'apparaît que si je suis un ami choisi.
+      if (r.visibility === "shared" && !sharedSet.has(q.type + ":" + (r.id as string))) continue;
       let img = (r.image_url as string) ?? null;
       if (q.type === "inspiration" && img && img.startsWith("/")) img = img; // déjà relatif
       raw.push({
@@ -260,12 +266,18 @@ app.get("/profile/:handle", async (c) => {
   // Visibilités accessibles au viewer.
   const friend = me === uId || (await canView(c.env.DB, me, uId, "friends"));
   const vis = friend ? ["friends", "public"] : ["public"];
-  if (me === uId) vis.push("private");
+  if (me === uId) vis.push("private", "shared"); // le propriétaire voit tout son contenu
   const vph = vis.map(() => "?").join(",");
 
-  const recipes = await c.env.DB.prepare(`SELECT id, title, image_url, visibility FROM recipes WHERE user_id = ? AND visibility IN (${vph}) ORDER BY updated_at DESC LIMIT 12`).bind(uId, ...vis).all();
-  const trips = await c.env.DB.prepare(`SELECT id, title, destination, cover_url, visibility FROM trips WHERE user_id = ? AND visibility IN (${vph}) ORDER BY updated_at DESC LIMIT 12`).bind(uId, ...vis).all();
-  const boards = await c.env.DB.prepare(`SELECT id, title, cover_url, visibility FROM boards WHERE user_id = ? AND visibility IN (${vph}) ORDER BY updated_at DESC LIMIT 12`).bind(uId, ...vis).all();
+  // Pour un visiteur : aussi les contenus « shared » où il est un ami choisi.
+  // (Pour soi-même, « shared » est déjà dans `vis` ; le sous-select reste neutre.)
+  const sharedClause = (entity: string) =>
+    me === uId ? "" : ` OR (visibility = 'shared' AND id IN (SELECT entity_id FROM shares WHERE entity_type = '${entity}' AND shared_with_id = ?))`;
+  const sharedBind = (): string[] => (me === uId ? [] : [me]);
+
+  const recipes = await c.env.DB.prepare(`SELECT id, title, image_url, visibility FROM recipes WHERE user_id = ? AND (visibility IN (${vph})${sharedClause("recipe")}) ORDER BY updated_at DESC LIMIT 12`).bind(uId, ...vis, ...sharedBind()).all();
+  const trips = await c.env.DB.prepare(`SELECT id, title, destination, cover_url, visibility FROM trips WHERE user_id = ? AND (visibility IN (${vph})${sharedClause("trip")}) ORDER BY updated_at DESC LIMIT 12`).bind(uId, ...vis, ...sharedBind()).all();
+  const boards = await c.env.DB.prepare(`SELECT id, title, cover_url, visibility FROM boards WHERE user_id = ? AND (visibility IN (${vph})${sharedClause("board")}) ORDER BY updated_at DESC LIMIT 12`).bind(uId, ...vis, ...sharedBind()).all();
 
   return c.json({
     user: toPub(user),

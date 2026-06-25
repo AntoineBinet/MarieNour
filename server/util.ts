@@ -18,9 +18,26 @@ export function parseJson<T>(value: unknown, fallback: T): T {
   }
 }
 
-export const VISIBILITIES = ["private", "friends", "public"] as const;
-export function cleanVisibility(v: unknown): "private" | "friends" | "public" {
-  return VISIBILITIES.includes(v as never) ? (v as "private") : "private";
+export const VISIBILITIES = ["private", "friends", "public", "shared"] as const;
+export type Visibility = (typeof VISIBILITIES)[number];
+export function cleanVisibility(v: unknown): Visibility {
+  return VISIBILITIES.includes(v as never) ? (v as Visibility) : "private";
+}
+
+/** Normalise une liste d'ids d'amis avec qui partager (déduplique, borne, ignore
+ *  le vide). Renvoie `null` si l'entrée n'est pas un tableau (= « ne pas toucher »). */
+export function cleanSharedWith(v: unknown, max = 200): string[] | null {
+  if (!Array.isArray(v)) return null;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of v) {
+    const id = str(raw, 60).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 /** Tronque/normalise une chaîne entrante. */

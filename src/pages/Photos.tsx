@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
+import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
 import { InviteQr } from "../components/InviteQr";
 import { InviteLink } from "../components/InviteLink";
 import { IMAGE_ACCEPT, isImageFile } from "../images";
@@ -27,9 +28,10 @@ function PhotoModal({ media, onClose, onDelete }: { media: MediaItem; onClose: (
   const toast = useToast();
   const [caption, setCaption] = useState(media.caption ?? "");
   const [visibility, setVisibility] = useState<Visibility>(media.visibility);
+  const [sharedWith, setSharedWith] = useState<string[]>(media.shared_with ?? []);
 
   const update = useMutation({
-    mutationFn: (b: Partial<{ caption: string; visibility: Visibility }>) => api.updateMedia(media.id, b),
+    mutationFn: (b: Partial<{ caption: string; visibility: Visibility; shared_with: string[] }>) => api.updateMedia(media.id, b),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["media"] });
       toast.push("Photo mise à jour");
@@ -44,7 +46,11 @@ function PhotoModal({ media, onClose, onDelete }: { media: MediaItem; onClose: (
   };
   const changeVisibility = (v: Visibility) => {
     setVisibility(v);
-    update.mutate({ visibility: v });
+    update.mutate({ visibility: v, shared_with: sharedWith });
+  };
+  const changeSharedWith = (ids: string[]) => {
+    setSharedWith(ids);
+    update.mutate({ visibility, shared_with: ids });
   };
 
   return (
@@ -66,9 +72,12 @@ function PhotoModal({ media, onClose, onDelete }: { media: MediaItem; onClose: (
           />
         </Field>
         <Field label="Visibilité">
-          <select className="select" value={visibility} onChange={(e) => changeVisibility(e.target.value as Visibility)}>
-            {VISIBILITIES.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
-          </select>
+          <VisibilityField
+            value={visibility}
+            sharedWith={sharedWith}
+            onChange={changeVisibility}
+            onSharedWithChange={changeSharedWith}
+          />
         </Field>
         <div className="row wrap gap-2">
           <span className="muted small row gap-1" style={{ alignItems: "center" }}><Icon name="calendar" size={14} /> {formatDate(media.created_at)}</span>
@@ -88,7 +97,7 @@ function useUploader(onDone?: () => void) {
   const toast = useToast();
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
 
-  const uploadFiles = async (files: File[]) => {
+  const uploadFiles = async (files: File[], opts?: { visibility?: Visibility; shared_with?: string[] }) => {
     const images = files.filter(isImageFile);
     if (images.length === 0) {
       if (files.length) toast.push("Seules les images sont acceptées", true);
@@ -98,7 +107,7 @@ function useUploader(onDone?: () => void) {
     let ok = 0;
     for (let i = 0; i < images.length; i++) {
       try {
-        await api.uploadMedia(images[i]);
+        await api.uploadMedia(images[i], undefined, opts?.visibility, opts?.shared_with);
         ok++;
       } catch (e: any) {
         toast.push(e.message || "Envoi échoué", true);
@@ -125,6 +134,8 @@ function MyPhotos() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [viewing, setViewing] = useState<MediaItem | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [upVisibility, setUpVisibility] = useState<Visibility>("private");
+  const [upSharedWith, setUpSharedWith] = useState<string[]>([]);
   const { uploading, uploadFiles } = useUploader();
 
   const { data, isLoading } = useQuery({ queryKey: ["media"], queryFn: () => api.media() });
@@ -148,22 +159,33 @@ function MyPhotos() {
     }
   };
 
+  const uploadOpts = () => ({ visibility: upVisibility, shared_with: upSharedWith });
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (files.length) uploadFiles(files);
+    if (files.length) uploadFiles(files, uploadOpts());
   };
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     if (uploading) return;
     const files = Array.from(e.dataTransfer.files ?? []);
-    if (files.length) uploadFiles(files);
+    if (files.length) uploadFiles(files, uploadOpts());
   };
 
   return (
     <div>
       <input ref={fileInput} type="file" accept={IMAGE_ACCEPT} multiple hidden onChange={onPick} />
+      <div className="card card-pad-sm" style={{ marginBottom: "var(--space-3)" }}>
+        <Field label="Visibilité des photos importées">
+          <VisibilityField
+            value={upVisibility}
+            sharedWith={upSharedWith}
+            onChange={setUpVisibility}
+            onSharedWithChange={setUpSharedWith}
+          />
+        </Field>
+      </div>
       <div
         className="card"
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -202,7 +224,7 @@ function MyPhotos() {
               {(m.caption || m.visibility !== "private") && (
                 <div style={{ padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                   {m.caption && <span className="small" style={{ color: "var(--ink-2)" }}>{m.caption}</span>}
-                  <span className="chip" style={{ alignSelf: "flex-start" }}>{visLabel(m.visibility)}</span>
+                  <span style={{ alignSelf: "flex-start" }}><VisibilityChip visibility={m.visibility} sharedWith={m.shared_with} /></span>
                 </div>
               )}
             </div>

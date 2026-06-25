@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanVisibility, now, str, uid } from "../util";
+import { bool, cleanVisibility, cleanSharedWith, now, str, uid } from "../util";
+import { setEntityShares, getEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
 import type { List, ListItem } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -53,7 +54,13 @@ app.get("/", async (c) => {
   )
     .bind(c.var.user!.id)
     .all<Record<string, unknown>>();
-  return c.json({ lists: (res.results ?? []).map(toList) });
+  const items = (res.results ?? []).map(toList);
+  const shareMap = await getEntitySharesBulk(c.env.DB, "list", items.map((i) => i.id));
+  for (const it of items) {
+    const s = shareMap.get(it.id);
+    if (s && s.length) it.shared_with = s;
+  }
+  return c.json({ lists: items });
 });
 
 app.get("/:id", async (c) => {
@@ -65,7 +72,10 @@ app.get("/:id", async (c) => {
   const items = await c.env.DB.prepare("SELECT * FROM list_items WHERE list_id = ? ORDER BY done ASC, position ASC")
     .bind(id)
     .all<Record<string, unknown>>();
-  return c.json({ list: { ...toList(list), items: (items.results ?? []).map(toItem) } });
+  const obj: List = { ...toList(list), items: (items.results ?? []).map(toItem) };
+  const _s = await getEntityShares(c.env.DB, { type: "list", id });
+  if (_s.length) obj.shared_with = _s;
+  return c.json({ list: obj });
 });
 
 app.post("/", async (c) => {
@@ -94,6 +104,8 @@ app.post("/", async (c) => {
       ts,
     )
     .run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "list", id }, _sw);
   return c.json({ id });
 });
 
@@ -116,15 +128,21 @@ app.patch("/:id", async (c) => {
   setIf("visibility", "visibility", (v) => cleanVisibility(v));
   setIf("archived", "archived", (v) => (bool(v) ? 1 : 0));
   setIf("kind", "kind", (v) => (v === "list" ? "list" : "checklist"));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE lists SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (!fields.length && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (fields.length) {
+    fields.push("updated_at = ?");
+    values.push(now(), id, me);
+    await c.env.DB.prepare(`UPDATE lists SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  }
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "list", id }, _sw);
   return c.json({ ok: true });
 });
 
 app.delete("/:id", async (c) => {
-  await c.env.DB.prepare("DELETE FROM lists WHERE id = ? AND user_id = ?").bind(c.req.param("id"), c.var.user!.id).run();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM lists WHERE id = ? AND user_id = ?").bind(id, c.var.user!.id).run();
+  await deleteEntityShares(c.env.DB, { type: "list", id });
   return c.json({ ok: true });
 });
 

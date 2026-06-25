@@ -191,17 +191,18 @@ export const api = {
 
   // Media
   media: () => get<{ media: MediaItem[] }>("/media"),
-  uploadMedia: async (file: File, caption?: string, visibility?: Visibility) => {
+  uploadMedia: async (file: File, caption?: string, visibility?: Visibility, sharedWith?: string[]) => {
     const form = new FormData();
     form.append("file", file);
     if (caption) form.append("caption", caption);
     if (visibility) form.append("visibility", visibility);
+    if (sharedWith) form.append("shared_with", JSON.stringify(sharedWith));
     const res = await fetch("/api/media", { method: "POST", body: form, credentials: "include" });
     const data = await res.json();
     if (!res.ok) throw new ApiError(data?.error || "Upload échoué", res.status);
     return data as { media: MediaItem };
   },
-  updateMedia: (id: string, b: Partial<{ caption: string; visibility: Visibility }>) =>
+  updateMedia: (id: string, b: Partial<{ caption: string; visibility: Visibility; shared_with: string[] }>) =>
     patch<{ ok: true }>(`/media/${id}`, b),
   deleteMedia: (id: string) => del<{ ok: true }>(`/media/${id}`),
 
@@ -304,7 +305,7 @@ export const api = {
 
   // Sondages
   polls: () => get<{ polls: Poll[] }>("/polls"),
-  createPoll: (b: { question: string; options: string[]; multi?: boolean; closes_at?: number | null; visibility?: Visibility }) =>
+  createPoll: (b: { question: string; options: string[]; multi?: boolean; closes_at?: number | null; visibility?: Visibility; shared_with?: string[] }) =>
     post<{ id: string }>("/polls", b),
   votePoll: (id: string, option_ids: string[]) => post<{ ok: true }>(`/polls/${id}/vote`, { option_ids }),
   closePoll: (id: string) => post<{ ok: true }>(`/polls/${id}/close`),

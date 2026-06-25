@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanVisibility, now, numOrNull, str, uid } from "../util";
+import { bool, cleanSharedWith, cleanVisibility, now, numOrNull, str, uid } from "../util";
+import { deleteEntityShares, getEntityShares, getEntitySharesBulk, setEntityShares } from "../access";
 import type { Trip, TripItem, TripKind, TripParticipant } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -115,9 +116,15 @@ app.get("/", async (c) => {
   )
     .bind(me, me)
     .all<Record<string, unknown>>();
-  return c.json({
-    trips: (res.results ?? []).map((r) => ({ ...toTrip(r), is_owner: r.user_id === me, owner: ownerOf(r) })),
-  });
+  const trips = (res.results ?? []).map((r) => ({ ...toTrip(r), is_owner: r.user_id === me, owner: ownerOf(r) }));
+  // Attache la liste « amis choisis » sur mes propres voyages (visibilité 'shared').
+  const ownIds = trips.filter((t) => t.is_owner).map((t) => t.id);
+  const shareMap = await getEntitySharesBulk(c.env.DB, "trip", ownIds);
+  for (const t of trips) {
+    const s = shareMap.get(t.id);
+    if (s && s.length) t.shared_with = s;
+  }
+  return c.json({ trips });
 });
 
 app.get("/:id", async (c) => {
@@ -147,17 +154,21 @@ app.get("/:id", async (c) => {
   const group = await c.env.DB.prepare("SELECT id FROM expense_groups WHERE trip_id = ? ORDER BY created_at ASC LIMIT 1")
     .bind(id)
     .first<{ id: string }>();
-  return c.json({
-    trip: {
-      ...toTrip(trip),
-      items: (items.results ?? []).map(toTripItem),
-      participants,
-      participant_count: participants.length,
-      expense_group_id: group?.id ?? null,
-      is_owner: isOwner,
-      owner: ownerOf(trip),
-    },
-  });
+  const out: Trip = {
+    ...toTrip(trip),
+    items: (items.results ?? []).map(toTripItem),
+    participants,
+    participant_count: participants.length,
+    expense_group_id: group?.id ?? null,
+    is_owner: isOwner,
+    owner: ownerOf(trip),
+  };
+  // « Amis choisis » : visible/éditable seulement par le créateur du voyage.
+  if (isOwner) {
+    const _s = await getEntityShares(c.env.DB, { type: "trip", id });
+    if (_s.length) out.shared_with = _s;
+  }
+  return c.json({ trip: out });
 });
 
 // ── Participants (inscrits ou invités sans compte) ───────────────────────────
@@ -245,6 +256,8 @@ app.post("/", async (c) => {
       ts,
     )
     .run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "trip", id }, _sw);
   // Le créateur est d'office le premier participant (organisateur).
   await c.env.DB.prepare(
     "INSERT INTO trip_participants (id, trip_id, user_id, name, role, color, created_at) VALUES (?, ?, ?, ?, 'owner', NULL, ?)",
@@ -277,15 +290,21 @@ app.patch("/:id", async (c) => {
   setIf("currency", "currency", (v) => str(v, 8));
   setIf("visibility", "visibility", (v) => cleanVisibility(v));
   setIf("kind", "kind", (v) => cleanTripKind(v));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE trips SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (!fields.length && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (fields.length) {
+    fields.push("updated_at = ?");
+    values.push(now(), id, me);
+    await c.env.DB.prepare(`UPDATE trips SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  }
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "trip", id }, _sw);
   return c.json({ ok: true });
 });
 
 app.delete("/:id", async (c) => {
-  await c.env.DB.prepare("DELETE FROM trips WHERE id = ? AND user_id = ?").bind(c.req.param("id"), c.var.user!.id).run();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM trips WHERE id = ? AND user_id = ?").bind(id, c.var.user!.id).run();
+  await deleteEntityShares(c.env.DB, { type: "trip", id });
   return c.json({ ok: true });
 });
 

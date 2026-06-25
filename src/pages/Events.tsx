@@ -5,6 +5,7 @@ import { api } from "../api";
 import { takeCompose } from "../compose";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
+import { VisibilityField } from "../components/VisibilityField";
 import {
   EVENT_KINDS,
   EVENT_KIND_MAP,
@@ -54,6 +55,7 @@ export default function Events() {
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<EventForm>(EMPTY_FORM);
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [filter, setFilter] = useState<FilterKey>("upcoming");
 
   // Ouverture pré-remplie depuis une note convertie (« Planifier l'activité »).
@@ -79,6 +81,7 @@ export default function Events() {
       toast.push("Événement créé");
       setCreating(false);
       setForm(EMPTY_FORM);
+      setSharedWith([]);
       navigate(`/evenements/${res.id}`);
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
@@ -111,6 +114,7 @@ export default function Events() {
       cover_url: form.cover_url.trim() || null,
       description: form.description.trim() || null,
       visibility: form.visibility,
+      shared_with: sharedWith,
     });
   };
 
@@ -339,11 +343,12 @@ export default function Events() {
               />
             </Field>
             <Field label="Visibilité">
-              <select className="select" value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value as Visibility })}>
-                <option value="private">Privé (sur invitation)</option>
-                <option value="friends">Amis (visible par mes amis)</option>
-                <option value="public">Public</option>
-              </select>
+              <VisibilityField
+                value={form.visibility}
+                sharedWith={sharedWith}
+                onChange={(v) => setForm({ ...form, visibility: v })}
+                onSharedWithChange={setSharedWith}
+              />
             </Field>
           </form>
         </Modal>

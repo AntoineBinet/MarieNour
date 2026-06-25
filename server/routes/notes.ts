@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanVisibility, now, parseJson, str, uid } from "../util";
+import { bool, cleanVisibility, cleanSharedWith, now, parseJson, str, uid } from "../util";
+import { setEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
 import type { Note } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -31,7 +32,10 @@ app.get("/", async (c) => {
     ? c.env.DB.prepare(base).bind(c.var.user!.id, `%${q}%`, `%${q}%`)
     : c.env.DB.prepare(base).bind(c.var.user!.id);
   const res = await stmt.all<Record<string, unknown>>();
-  return c.json({ notes: (res.results ?? []).map(toNote) });
+  const notes = (res.results ?? []).map(toNote);
+  const shareMap = await getEntitySharesBulk(c.env.DB, "note", notes.map((i) => i.id));
+  for (const it of notes) { const s = shareMap.get(it.id); if (s && s.length) it.shared_with = s; }
+  return c.json({ notes });
 });
 
 app.post("/", async (c) => {
@@ -55,6 +59,8 @@ app.post("/", async (c) => {
       ts,
     )
     .run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "note", id }, _sw);
   return c.json({ id });
 });
 
@@ -92,11 +98,15 @@ app.patch("/:id", async (c) => {
   fields.push("updated_at = ?");
   values.push(now(), id, me);
   await c.env.DB.prepare(`UPDATE notes SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  const _sw = cleanSharedWith(body.shared_with);
+  if (_sw) await setEntityShares(c.env.DB, me, { type: "note", id }, _sw);
   return c.json({ ok: true });
 });
 
 app.delete("/:id", async (c) => {
-  await c.env.DB.prepare("DELETE FROM notes WHERE id = ? AND user_id = ?").bind(c.req.param("id"), c.var.user!.id).run();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM notes WHERE id = ? AND user_id = ?").bind(id, c.var.user!.id).run();
+  await deleteEntityShares(c.env.DB, { type: "note", id });
   return c.json({ ok: true });
 });
 
