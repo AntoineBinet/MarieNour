@@ -6,6 +6,7 @@ import { takeCompose } from "../compose";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
 import { VisibilityField } from "../components/VisibilityField";
+import { ImageField } from "../components/ImageField";
 import {
   EVENT_KINDS,
   EVENT_KIND_MAP,
@@ -331,8 +332,8 @@ export default function Events() {
                 </Field>
               </div>
             </div>
-            <Field label="Image de couverture (URL)">
-              <input className="input" value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} placeholder="https://…" />
+            <Field label="Image de couverture">
+              <ImageField value={form.cover_url} onChange={(url) => setForm({ ...form, cover_url: url })} />
             </Field>
             <Field label="Description">
               <textarea

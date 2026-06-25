@@ -7,6 +7,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
 import { InviteLink } from "../components/InviteLink";
 import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
+import { ImageField } from "../components/ImageField";
 import {
   BRING_CAT_META,
   EVENT_KINDS,
@@ -1031,8 +1032,8 @@ function EditEventModal({ ev, onClose, onSave, pending }: { ev: EventDetailT; on
             </Field>
           </div>
         </div>
-        <Field label="Image de couverture (URL)">
-          <input className="input" value={f.cover_url} onChange={(e) => setF({ ...f, cover_url: e.target.value })} placeholder="https://…" />
+        <Field label="Image de couverture">
+          <ImageField value={f.cover_url} onChange={(url) => setF({ ...f, cover_url: url })} />
         </Field>
         <Field label="Description">
           <textarea className="textarea" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />

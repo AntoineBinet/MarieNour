@@ -4,6 +4,7 @@ import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
 import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
+import { ImageField } from "../components/ImageField";
 import type { Recipe, Visibility } from "@shared/types";
 
 function totalTime(r: Recipe): string | null {
@@ -92,8 +93,8 @@ function RecipeForm({
       <Field label="Description">
         <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Quelques mots sur ce plat…" />
       </Field>
-      <Field label="Image (URL)">
-        <input className="input" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://…" />
+      <Field label="Image">
+        <ImageField value={imageUrl} onChange={setImageUrl} />
       </Field>
       <div className="row gap-3 wrap">
         <div className="field grow" style={{ minWidth: 120 }}>

@@ -5,6 +5,7 @@ import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
 import type { IconName } from "../components/Icon";
 import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
+import { ImageField } from "../components/ImageField";
 import type { Board, Inspiration, Visibility } from "@shared/types";
 
 const SOURCES: { value: string; icon: IconName; label: string }[] = [
@@ -170,8 +171,8 @@ function BoardForm({
       <Field label="Description">
         <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="L'ambiance que tu vises…" />
       </Field>
-      <Field label="Couverture (URL)">
-        <input className="input" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
+      <Field label="Couverture">
+        <ImageField value={coverUrl} onChange={setCoverUrl} />
       </Field>
       <Field label="Visibilité">
         <VisibilityField value={visibility} sharedWith={sharedWith}
@@ -341,10 +342,10 @@ function InboxTab() {
               </button>
             ) : (
               <div className="disclosure-body col gap-3">
-                <div className="row gap-3 wrap">
-                  <input className="input grow" style={{ minWidth: 160 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre (optionnel)" />
-                  <input className="input grow" style={{ minWidth: 160 }} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL (optionnel)" />
-                </div>
+                <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre (optionnel)" />
+                <Field label="Image">
+                  <ImageField value={imageUrl} onChange={setImageUrl} />
+                </Field>
                 <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une note pour te souvenir pourquoi ça t'a plu…" />
                 <Field label="Visibilité">
                   <VisibilityField value={visibility} sharedWith={sharedWith}

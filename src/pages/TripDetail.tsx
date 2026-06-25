@@ -7,6 +7,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { InviteQr } from "../components/InviteQr";
 import { InviteLink } from "../components/InviteLink";
 import { VisibilityField, VisibilityChip } from "../components/VisibilityField";
+import { ImageField } from "../components/ImageField";
 import type { Friendship, Trip, TripItem, TripKind, TripParticipant, Visibility } from "@shared/types";
 
 const TRIP_KINDS: { value: TripKind; label: string; icon: IconName }[] = [
@@ -589,8 +590,8 @@ export default function TripDetail() {
                 </Field>
               </div>
             </div>
-            <Field label="Image de couverture (URL)">
-              <input className="input" value={tripForm.cover_url} onChange={(e) => setTripForm({ ...tripForm, cover_url: e.target.value })} placeholder="https://…" />
+            <Field label="Image de couverture">
+              <ImageField value={tripForm.cover_url} onChange={(url) => setTripForm({ ...tripForm, cover_url: url })} />
             </Field>
             <Field label="Notes">
               <textarea className="textarea" value={tripForm.notes} onChange={(e) => setTripForm({ ...tripForm, notes: e.target.value })} placeholder="Choses à ne pas oublier, réservations…" />
