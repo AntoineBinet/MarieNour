@@ -16,6 +16,9 @@ export interface FirstStep {
   icon: IconName;
   to: string;
   done: boolean;
+  /** Étape « engageante » (compte bancaire, ami, événement) : repliée par défaut
+   *  sous « Pour aller plus loin » pour ne pas alourdir la première lecture. */
+  advanced?: boolean;
 }
 
 export interface FirstStepsState {
@@ -48,6 +51,8 @@ export function useFirstSteps(): FirstStepsState {
 
   const steps = useMemo<FirstStep[]>(() => {
     const profileDone = !!(user?.avatar_url || (user?.bio && user.bio.trim()));
+    // Du plus léger (10 s) au plus engageant : les trois derniers sont marqués
+    // « advanced » → repliés par défaut dans la carte « Premiers pas ».
     return [
       {
         key: "profile",
@@ -56,14 +61,6 @@ export function useFirstSteps(): FirstStepsState {
         icon: "profile",
         to: "/profil",
         done: profileDone,
-      },
-      {
-        key: "widget",
-        title: "Compose ton accueil",
-        desc: "Ajoute un premier widget à ton tableau de bord.",
-        icon: "grid",
-        to: "/",
-        done: (widgetsQ.data?.widgets.length ?? 0) > 0,
       },
       {
         key: "note",
@@ -82,12 +79,21 @@ export function useFirstSteps(): FirstStepsState {
         done: (listsQ.data?.lists.length ?? 0) > 0,
       },
       {
+        key: "widget",
+        title: "Compose ton accueil",
+        desc: "Ajoute un premier widget à ton tableau de bord.",
+        icon: "grid",
+        to: "/",
+        done: (widgetsQ.data?.widgets.length ?? 0) > 0,
+      },
+      {
         key: "finance",
         title: "Ouvre ton portefeuille",
         desc: "Ajoute un compte pour suivre ton budget et tes dépenses.",
         icon: "wallet",
         to: "/finances",
         done: (accountsQ.data?.accounts.length ?? 0) > 0,
+        advanced: true,
       },
       {
         key: "event",
@@ -96,6 +102,7 @@ export function useFirstSteps(): FirstStepsState {
         icon: "confetti",
         to: "/evenements",
         done: (eventsQ.data?.events.length ?? 0) > 0,
+        advanced: true,
       },
       {
         key: "friend",
@@ -104,6 +111,7 @@ export function useFirstSteps(): FirstStepsState {
         icon: "friends",
         to: "/amis",
         done: (friendsQ.data?.friends.length ?? 0) > 0,
+        advanced: true,
       },
     ];
   }, [

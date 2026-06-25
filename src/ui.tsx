@@ -76,12 +76,12 @@ export function Modal({
 export const Spinner = () => <div className="spinner" aria-label="Chargement" />;
 
 export function EmptyState({
-  emoji,
   icon,
   title,
   hint,
   action,
 }: {
+  /** @deprecated — l'app utilise des icônes SVG « maison », jamais d'emoji dans le chrome. */
   emoji?: string;
   icon?: IconName;
   title: string;
@@ -90,13 +90,7 @@ export function EmptyState({
 }) {
   return (
     <div className="empty">
-      {icon ? (
-        <span className="empty-icon"><Icon name={icon} size={34} strokeWidth={1.6} /></span>
-      ) : emoji ? (
-        <span className="emoji">{emoji}</span>
-      ) : (
-        <span className="empty-icon"><Icon name="sparkle" size={34} strokeWidth={1.6} /></span>
-      )}
+      <span className="empty-icon"><Icon name={icon ?? "sparkle"} size={34} strokeWidth={1.6} /></span>
       <h3 style={{ marginBottom: 6 }}>{title}</h3>
       {hint && <p className="muted">{hint}</p>}
       {action && <div style={{ marginTop: "var(--space-4)" }}>{action}</div>}

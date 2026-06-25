@@ -30,8 +30,31 @@
   --radius: 18px;
   --radius-sm: 12px;
   --radius-lg: 26px;
+  /* Élévation à 3 niveaux : sm = repos (cartes, widgets) → calme et posé ;
+     md (--shadow) = éléments flottants (menus, popovers) ; lg = modales + survol
+     volontaire. Avant, tout partageait une seule ombre moyenne → « champ de
+     cartes qui flottent », ce qui alourdit surtout l'écran d'accueil. */
+  --shadow-sm: 0 1px 2px rgba(60, 40, 24, 0.05), 0 1px 3px rgba(80, 55, 30, 0.04);
   --shadow: 0 1px 2px rgba(60, 40, 24, 0.04), 0 8px 24px rgba(80, 55, 30, 0.07);
   --shadow-lg: 0 12px 40px rgba(70, 45, 25, 0.16);
+
+  /* Échelle typographique : une suite délibérée plutôt qu'une douzaine de
+     tailles ad hoc semées par composant. */
+  --text-xs: 0.72rem;
+  --text-sm: 0.8rem;
+  --text-base: 0.9rem;
+  --text-md: 1rem;
+  --text-lg: 1.15rem;
+
+  /* Tuile carrée (badges d'icône, empty-state, etc.) + lavis d'accent gradués. */
+  --radius-tile: 13px;
+  --tint-1: color-mix(in srgb, var(--accent) 8%, transparent);
+  --tint-2: color-mix(in srgb, var(--accent) 14%, transparent);
+  --tint-3: color-mix(in srgb, var(--accent) 22%, transparent);
+
+  /* Durée/courbe d'animation partagées (une seule convention de survol). */
+  --dur: 0.16s;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -71,6 +94,7 @@
   --lilac: #352f40;
   --butter: #3c3422;
 
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.25);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
@@ -153,7 +177,7 @@ html, body { overflow-x: clip; }
 
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; line-height: 1.15; margin: 0; color: var(--ink); }
 h1 { font-size: clamp(1.7rem, 3vw, 2.4rem); letter-spacing: -0.01em; }
-h2 { font-size: 1.3rem; }
+h2 { font-size: clamp(1.2rem, 2.2vw, 1.45rem); }
 h3 { font-size: 1.05rem; }
 p { margin: 0; }
 a { color: var(--accent-ink); text-decoration: none; }
@@ -185,9 +209,9 @@ a:hover { text-decoration: underline; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow); }
 .btn-primary:hover { background: var(--accent-ink); }
-.btn-ghost { background: transparent; color: var(--ink); border-color: var(--border-strong); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--border-strong); font-weight: 500; }
 .btn-ghost:hover { background: var(--surface-2); }
-.btn-soft { background: var(--surface-2); color: var(--ink); }
+.btn-soft { background: var(--surface-2); color: var(--ink); font-weight: 500; }
 .btn-soft:hover { background: var(--bg-2); }
 .btn-danger { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
 .btn-danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
@@ -198,11 +222,14 @@ a:hover { text-decoration: underline; }
    le flexbox du bouton (cas des boutons ronds .btn-icon, sur mobile notamment :
    Chrome/Safari réduisent sinon un <svg> enfant de flex sans largeur CSS). */
 .btn svg { flex: none; }
+.btn:focus-visible, .btn-icon:focus-visible, .chip-pick:focus-visible, .swatch:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
 
 /* ── Cards / panels ───────────────────────────────────────────────────── */
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--shadow); padding: var(--space-5);
+  box-shadow: var(--shadow-sm); padding: var(--space-5);
 }
 .card-pad-sm { padding: var(--space-4); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
@@ -246,13 +273,33 @@ a:hover { text-decoration: underline; }
 .brand-name { font-family: var(--font-display); font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em; }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-link {
-  display: flex; align-items: center; gap: var(--space-3); padding: 0.55rem 0.7rem; border-radius: 12px;
-  color: var(--ink-2); font-weight: 500; font-size: 0.92rem; cursor: pointer; text-decoration: none;
+  position: relative; display: flex; align-items: center; gap: var(--space-3); padding: 0.55rem 0.7rem; border-radius: 12px;
+  color: var(--ink-2); font-weight: 500; font-size: var(--text-base); cursor: pointer; text-decoration: none;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .nav-link:hover { background: var(--surface-2); text-decoration: none; }
-.nav-link.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-weight: 600; }
+/* Actif = « sélectionné » (lavis d'accent + repère à gauche), pas « surélevé » :
+   plus de carte flottante qui ressort durement parmi des voisins plats. */
+.nav-link.active { background: var(--tint-2); color: var(--ink); font-weight: 600; }
+.nav-link.active::before {
+  content: ""; position: absolute; left: -2px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; border-radius: 0 3px 3px 0; background: var(--accent);
+}
 .nav-link .ic { font-size: 1.1rem; width: 1.4rem; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .nav-link.active .ic { color: var(--accent-ink); }
+.nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* « Plus / Moins » : repli discret de la longue traîne de la barre latérale. */
+.nav-more {
+  display: flex; align-items: center; gap: var(--space-3); padding: 0.5rem 0.7rem; border-radius: 12px;
+  color: var(--muted); font-weight: 500; font-size: var(--text-sm); cursor: pointer; text-align: left;
+  background: none; border: none; font-family: var(--font-body); width: 100%;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.nav-more:hover { background: var(--surface-2); color: var(--ink-2); }
+.nav-more .ic { width: 1.4rem; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.nav-more-chevron { margin-left: auto; display: inline-flex; transition: transform var(--dur) var(--ease); }
+.nav-more-chevron.open { transform: rotate(90deg); }
 .nav-section { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 0.7rem; margin-top: var(--space-2); }
 
 .main { display: flex; flex-direction: column; min-width: 0; }
@@ -265,6 +312,17 @@ a:hover { text-decoration: underline; }
   z-index: 20; border-bottom: 1px solid var(--border);
 }
 .content { padding: var(--space-6); max-width: 1180px; width: 100%; margin: 0 auto; }
+
+/* Titre de la page courante dans la barre du haut (desktop) : remplit le vide
+   qui régnait à droite de la cloche et ancre le repère « où suis-je ». La cloche
+   passe à droite (convention universelle). */
+.topbar-title {
+  flex: 1; font-family: var(--font-display); font-weight: 600; font-size: var(--text-md);
+  color: var(--ink); letter-spacing: -0.01em; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 900px) { .topbar-title { display: none; } }
+
 .page-head { margin-bottom: var(--space-5); }
 .page-head .eyebrow { color: var(--accent-ink); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
 
@@ -333,7 +391,8 @@ a:hover { text-decoration: underline; }
 
 /* ── Dashboard widgets grid ───────────────────────────────────────────── */
 .widget-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-4); }
-.widget { grid-column: span 2; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--space-4); display: flex; flex-direction: column; min-height: 150px; }
+.widget { grid-column: span 2; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: var(--space-4); display: flex; flex-direction: column; min-height: 150px; transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease); }
+.widget:hover { box-shadow: var(--shadow); }
 .widget.size-sm { grid-column: span 2; }
 .widget.size-md { grid-column: span 3; }
 .widget.size-lg { grid-column: span 6; }
@@ -343,6 +402,20 @@ a:hover { text-decoration: underline; }
 .widget-drag { cursor: grab; color: var(--muted); opacity: 0; transition: opacity 0.15s; }
 .widget:hover .widget-drag { opacity: 1; }
 .widget.dragging { opacity: 0.5; }
+/* Retrait d'un widget : discret par défaut (édition = rangement, pas suppression
+   agressive), rouge seulement au survol/focus. */
+.widget-remove { background: var(--surface-2); color: var(--muted); }
+.widget-remove:hover, .widget-remove:focus-visible {
+  background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger);
+}
+
+/* Emoji d'accueil optionnel : isolé dans un span pour ne pas perturber les
+   métriques de la police d'affichage du H1. */
+.greeting-emoji { font-size: 0.85em; margin-left: 0.3em; font-family: var(--font-body); }
+
+/* Actions de compte (thème / installer / déconnexion) : icônes sur une seule
+   ligne, jamais de retour à la ligne. */
+.sidebar-actions { flex-wrap: nowrap; }
 
 /* ── Generic content grids ────────────────────────────────────────────── */
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4); }
@@ -375,6 +448,19 @@ a:hover { text-decoration: underline; }
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+/* ── Divulgation progressive (« Plus d'options », sections avancées) ────────
+   Bouton sobre qui déplie un bloc — garde les écrans légers à la première
+   lecture sans rien retirer. Réutilisé sur les modales de création, l'ajout
+   d'inspiration, la page Personnalisation… */
+.disclosure-toggle {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0.3rem 0; background: none; border: none;
+  cursor: pointer; color: var(--accent-ink); font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm);
+}
+.disclosure-toggle:hover { text-decoration: underline; }
+.disclosure-toggle .chev { display: inline-flex; transition: transform var(--dur) var(--ease); }
+.disclosure-toggle .chev.open { transform: rotate(90deg); }
+.disclosure-body { animation: rise 0.2s var(--ease) both; }
+
 /* ── Soldes (dépenses partagées) ──────────────────────────────────────── */
 .amount-pos { color: var(--ok); font-weight: 700; }
 .amount-neg { color: var(--danger); font-weight: 700; }
@@ -398,7 +484,8 @@ a:hover { text-decoration: underline; }
   font-weight: 600; font-size: 0.85rem; transition: background 0.15s ease, color 0.15s ease;
 }
 .seg-item:hover { color: var(--ink); }
-.seg-item.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.seg-item.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+.seg-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .seg-badge {
   font-size: 0.68rem; font-weight: 700; line-height: 1; padding: 2px 6px; border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink);
@@ -521,6 +608,14 @@ body { overscroll-behavior-y: none; }
 .landing-authwrap { animation: rise 0.6s ease 0.1s both; }
 .landing-authwrap .auth-card { max-width: 420px; margin-left: auto; }
 
+/* Bandeau de confiance compact, sous la carte d'inscription. */
+.landing-trust {
+  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); justify-content: center;
+  max-width: 420px; margin: var(--space-4) auto 0;
+}
+.landing-trust span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
+.landing-trust svg { color: var(--accent-ink); }
+
 .landing-section-title { font-size: clamp(1.4rem, 4vw, 2rem); margin-bottom: var(--space-5); }
 .landing-features, .landing-why { max-width: 1120px; margin: 0 auto; padding: var(--space-6) clamp(var(--space-4), 5vw, var(--space-7)); }
 .landing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
@@ -625,13 +720,13 @@ body { overscroll-behavior-y: none; }
 }
 .note-suggest-chip {
   display: inline-flex; align-items: center; gap: 5px; padding: 0.28rem 0.6rem;
-  border-radius: 999px; border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-  background: color-mix(in srgb, #fff 55%, transparent); color: var(--ink);
-  font-size: 0.76rem; font-weight: 600; cursor: pointer; font-family: var(--font-body);
-  transition: transform 0.12s, background 0.12s, border-color 0.12s;
+  border-radius: 999px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--ink);
+  font-size: var(--text-xs); font-weight: 600; cursor: pointer; font-family: var(--font-body);
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 .note-suggest-chip:hover {
-  background: #fff; border-color: var(--accent); transform: translateY(-1px);
+  background: var(--surface-2); border-color: var(--accent); transform: translateY(-1px);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -704,7 +799,8 @@ body { overscroll-behavior-y: none; }
     padding-left: calc(env(safe-area-inset-left, 0px) + var(--space-4));
     padding-right: calc(env(safe-area-inset-right, 0px) + var(--space-4));
   }
-  .topbar-brand { display: flex; }
+  /* Mobile : marque centrée entre le menu (gauche) et la cloche (droite). */
+  .topbar-brand { display: flex; flex: 1; justify-content: center; }
 
   /* Sidebar off-canvas : on respecte aussi les encoches */
   .sidebar { padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-5)); }
@@ -740,9 +836,13 @@ body { overscroll-behavior-y: none; }
   .nav-link { padding: 0.7rem 0.7rem; }
   .notif-x { width: 40px; height: 40px; }
 
-  /* Landing : une colonne, carte d'auth en premier visuellement after pitch */
+  /* Landing : une colonne. La carte d'inscription remonte juste sous le titre
+     (la longue traîne — listes à puces, doubles CTA — est masquée sur mobile
+     pour aller droit au but, elle reste visible plus bas dans les sections). */
   .landing-hero { grid-template-columns: 1fr; }
+  .landing-hero-extra { display: none; }
   .landing-authwrap .auth-card { margin: 0 auto; }
+  .landing-trust { margin-left: auto; margin-right: auto; }
   .landing-grid, .landing-grid-3 { grid-template-columns: 1fr 1fr; }
   .landing-nav-cta { display: none; }
 
@@ -929,6 +1029,7 @@ body { overscroll-behavior-y: none; }
   --ink-2: #424a55;
   --muted: #69717c;
   --radius: 14px; --radius-sm: 10px; --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(18, 26, 38, 0.07), 0 1px 3px rgba(18, 26, 38, 0.06);
   --shadow: 0 1px 2px rgba(18, 26, 38, 0.06), 0 10px 30px rgba(18, 26, 38, 0.10);
   --shadow-lg: 0 16px 48px rgba(14, 20, 30, 0.22);
 }
@@ -942,6 +1043,7 @@ body { overscroll-behavior-y: none; }
   --ink: #eef1f5;
   --ink-2: #b9c2cd;
   --muted: #7e8a98;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 36px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 18px 56px rgba(0, 0, 0, 0.7);
 }
@@ -959,6 +1061,7 @@ body { overscroll-behavior-y: none; }
   --ink-2: #4a463f;
   --muted: #837d73;
   --radius: 6px; --radius-sm: 4px; --radius-lg: 10px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.12);
 }

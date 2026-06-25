@@ -207,7 +207,7 @@ function EmailSettingsCard() {
 
   const test = useMutation({
     mutationFn: () => api.adminTestEmail(notifyEmail.trim() || undefined),
-    onSuccess: () => toast.push("E-mail de test envoyé ✓"),
+    onSuccess: () => toast.push("E-mail de test envoyé"),
     onError: (e: any) => toast.push(e.message || "Échec de l'envoi", true),
   });
 

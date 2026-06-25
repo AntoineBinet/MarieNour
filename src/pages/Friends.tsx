@@ -54,6 +54,12 @@ export default function Friends() {
     queryFn: () => api.friends(),
   });
 
+  // Partage la même clé que PollsPanel (pas de requête en double) : sert juste à
+  // savoir s'il existe déjà des sondages, pour ne pas les cacher à un membre sans
+  // amis (sondage qu'il a créé, ou reçu en public/partagé).
+  const pollsQ = useQuery({ queryKey: ["polls"], queryFn: () => api.polls() });
+  const hasPolls = (pollsQ.data?.polls?.length ?? 0) > 0;
+
   const search = useQuery({
     queryKey: ["search-users", q],
     queryFn: () => api.searchUsers(q),
@@ -160,16 +166,30 @@ export default function Friends() {
 
       {isLoading ? (
         <Spinner />
+      ) : friends.length === 0 && incoming.length === 0 && outgoing.length === 0 ? (
+        /* Compte tout neuf : une seule carte accueillante, pas quatre boîtes
+           vides empilées. */
+        <div className="card">
+          <EmptyState
+            icon="friends"
+            title="Construis ton cercle"
+            hint="Recherche un proche ci-dessus, ou invite quelqu'un d'un simple lien ou QR code — même s'il n'a pas encore de compte."
+            action={
+              <div className="row gap-2 wrap" style={{ justifyContent: "center" }}>
+                <InviteLink kind="friend" variant="primary">Inviter par lien</InviteLink>
+                <InviteQr kind="friend" variant="soft">QR code</InviteQr>
+              </div>
+            }
+          />
+        </div>
       ) : (
         <div className="col gap-4">
-          {/* ── Demandes reçues ──────────────────────────────────────── */}
-          <section className="card">
-            <div className="panel-head">
-              <h2>Demandes reçues {incoming.length > 0 && <span className="chip">{incoming.length}</span>}</h2>
-            </div>
-            {incoming.length === 0 ? (
-              <EmptyState icon="bell" title="Aucune demande" hint="Les invitations reçues apparaîtront ici." />
-            ) : (
+          {/* ── Demandes reçues (seulement s'il y en a) ──────────────── */}
+          {incoming.length > 0 && (
+            <section className="card">
+              <div className="panel-head">
+                <h2>Demandes reçues <span className="chip">{incoming.length}</span></h2>
+              </div>
               <div className="col gap-3">
                 {incoming.map((f) => (
                   <div key={f.id} className="row" style={{ justifyContent: "space-between" }}>
@@ -191,17 +211,15 @@ export default function Friends() {
                   </div>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          )}
 
-          {/* ── En attente ───────────────────────────────────────────── */}
-          <section className="card">
-            <div className="panel-head">
-              <h2>En attente {outgoing.length > 0 && <span className="chip">{outgoing.length}</span>}</h2>
-            </div>
-            {outgoing.length === 0 ? (
-              <EmptyState icon="clock" title="Aucune demande en attente" hint="Tes invitations envoyées apparaîtront ici." />
-            ) : (
+          {/* ── En attente (seulement s'il y en a) ───────────────────── */}
+          {outgoing.length > 0 && (
+            <section className="card">
+              <div className="panel-head">
+                <h2>En attente <span className="chip">{outgoing.length}</span></h2>
+              </div>
               <div className="col gap-3">
                 {outgoing.map((f) => (
                   <div key={f.id} className="row" style={{ justifyContent: "space-between" }}>
@@ -218,17 +236,15 @@ export default function Friends() {
                   </div>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          )}
 
           {/* ── Mes amis ─────────────────────────────────────────────── */}
-          <section className="card">
-            <div className="panel-head">
-              <h2>Mes amis {friends.length > 0 && <span className="chip">{friends.length}</span>}</h2>
-            </div>
-            {friends.length === 0 ? (
-              <EmptyState icon="friends" title="Pas encore d'amis" hint="Recherche quelqu'un ci-dessus pour l'ajouter." />
-            ) : (
+          {friends.length > 0 ? (
+            <section className="card">
+              <div className="panel-head">
+                <h2>Mes amis <span className="chip">{friends.length}</span></h2>
+              </div>
               <div className="grid-cards">
                 {friends.map((f) => (
                   <div key={f.id} className="card card-pad-sm row" style={{ justifyContent: "space-between" }}>
@@ -245,15 +261,23 @@ export default function Friends() {
                   </div>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          ) : (
+            <section className="card">
+              <EmptyState icon="friends" title="Pas encore d'amis" hint="Recherche quelqu'un ci-dessus pour l'ajouter." />
+            </section>
+          )}
         </div>
       )}
 
-      {/* ── Sondages ───────────────────────────────────────────────────── */}
-      <div style={{ marginTop: "var(--space-6)" }}>
-        <PollsPanel />
-      </div>
+      {/* ── Sondages : visibles dès qu'on a un ami OU qu'il existe déjà des
+          sondages (créés, ou reçus en public/partagé). On garde la page d'un
+          compte tout neuf épurée sans jamais masquer un sondage existant. ── */}
+      {(friends.length > 0 || hasPolls) && (
+        <div style={{ marginTop: "var(--space-6)" }}>
+          <PollsPanel />
+        </div>
+      )}
 
       {confirmNode}
     </div>

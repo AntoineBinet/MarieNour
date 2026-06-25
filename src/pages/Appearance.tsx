@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
-import { Field, Spinner, useToast } from "../ui";
+import { Field, Spinner, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { applyAppearance } from "../theme";
 import { buildGreeting } from "../greeting";
@@ -143,9 +143,13 @@ function SectionHead({ icon, title, sub }: { icon: IconName; title: string; sub:
 export default function Appearance() {
   const { user, setUser } = useAuth();
   const toast = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const [accent, setAccent] = useState(user?.accent || "terracotta");
   const [prefs, setPrefs] = useState<UserPrefs>(user?.prefs || {});
+  // Les réglages fins (fond, typo, formes, accessibilité) sont repliés : on ne
+  // présente d'emblée que l'essentiel (style, accueil, thème, couleur).
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Applique l'apparence en direct sur toute l'app à chaque changement.
   useEffect(() => {
@@ -185,7 +189,9 @@ export default function Appearance() {
   const pickAccent = (key: string) => { setAccent(key); schedule(); };
   const pickCustom = (hex: string) => { setAccent("custom"); setPrefs((p) => ({ ...p, accent_custom: hex })); schedule(); };
 
-  const reset = () => {
+  const reset = async () => {
+    const ok = await confirm("Remettre toute l'apparence à zéro (thème, couleur, typo, accueil…) ?");
+    if (!ok) return;
     setAccent("terracotta");
     setPrefs({});
     if (timer.current) clearTimeout(timer.current);
@@ -200,13 +206,10 @@ export default function Appearance() {
 
   return (
     <div>
-      <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
-        <div>
-          <p className="eyebrow">À ton image</p>
-          <h1 className="row gap-2">Personnalisation <Icon name="palette" size={22} /></h1>
-          <p className="muted">Habille l'app à ton goût et choisis comment elle s'adresse à toi. Tout est appliqué et enregistré automatiquement.</p>
-        </div>
-        <button className="btn btn-soft" onClick={reset}><Icon name="repeat" size={16} /> Réinitialiser</button>
+      <div className="page-head">
+        <p className="eyebrow">À ton image</p>
+        <h1 className="row gap-2">Personnalisation <Icon name="palette" size={22} /></h1>
+        <p className="muted">Habille l'app à ton goût et choisis comment elle s'adresse à toi. Tout est appliqué et enregistré automatiquement.</p>
       </div>
 
       <div className="appr-layout">
@@ -355,6 +358,22 @@ export default function Appearance() {
             )}
           </section>
 
+          {/* ── Réglages avancés (repliés par défaut) ────────────────────── */}
+          <div className="appr-section">
+            <button
+              type="button"
+              className="disclosure-toggle"
+              style={{ fontSize: "var(--text-base)" }}
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-expanded={showAdvanced}
+            >
+              <span className={`chev${showAdvanced ? " open" : ""}`}><Icon name="arrowRight" size={15} /></span>
+              {showAdvanced ? "Masquer les réglages avancés" : "Réglages avancés (fond, typo, formes, accessibilité)"}
+            </button>
+          </div>
+
+          {showAdvanced && (
+          <div className="disclosure-body">
           {/* ── Ambiance / fond ──────────────────────────────────────────── */}
           <section className="card appr-section">
             <SectionHead icon="image" title="Ambiance de fond" sub="Un décor discret derrière toute l'app." />
@@ -442,11 +461,18 @@ export default function Appearance() {
               hint="Limite les transitions et effets de mouvement."
             />
           </section>
+          </div>
+          )}
 
-          <p className="muted small" style={{ marginTop: "var(--space-4)" }}>
-            Tes réglages sont enregistrés automatiquement et te suivent sur tous tes appareils. Besoin d'aide&nbsp;?{" "}
-            <Link to="/aide">Voir le centre d'aide</Link>.
-          </p>
+          <div className="row wrap" style={{ justifyContent: "space-between", gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
+            <p className="muted small" style={{ margin: 0, maxWidth: "44ch" }}>
+              Tes réglages sont enregistrés automatiquement et te suivent sur tous tes appareils. Besoin d'aide&nbsp;?{" "}
+              <Link to="/aide">Voir le centre d'aide</Link>.
+            </p>
+            <button className="btn btn-soft btn-sm" onClick={reset}>
+              <Icon name="repeat" size={15} /> Tout réinitialiser
+            </button>
+          </div>
         </div>
 
         {/* ── Aperçu en direct ───────────────────────────────────────────── */}
@@ -481,6 +507,7 @@ export default function Appearance() {
           </div>
         </aside>
       </div>
+      {confirmNode}
     </div>
   );
 }

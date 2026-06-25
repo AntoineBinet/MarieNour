@@ -133,8 +133,8 @@ export default function Expenses() {
         <div className="card">
           <EmptyState
             icon="expenses"
-            title="Aucun groupe de dépenses"
-            hint="Crée un groupe pour partager les frais d'un voyage, d'une coloc ou d'une soirée."
+            title="Partage tes premières dépenses"
+            hint="Crée un groupe pour partager les frais d'un voyage, d'une coloc ou d'une soirée — et règle les comptes sans prise de tête."
             action={
               <button className="btn btn-primary" onClick={() => setCreating(true)}>
                 <Icon name="plus" size={16} /> Nouveau groupe

@@ -246,6 +246,10 @@ function InboxTab() {
   const [visibility, setVisibility] = useState<Visibility>("private");
   const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [keeping, setKeeping] = useState<Inspiration | null>(null);
+  // Le formulaire d'ajout est replié par défaut : la boîte (ou son état vide)
+  // mène la page, on ne l'ouvre que quand on veut vraiment ajouter.
+  const [adding, setAdding] = useState(false);
+  const [moreFields, setMoreFields] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["inspirations", { status: "inbox" }],
@@ -306,35 +310,57 @@ function InboxTab() {
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-        <div className="panel-head">
-          <h2>Ajout rapide</h2>
+      {!adding ? (
+        <div className="row" style={{ marginBottom: "var(--space-5)" }}>
+          <button className="btn btn-primary" onClick={() => setAdding(true)}>
+            <Icon name="plus" size={15} /> Ajouter une inspiration
+          </button>
         </div>
-        <div className="col gap-3">
-          <div className="row gap-3 wrap">
-            <input className="input grow" style={{ minWidth: 200 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Lien (Instagram, TikTok, Pinterest…)" />
-            <select className="select" style={{ width: "auto" }} value={source} onChange={(e) => setSource(e.target.value)}>
-              {SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="row gap-3 wrap">
-            <input className="input grow" style={{ minWidth: 160 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre (optionnel)" />
-            <input className="input grow" style={{ minWidth: 160 }} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL (optionnel)" />
-          </div>
-          <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une note pour te souvenir pourquoi ça t'a plu…" />
-          <Field label="Visibilité">
-            <VisibilityField value={visibility} sharedWith={sharedWith}
-              onChange={setVisibility} onSharedWithChange={setSharedWith} />
-          </Field>
-          <div className="row" style={{ justifyContent: "flex-end" }}>
-            <button className="btn btn-primary" onClick={submit} disabled={add.isPending}>
-              {add.isPending ? "…" : "Ajouter à la boîte"}
+      ) : (
+        <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+          <div className="panel-head">
+            <h2>Ajout rapide</h2>
+            <button className="btn btn-icon btn-soft btn-sm" onClick={() => setAdding(false)} aria-label="Fermer">
+              <Icon name="close" size={15} />
             </button>
           </div>
+          <div className="col gap-3">
+            <div className="row gap-3 wrap">
+              <input className="input grow" style={{ minWidth: 200 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Lien (Instagram, TikTok, Pinterest…)" autoFocus />
+              <select className="select" style={{ width: "auto" }} value={source} onChange={(e) => setSource(e.target.value)}>
+                {SOURCES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {!moreFields ? (
+              <button type="button" className="disclosure-toggle" onClick={() => setMoreFields(true)}>
+                <span className="chev"><Icon name="arrowRight" size={14} /></span>
+                Plus d'options (titre, image, note, visibilité)
+              </button>
+            ) : (
+              <div className="disclosure-body col gap-3">
+                <div className="row gap-3 wrap">
+                  <input className="input grow" style={{ minWidth: 160 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre (optionnel)" />
+                  <input className="input grow" style={{ minWidth: 160 }} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL (optionnel)" />
+                </div>
+                <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une note pour te souvenir pourquoi ça t'a plu…" />
+                <Field label="Visibilité">
+                  <VisibilityField value={visibility} sharedWith={sharedWith}
+                    onChange={setVisibility} onSharedWithChange={setSharedWith} />
+                </Field>
+              </div>
+            )}
+
+            <div className="row" style={{ justifyContent: "flex-end" }}>
+              <button className="btn btn-primary" onClick={submit} disabled={add.isPending}>
+                {add.isPending ? "…" : "Ajouter à la boîte"}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {isLoading ? (
         <Spinner />
@@ -462,15 +488,19 @@ export default function Inspiration() {
         </div>
       </div>
 
-      <div className="row gap-2 wrap" style={{ marginBottom: "var(--space-5)" }}>
+      <div className="seg seg-scroll" role="tablist" aria-label="Vue inspiration" style={{ marginBottom: "var(--space-5)" }}>
         <button
-          className={`btn ${tab === "inbox" ? "btn-primary" : "btn-soft"}`}
+          className={`seg-item${tab === "inbox" ? " active" : ""}`}
+          role="tab"
+          aria-selected={tab === "inbox"}
           onClick={() => setTab("inbox")}
         >
           <Icon name="archive" size={15} /> À trier
         </button>
         <button
-          className={`btn ${tab === "boards" ? "btn-primary" : "btn-soft"}`}
+          className={`seg-item${tab === "boards" ? " active" : ""}`}
+          role="tab"
+          aria-selected={tab === "boards"}
           onClick={() => setTab("boards")}
         >
           <Icon name="grid" size={15} /> Mes tableaux
