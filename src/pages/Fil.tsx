@@ -431,7 +431,7 @@ function AddMemoryModal({
       }
     },
     onSuccess: () => {
-      toast.push("Souvenir ajouté ✨");
+      toast.push("Souvenir ajouté");
       if (filePreview) URL.revokeObjectURL(filePreview);
       onSaved();
     },

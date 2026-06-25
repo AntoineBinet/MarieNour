@@ -53,7 +53,7 @@ function SortableWidget({
               <option value="lg">L</option>
             </select>
             <button className="btn btn-icon btn-soft btn-sm" {...attributes} {...listeners} aria-label="Déplacer"><Icon name="dots" size={15} /></button>
-            <button className="btn btn-icon btn-danger btn-sm" onClick={() => onRemove(widget.id)} aria-label="Retirer"><Icon name="close" size={15} /></button>
+            <button className="btn btn-icon btn-sm widget-remove" onClick={() => onRemove(widget.id)} aria-label="Retirer"><Icon name="close" size={15} /></button>
           </div>
         ) : null}
       </div>
@@ -96,11 +96,14 @@ export default function Dashboard() {
   const seed = useMutation({
     mutationFn: async () => {
       await api.seedStarter().catch(() => {});
-      for (const t of ["lists", "trips", "events", "notes", "expenses"]) await api.addWidget(t).catch(() => {});
+      // Démarrage calme : seulement 3 widgets, tous adossés à du contenu réel
+      // semé côté serveur (listes, note de bienvenue, week-end). Le reste se
+      // découvre via « Ajouter » et la carte « Premiers pas ».
+      for (const t of ["lists", "notes", "trips"]) await api.addWidget(t).catch(() => {});
     },
     onSuccess: () => {
       qc.invalidateQueries();
-      toast.push("Ton espace est prêt");
+      toast.push("Ton espace est prêt — déplace ou retire un widget quand tu veux");
     },
   });
 
@@ -115,24 +118,38 @@ export default function Dashboard() {
   };
 
   const greeting = buildGreeting(user);
+  const isEmpty = !isLoading && widgets.length === 0;
 
   return (
     <div>
       <div className="page-head row wrap" style={{ justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">Ton atelier</p>
-          <h1>{greeting.text}{greeting.emoji ? ` ${greeting.emoji}` : ""}</h1>
-          <p className="muted">Tout ce que tu gardes, planifies et partages, au même endroit.</p>
+          <h1>
+            {greeting.text}
+            {greeting.emoji ? <span className="greeting-emoji">{greeting.emoji}</span> : null}
+          </h1>
+          {/* Sur un compte tout neuf, la carte d'accueil porte déjà le message :
+              on ne le répète pas ici pour éviter deux titres de bienvenue. */}
+          {!isEmpty && <p className="muted">Tout ce que tu gardes, planifies et partages, au même endroit.</p>}
         </div>
-        <div className="row gap-2">
-          <button className="btn btn-soft" onClick={() => setEditing((v) => !v)}>
-            <Icon name={editing ? "check" : "edit"} size={16} /> {editing ? "Terminé" : "Personnaliser"}
-          </button>
-          <button className="btn btn-primary" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Ajouter</button>
-        </div>
+        {/* « Personnaliser » (réorganiser/redimensionner) n'a aucun sens tant
+            qu'il n'y a rien à réorganiser : on n'affiche les actions qu'une fois
+            au moins un widget présent. */}
+        {!isEmpty && (
+          <div className="row gap-2">
+            <button className="btn btn-soft" onClick={() => setEditing((v) => !v)}>
+              <Icon name={editing ? "check" : "edit"} size={16} /> {editing ? "Terminé" : "Personnaliser"}
+            </button>
+            <button className="btn btn-primary" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Ajouter</button>
+          </div>
+        )}
       </div>
 
-      <FirstSteps />
+      {/* Une seule surface d'accueil à la fois : la carte « Premiers pas » n'arrive
+          qu'une fois l'espace amorcé (au moins un widget), jamais en même temps
+          que la grande carte de bienvenue. */}
+      {!isEmpty && <FirstSteps />}
 
       {isLoading ? (
         <Spinner />

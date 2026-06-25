@@ -94,7 +94,7 @@ export default function EventDetail() {
   const addDate = useM<{ day_date: string; start_time?: string; end_time?: string }>((b) => api.addEventDate(id, b), "Date proposée");
   const removeDate = useM<string>((oid) => api.removeEventDate(id, oid));
   const voteDate = useM<{ oid: string; vote: DateVote }>(({ oid, vote }) => api.voteEventDate(id, oid, vote));
-  const decideDate = useM<string>((oid) => api.decideEventDate(id, oid), "Date fixée 🎉");
+  const decideDate = useM<string>((oid) => api.decideEventDate(id, oid), "Date fixée");
   const addTask = useM<{ title: string; assignee_id?: string }>((b) => api.addEventTask(id, b), "Tâche ajoutée");
   const updateTask = useM<{ tid: string; b: Partial<{ done: boolean; assignee_id: string | null }> }>(({ tid, b }) => api.updateEventTask(id, tid, b));
   const removeTask = useM<string>((tid) => api.removeEventTask(id, tid));
@@ -565,7 +565,7 @@ export default function EventDetail() {
                     )}
                     {myGuest && (
                       <button className={`btn btn-sm ${mineClaimed ? "btn-primary" : "btn-soft"}`} onClick={() => claimBring.mutate(b.id)}>
-                        {mineClaimed ? "Je m'en occupe ✓" : "Je m'en charge"}
+                        {mineClaimed ? "Je m'en occupe" : "Je m'en charge"}
                       </button>
                     )}
                     {canEdit && (

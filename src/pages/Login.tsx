@@ -50,6 +50,8 @@ function AuthCard({
   const [error, setError] = useState(initialError);
   const [notice, setNotice] = useState(initialNotice);
   const [busy, setBusy] = useState(false);
+  // Question du style (sexe) repliée : surtout pas le 2ᵉ champ qu'un inconnu voit.
+  const [showStyle, setShowStyle] = useState(false);
   // Compte créé en attente d'activation (membre) → on affiche l'écran « vérifie ta boîte mail ».
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   // E-mail pour lequel proposer un renvoi du lien (échec de connexion « non activé »).
@@ -105,7 +107,9 @@ function AuthCard({
   if (pendingEmail) {
     return (
       <div className="auth-card card" id="auth">
-        <h3 style={{ marginTop: 0, marginBottom: "var(--space-2)" }}>Vérifie ta boîte mail 📬</h3>
+        <h3 style={{ marginTop: 0, marginBottom: "var(--space-2)" }}>
+          <Icon name="bell" size={18} style={{ verticalAlign: "-3px", marginRight: 6 }} /> Vérifie ta boîte mail
+        </h3>
         <p className="small">
           On a envoyé un lien d'activation à <strong>{pendingEmail}</strong>. Clique dessus pour activer ton compte, puis connecte-toi.
         </p>
@@ -151,33 +155,42 @@ function AuthCard({
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Marie-Nour" required />
           </Field>
         )}
-        {mode === "register" && (
-          <div className="field">
-            <label className="label">Tu es…</label>
-            <div className="seg seg-gender" role="group" aria-label="Sexe">
-              {GENDERS.map((g) => (
-                <button
-                  key={g.key}
-                  type="button"
-                  className={`seg-item${gender === g.key ? " active" : ""}`}
-                  aria-pressed={gender === g.key}
-                  onClick={() => setGender((cur) => (cur === g.key ? "" : g.key))}
-                >
-                  {g.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted small" style={{ marginTop: 4 }}>
-              Facultatif&nbsp;: ça nous aide à choisir un style de départ. Tout reste personnalisable ensuite.
-            </p>
-          </div>
-        )}
         <Field label="Email">
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@email.com" required autoComplete="email" />
         </Field>
         <Field label="Mot de passe">
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={mode === "login" ? "current-password" : "new-password"} />
         </Field>
+        {mode === "register" && (
+          <div className="field">
+            {!showStyle ? (
+              <button type="button" className="disclosure-toggle" onClick={() => setShowStyle(true)}>
+                <span className="chev"><Icon name="arrowRight" size={14} /></span>
+                Personnaliser le style de départ (facultatif)
+              </button>
+            ) : (
+              <div className="disclosure-body">
+                <label className="label">Tu es…</label>
+                <div className="seg seg-gender" role="group" aria-label="Sexe">
+                  {GENDERS.map((g) => (
+                    <button
+                      key={g.key}
+                      type="button"
+                      className={`seg-item${gender === g.key ? " active" : ""}`}
+                      aria-pressed={gender === g.key}
+                      onClick={() => setGender((cur) => (cur === g.key ? "" : g.key))}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="muted small" style={{ marginTop: 4 }}>
+                  Ça nous aide juste à choisir un style de départ. Tout reste personnalisable ensuite.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {notice && <p style={{ color: "var(--ok, #2f855a)", marginTop: "var(--space-3)" }} className="small">{notice}</p>}
         {error && <p style={{ color: "var(--danger)", marginTop: "var(--space-3)" }} className="small">{error}</p>}
@@ -222,7 +235,7 @@ export default function Login() {
   const verifyError = params.get("error") === "invalid_token";
   // Après un clic sur le lien d'activation, on force l'onglet « Connexion ».
   const initialMode: "login" | "register" = !verified && params.get("mode") === "register" ? "register" : "login";
-  const initialNotice = verified ? "E-mail vérifié ✓ Tu peux maintenant te connecter." : "";
+  const initialNotice = verified ? "E-mail vérifié. Tu peux maintenant te connecter." : "";
   const initialError = verifyError ? "Lien de vérification invalide ou expiré. Connecte-toi pour en recevoir un nouveau." : "";
 
   if (user) navigate(redirectTo, { replace: true });
@@ -247,19 +260,28 @@ export default function Login() {
             Budget, voyages, listes, recettes, photos et dépenses entre amis. Une seule app, élégante et privée,
             pensée d'abord pour <strong>toi</strong> — et pour les moments partagés.
           </p>
-          <ul className="landing-bullets">
-            {FEATURES.slice(0, 4).map((f) => (
-              <li key={f.title}><span className="landing-bullet-ic"><Icon name={f.icon} size={16} /></span>{f.title}</li>
-            ))}
-          </ul>
-          <div className="row gap-2 wrap">
-            <button className="btn btn-primary" onClick={goAuth}><Icon name="rocket" size={16} /> Créer mon compte</button>
-            <a className="btn btn-ghost" href="#features">Découvrir</a>
+          {/* Liste à puces + doubles CTA : repliées sur mobile (la carte
+              d'inscription remonte alors juste sous le titre). */}
+          <div className="landing-hero-extra">
+            <ul className="landing-bullets">
+              {FEATURES.slice(0, 3).map((f) => (
+                <li key={f.title}><span className="landing-bullet-ic"><Icon name={f.icon} size={16} /></span>{f.title}</li>
+              ))}
+            </ul>
+            <div className="row gap-2 wrap">
+              <button className="btn btn-primary" onClick={goAuth}><Icon name="rocket" size={16} /> Créer mon compte</button>
+              <a className="btn btn-ghost" href="#features">Découvrir</a>
+            </div>
           </div>
         </div>
 
         <div className="landing-authwrap">
           <AuthCard initialMode={initialMode} redirectTo={redirectTo} initialNotice={initialNotice} initialError={initialError} />
+          <div className="landing-trust">
+            <span><Icon name="lock" size={14} /> Privé par défaut</span>
+            <span><Icon name="heart" size={14} /> Sans pub</span>
+            <span><Icon name="key" size={14} /> Tes données t'appartiennent</span>
+          </div>
         </div>
       </section>
 

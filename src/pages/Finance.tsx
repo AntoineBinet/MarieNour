@@ -1068,7 +1068,7 @@ function TxModal({
     mutationFn: () => api.seedFinanceDefaults(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["finance"] });
-      toast.push("Budget configuré ✓");
+      toast.push("Budget configuré");
     },
     onError: (e: any) => toast.push(e.message || "Erreur", true),
   });

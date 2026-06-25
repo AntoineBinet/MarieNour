@@ -494,7 +494,9 @@ const TOPICS: Topic[] = [
 
 export default function Help() {
   const [query, setQuery] = useState("");
-  const [cat, setCat] = useState<Cat["id"]>("all");
+  // On ouvre sur « Premiers pas » : un nouveau venu voit d'abord l'essentiel,
+  // pas les 19 rubriques d'un coup (« Tout » reste à portée d'onglet).
+  const [cat, setCat] = useState<Cat["id"]>("start");
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
 
   const q = query.trim().toLowerCase();
@@ -527,7 +529,9 @@ export default function Help() {
     } catch {
       /* stockage indisponible */
     }
-    window.location.reload();
+    // Rejoue le mot de bienvenue sans recharger la page (l'IntroTour, monté en
+    // permanence, écoute cet événement).
+    window.dispatchEvent(new Event("mn:replay-intro"));
   };
 
   const renderTopic = (t: Topic) => {

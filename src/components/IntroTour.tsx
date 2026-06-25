@@ -1,10 +1,12 @@
-// Petit tutoriel d'accueil affiché à chaque connexion, tant que l'utilisateur
-// n'a pas coché « Ne plus afficher l'introduction » (mémorisé en local).
-import { useState } from "react";
+// Petit mot de bienvenue, affiché UNE SEULE FOIS à la première connexion.
+// Volontairement court et calme : on présente l'esprit de l'app, puis on passe
+// la main à la carte « Premiers pas » de l'accueil (la seule source de vérité du
+// parcours). Plus de checklist dupliquée ici, plus de réapparition à chaque
+// login : dès qu'on le ferme (par n'importe quel chemin), il ne revient pas.
+// On peut le rejouer depuis le centre d'aide (événement « mn:replay-intro »).
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "./Icon";
-import { useFirstSteps } from "../firstSteps";
-import { FirstStepsList } from "./FirstSteps";
 import { useAuth } from "../auth";
 import { addressName } from "../greeting";
 
@@ -14,55 +16,37 @@ interface Step {
   icon: IconName;
   title: string;
   body: string;
-  interactive?: boolean;
 }
 
 const STEPS: Step[] = [
   {
     icon: "sparkle",
     title: "Bienvenue dans ton atelier",
-    body: "MarieNour réunit tout ce que tu veux garder, planifier et partager — un seul endroit, beau et simple, pensé d'abord pour toi.",
+    body: "MarieNour réunit tout ce que tu veux garder, planifier et partager — un espace beau et privé, pensé d'abord pour toi.",
   },
   {
     icon: "grid",
-    title: "Un tableau de bord à toi",
-    body: "Compose ton accueil avec des widgets : listes, prochain voyage, dépenses, photos… Glisse-les, redimensionne-les, et démarre en un clic.",
+    title: "Un accueil à ta main",
+    body: "Compose ton tableau de bord avec des widgets : listes, prochain voyage, budget, photos… Glisse-les, redimensionne-les, démarre en un clic.",
   },
   {
-    icon: "wallet",
-    title: "Tes finances, maîtrisées",
-    body: "Comptes, budgets par catégorie, opérations récurrentes et objectifs d'épargne. Suis ton reste-à-vivre et, si tu veux, partage avec ton/ta partenaire.",
-  },
-  {
-    icon: "compass",
-    title: "Voyages & dépenses en groupe",
-    body: "Planifie un week-end ou un road trip, vote les étapes à plusieurs, et règle les comptes façon Tricount — même avec des amis pas encore inscrits.",
-  },
-  {
-    icon: "qr",
-    title: "Invite d'un simple scan",
-    body: "Un QR code suffit pour ajouter quelqu'un en ami, à un voyage ou à un groupe de dépenses. Pratique, instantané, sans friction.",
+    icon: "users",
+    title: "Mieux à plusieurs",
+    body: "Voyages, événements, dépenses façon Tricount : tu partages exactement ce que tu veux, et tu invites tes proches d'un simple QR code.",
   },
   {
     icon: "rocket",
     title: "À toi de jouer",
-    body: "Quelques gestes pour démarrer — clique pour t'y rendre, ça se coche en direct dès que c'est fait.",
-    interactive: true,
+    body: "On t'a préparé quelques premiers pas pour prendre tes marques en douceur. Tu les retrouves sur ton accueil — et chacun se coche tout seul dès que c'est fait.",
   },
 ];
 
-// Mini-checklist interactive (montée seulement sur la dernière étape → on ne
-// déclenche les requêtes que si l'utilisateur va jusque-là).
-function IntroChecklist({ onGo }: { onGo: (to: string) => void }) {
-  const { steps, doneCount, total } = useFirstSteps();
-  return (
-    <div className="intro-checklist">
-      <p className="small muted" style={{ marginBottom: "var(--space-2)" }}>
-        {doneCount} / {total} déjà fait{doneCount > 1 ? "s" : ""}
-      </p>
-      <FirstStepsList steps={steps} onGo={onGo} />
-    </div>
-  );
+function persistSeen() {
+  try {
+    localStorage.setItem(HIDE_KEY, "1");
+  } catch {
+    /* stockage indisponible : on ignore */
+  }
 }
 
 export function IntroTour() {
@@ -76,19 +60,30 @@ export function IntroTour() {
     }
   });
   const [step, setStep] = useState(0);
-  const [dontShow, setDontShow] = useState(false);
+
+  // Rejouer depuis le centre d'aide : on réinitialise sans recharger la page
+  // (le composant est monté en permanence dans le Layout).
+  useEffect(() => {
+    const replay = () => {
+      setStep(0);
+      setHidden(false);
+    };
+    window.addEventListener("mn:replay-intro", replay);
+    return () => window.removeEventListener("mn:replay-intro", replay);
+  }, []);
 
   if (hidden) return null;
 
+  // Fermeture = vu une bonne fois pour toutes (quel que soit le bouton utilisé).
   const close = () => {
-    if (dontShow) {
-      try {
-        localStorage.setItem(HIDE_KEY, "1");
-      } catch {
-        /* ignore */
-      }
-    }
+    persistSeen();
     setHidden(true);
+  };
+
+  // Dernière étape : on passe la main à la carte « Premiers pas » de l'accueil.
+  const handOff = () => {
+    close();
+    navigate("/");
   };
 
   const s = STEPS[step];
@@ -98,7 +93,7 @@ export function IntroTour() {
 
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="modal intro-modal" role="dialog" aria-modal="true" aria-label="Introduction">
+      <div className="modal intro-modal" role="dialog" aria-modal="true" aria-label="Bienvenue">
         <button className="btn btn-icon btn-soft intro-close" onClick={close} aria-label="Fermer">
           <Icon name="close" size={16} />
         </button>
@@ -108,16 +103,7 @@ export function IntroTour() {
         </div>
 
         <h2 style={{ marginBottom: "var(--space-2)" }}>{title}</h2>
-        <p className="muted" style={{ minHeight: s.interactive ? undefined : 66 }}>{s.body}</p>
-
-        {s.interactive && (
-          <IntroChecklist
-            onGo={(to) => {
-              close();
-              navigate(to);
-            }}
-          />
-        )}
+        <p className="muted" style={{ minHeight: 66 }}>{s.body}</p>
 
         <div className="intro-dots" role="tablist" aria-label="Étapes">
           {STEPS.map((_, i) => (
@@ -131,11 +117,6 @@ export function IntroTour() {
           ))}
         </div>
 
-        <label className="row gap-2 intro-skip">
-          <input type="checkbox" checked={dontShow} onChange={(e) => setDontShow(e.target.checked)} />
-          <span className="small muted">Ne plus afficher l'introduction</span>
-        </label>
-
         <div className="row gap-2" style={{ marginTop: "var(--space-4)" }}>
           {step > 0 ? (
             <button className="btn btn-soft grow" onClick={() => setStep((v) => v - 1)}>
@@ -145,8 +126,8 @@ export function IntroTour() {
             <button className="btn btn-soft grow" onClick={close}>Passer</button>
           )}
           {last ? (
-            <button className="btn btn-primary grow" onClick={close}>
-              <Icon name="check" size={16} /> C'est parti
+            <button className="btn btn-primary grow" onClick={handOff}>
+              <Icon name="check" size={16} /> Voir mes premiers pas
             </button>
           ) : (
             <button className="btn btn-primary grow" onClick={() => setStep((v) => v + 1)}>
@@ -155,18 +136,16 @@ export function IntroTour() {
           )}
         </div>
 
-        {last && (
-          <button
-            type="button"
-            className="intro-help-link"
-            onClick={() => {
-              close();
-              navigate("/aide");
-            }}
-          >
-            <Icon name="lightbulb" size={14} /> Besoin d'un coup de main ? Voir le centre d'aide
-          </button>
-        )}
+        <button
+          type="button"
+          className="intro-help-link"
+          onClick={() => {
+            close();
+            navigate("/aide");
+          }}
+        >
+          <Icon name="lightbulb" size={14} /> Besoin d'un coup de main ? Voir le centre d'aide
+        </button>
       </div>
     </div>
   );

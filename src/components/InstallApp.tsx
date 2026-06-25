@@ -19,6 +19,8 @@ import { canInstall, isStandalone, onInstallChange, promptInstall } from "../pwa
 const LS_DISMISSED = "mn.install.dismissed"; // l'utilisateur a coché « ne plus proposer »
 const LS_AUTOSHOWN = "mn.install.autoShown"; // l'invite auto ne se déclenche qu'une fois
 const LS_INTRO_HIDDEN = "mn_hide_intro"; // clé de l'IntroTour : on attend qu'elle soit passée
+const LS_VISITS = "mn.visits"; // nombre de sessions (pour ne proposer qu'à une visite de retour)
+const SS_COUNTED = "mn.visit.counted"; // session déjà comptée (sessionStorage)
 
 const ls = (k: string): string | null => {
   try {
@@ -263,7 +265,7 @@ const IOS_STEPS: Step[] = [
     body: (
       <>
         Vérifie le nom <strong>MarieNour</strong> en haut, puis touche <strong>« Ajouter »</strong>.
-        L'icône apparaît sur ton écran d'accueil 🎉
+        L'icône apparaît alors sur ton écran d'accueil.
       </>
     ),
     mock: <ConfirmMock />,
@@ -326,7 +328,7 @@ function InstallModal({ env, onClose }: { env: Env; onClose: () => void }) {
   const copyUrl = async () => {
     try {
       await navigator.clipboard.writeText(window.location.origin);
-      toast.push("Adresse copiée ✓");
+      toast.push("Adresse copiée");
     } catch {
       toast.push("Copie impossible — note : marienour.work");
     }
@@ -335,7 +337,7 @@ function InstallModal({ env, onClose }: { env: Env; onClose: () => void }) {
   const doNativeInstall = async () => {
     const ok = await promptInstall();
     onClose();
-    if (ok) toast.push("C'est parti, MarieNour s'installe ✓");
+    if (ok) toast.push("C'est parti, MarieNour s'installe");
   };
 
   const title =
@@ -531,11 +533,27 @@ export default function InstallApp() {
   // Re-rendu quand l'invite native devient disponible (beforeinstallprompt).
   useEffect(() => onInstallChange(() => force((n) => n + 1)), []);
 
-  // Invite automatique : une fois, sur mobile, après l'intro, si non refusée.
+  // Compte les sessions (une fois par session du navigateur) : sert à ne proposer
+  // l'installation qu'à une visite de RETOUR, jamais lors de la toute première.
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem(SS_COUNTED)) {
+        sessionStorage.setItem(SS_COUNTED, "1");
+        lsSet(LS_VISITS, String((parseInt(ls(LS_VISITS) || "0", 10) || 0) + 1));
+      }
+    } catch {
+      /* stockage indisponible */
+    }
+  }, []);
+
+  // Invite automatique : sur mobile, à une visite de retour (≥ 2 sessions), une
+  // seule fois, si non refusée. On évite ainsi d'empiler une 2ᵉ modale juste
+  // après le mot de bienvenue lors de la première utilisation.
   useEffect(() => {
     if (isStandalone() || env.platform === "desktop") return;
     if (ls(LS_DISMISSED) === "1" || ls(LS_AUTOSHOWN) === "1") return;
     if (ls(LS_INTRO_HIDDEN) !== "1") return; // on attend que l'intro soit passée
+    if ((parseInt(ls(LS_VISITS) || "0", 10) || 0) < 2) return; // pas à la 1re session
     const t = setTimeout(() => {
       lsSet(LS_AUTOSHOWN, "1");
       setOpen(true);
@@ -547,8 +565,8 @@ export default function InstallApp() {
 
   return (
     <>
-      <button className="btn btn-soft btn-sm grow" onClick={() => setOpen(true)}>
-        <Icon name="download" size={15} /> Installer
+      <button className="btn btn-soft btn-icon" onClick={() => setOpen(true)} title="Installer l'application" aria-label="Installer l'application">
+        <Icon name="download" size={16} />
       </button>
       {open && <InstallModal env={env} onClose={() => setOpen(false)} />}
     </>

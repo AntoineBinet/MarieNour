@@ -54,6 +54,14 @@ export default function FirstSteps() {
     }
   });
 
+  const coreSteps = steps.filter((s) => !s.advanced);
+  const moreSteps = steps.filter((s) => s.advanced);
+  // On déplie « Pour aller plus loin » dès que l'essentiel est fait, ou si une
+  // étape avancée est déjà cochée (pour ne jamais cacher un progrès).
+  const coreAllDone = coreSteps.every((s) => s.done);
+  const [showMore, setShowMore] = useState(false);
+  const moreOpen = showMore || coreAllDone || moreSteps.some((s) => s.done);
+
   if (hidden || allDone || loading) return null;
 
   const dismiss = () => {
@@ -87,7 +95,30 @@ export default function FirstSteps() {
         {doneCount} / {total} terminé{doneCount > 1 ? "s" : ""}
       </p>
 
-      <FirstStepsList steps={steps} onGo={(to) => navigate(to)} />
+      <FirstStepsList steps={coreSteps} onGo={(to) => navigate(to)} />
+
+      {moreSteps.length > 0 && (
+        <>
+          {!moreOpen ? (
+            <button
+              type="button"
+              className="disclosure-toggle"
+              style={{ marginTop: "var(--space-3)" }}
+              onClick={() => setShowMore(true)}
+            >
+              <span className="chev"><Icon name="arrowRight" size={14} /></span>
+              Pour aller plus loin
+            </button>
+          ) : (
+            <div className="disclosure-body" style={{ marginTop: "var(--space-3)" }}>
+              <p className="nav-section" style={{ padding: 0, marginTop: 0, marginBottom: "var(--space-2)" }}>
+                Pour aller plus loin
+              </p>
+              <FirstStepsList steps={moreSteps} onGo={(to) => navigate(to)} />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

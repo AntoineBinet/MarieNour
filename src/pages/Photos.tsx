@@ -136,6 +136,9 @@ function MyPhotos() {
   const [dragging, setDragging] = useState(false);
   const [upVisibility, setUpVisibility] = useState<Visibility>("private");
   const [upSharedWith, setUpSharedWith] = useState<string[]>([]);
+  // Réglage de visibilité replié : par défaut « Privé », on ne l'ouvre que si on
+  // veut le changer → la zone d'import et la galerie mènent la page.
+  const [showVis, setShowVis] = useState(false);
   const { uploading, uploadFiles } = useUploader();
 
   const { data, isLoading } = useQuery({ queryKey: ["media"], queryFn: () => api.media() });
@@ -176,16 +179,6 @@ function MyPhotos() {
   return (
     <div>
       <input ref={fileInput} type="file" accept={IMAGE_ACCEPT} multiple hidden onChange={onPick} />
-      <div className="card card-pad-sm" style={{ marginBottom: "var(--space-3)" }}>
-        <Field label="Visibilité des photos importées">
-          <VisibilityField
-            value={upVisibility}
-            sharedWith={upSharedWith}
-            onChange={setUpVisibility}
-            onSharedWithChange={setUpSharedWith}
-          />
-        </Field>
-      </div>
       <div
         className="card"
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -193,7 +186,7 @@ function MyPhotos() {
         onDrop={onDrop}
         onClick={() => !uploading && fileInput.current?.click()}
         style={{
-          marginBottom: "var(--space-5)", textAlign: "center", cursor: uploading ? "default" : "pointer",
+          marginBottom: "var(--space-3)", textAlign: "center", cursor: uploading ? "default" : "pointer",
           borderStyle: "dashed", borderColor: dragging ? "var(--accent)" : "var(--border-strong)",
           background: dragging ? "color-mix(in srgb, var(--accent) 8%, transparent)" : undefined,
         }}
@@ -204,6 +197,26 @@ function MyPhotos() {
           <p className="muted">
             <strong style={{ color: "var(--accent-ink)" }}>Glisse tes photos ici</strong> ou clique pour parcourir — JPEG, PNG, HEIC…
           </p>
+        )}
+      </div>
+      {/* Visibilité repliée : « Privé » par défaut, un clic pour l'ajuster. */}
+      <div style={{ marginBottom: "var(--space-5)" }}>
+        {!showVis ? (
+          <button type="button" className="disclosure-toggle" onClick={() => setShowVis(true)}>
+            <span className="chev"><Icon name="arrowRight" size={14} /></span>
+            Visibilité des imports : {visLabel(upVisibility)}
+          </button>
+        ) : (
+          <div className="disclosure-body">
+            <Field label="Visibilité des photos importées">
+              <VisibilityField
+                value={upVisibility}
+                sharedWith={upSharedWith}
+                onChange={setUpVisibility}
+                onSharedWithChange={setUpSharedWith}
+              />
+            </Field>
+          </div>
         )}
       </div>
 

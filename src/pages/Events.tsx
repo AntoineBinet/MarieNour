@@ -136,7 +136,7 @@ export default function Events() {
           <p className="eyebrow">Organiser</p>
           <h1>Événements</h1>
           <p className="muted">
-            Week-end, EVG/EVJF, soirée, anniv… Trouve la date ensemble, gère les invitations (RSVP), les tâches et qui apporte quoi.
+            Soirée, week-end, anniversaire… Trouve la date ensemble, invite tes proches et organise tout au même endroit.
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setCreating(true)}>

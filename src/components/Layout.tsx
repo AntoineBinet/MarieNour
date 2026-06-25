@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { api } from "../api";
 import { Icon, type IconName } from "./Icon";
@@ -8,9 +8,15 @@ import InstallApp from "./InstallApp";
 import NotificationBell from "./NotificationBell";
 import { resolvedTheme, toggleThemeMode } from "../theme";
 
-const NAV: { section: string | null; items: { to: string; label: string; ic: IconName; end?: boolean }[] }[] = [
-  { section: null, items: [{ to: "/", label: "Accueil", ic: "home", end: true }] },
+interface NavItem { to: string; label: string; ic: IconName; end?: boolean; more?: boolean }
+interface NavGroup { key: string; section: string | null; items: NavItem[] }
+
+// Les items marqués `more` sont repliés sous « Plus » : un nouveau venu voit ~10
+// choix posés au lieu de 13, mais chaque fonctionnalité reste à un clic.
+const NAV: NavGroup[] = [
+  { key: "home", section: null, items: [{ to: "/", label: "Accueil", ic: "home", end: true }] },
   {
+    key: "daily",
     section: "Mon quotidien",
     items: [
       { to: "/finances", label: "Mes finances", ic: "wallet" },
@@ -18,18 +24,19 @@ const NAV: { section: string | null; items: { to: string; label: string; ic: Ico
       { to: "/notes", label: "Notes & idées", ic: "notes" },
       { to: "/voyages", label: "Voyages", ic: "trips" },
       { to: "/evenements", label: "Événements", ic: "confetti" },
-      { to: "/recettes", label: "Recettes", ic: "recipes" },
-      { to: "/inspiration", label: "Inspiration", ic: "inspiration" },
-      { to: "/photos", label: "Photos", ic: "photos" },
+      { to: "/recettes", label: "Recettes", ic: "recipes", more: true },
+      { to: "/inspiration", label: "Inspiration", ic: "inspiration", more: true },
+      { to: "/photos", label: "Photos", ic: "photos", more: true },
     ],
   },
   {
+    key: "share",
     section: "Partager",
     items: [
       { to: "/fil", label: "Mon fil", ic: "memories" },
       { to: "/depenses", label: "Dépenses partagées", ic: "expenses" },
-      { to: "/feed", label: "Le fil des amis", ic: "feed" },
       { to: "/amis", label: "Amis & sondages", ic: "friends" },
+      { to: "/feed", label: "Le fil des amis", ic: "feed", more: true },
     ],
   },
 ];
@@ -43,9 +50,87 @@ const BOTTOM_NAV: { to: string; label: string; ic: IconName; end?: boolean }[] =
   { to: "/amis", label: "Amis", ic: "friends" },
 ];
 
+// Libellé de la page courante (affiché dans la barre du haut sur desktop).
+const TITLE_LOOKUP: { to: string; label: string }[] = [
+  ...NAV.flatMap((g) => g.items.map((i) => ({ to: i.to, label: i.label.split(" & ")[0].split(" &")[0] }))),
+  { to: "/personnalisation", label: "Personnalisation" },
+  { to: "/aide", label: "Aide & support" },
+  { to: "/profil", label: "Profil" },
+  { to: "/admin", label: "Administration" },
+];
+function pageTitle(pathname: string): string {
+  const exact = TITLE_LOOKUP.find((l) => l.to === pathname);
+  if (exact) return exact.label;
+  const prefix = TITLE_LOOKUP.filter((l) => l.to !== "/" && pathname.startsWith(l.to)).sort(
+    (a, b) => b.to.length - a.to.length,
+  )[0];
+  return prefix?.label ?? "Accueil";
+}
+
+function isItemActive(pathname: string, item: NavItem): boolean {
+  return item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/");
+}
+
+function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+      onClick={onNavigate}
+    >
+      <span className="ic"><Icon name={item.ic} size={19} /></span>
+      {item.label}
+    </NavLink>
+  );
+}
+
+function NavSection({ group, onNavigate }: { group: NavGroup; onNavigate: () => void }) {
+  const { pathname } = useLocation();
+  const primary = group.items.filter((i) => !i.more);
+  const more = group.items.filter((i) => i.more);
+  const activeInMore = more.some((i) => isItemActive(pathname, i));
+  const storeKey = "mn.nav.more." + group.key;
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(storeKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const expanded = open || activeInMore; // la section de la page active reste ouverte
+  const toggle = () => {
+    const v = !open;
+    setOpen(v);
+    try {
+      localStorage.setItem(storeKey, v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <div className="nav" style={{ gap: 2 }}>
+      {group.section && <div className="nav-section">{group.section}</div>}
+      {primary.map((item) => (
+        <NavItemLink key={item.to} item={item} onNavigate={onNavigate} />
+      ))}
+      {expanded && more.map((item) => <NavItemLink key={item.to} item={item} onNavigate={onNavigate} />)}
+      {more.length > 0 && (
+        <button type="button" className="nav-more" onClick={toggle} aria-expanded={expanded}>
+          <span className="ic"><Icon name="dots" size={18} /></span>
+          {expanded ? "Moins" : "Plus"}
+          <span className={`nav-more-chevron${expanded ? " open" : ""}`}><Icon name="arrowRight" size={14} /></span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState(resolvedTheme());
 
@@ -71,44 +156,22 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="nav">
-          {NAV.map((group, i) => (
-            <div key={i} className="nav" style={{ gap: 2 }}>
-              {group.section && <div className="nav-section">{group.section}</div>}
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
-                  onClick={close}
-                >
-                  <span className="ic"><Icon name={item.ic} size={19} /></span>
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
+          {NAV.map((group) => (
+            <NavSection key={group.key} group={group} onNavigate={close} />
           ))}
           {user?.role === "admin" && (
-            <>
+            <div className="nav" style={{ gap: 2 }}>
               <div className="nav-section">Admin</div>
               <NavLink to="/admin" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
                 <span className="ic"><Icon name="admin" size={19} /></span> Administration
               </NavLink>
-            </>
+            </div>
           )}
         </nav>
 
         <div className="spacer" />
 
         <div className="col gap-2">
-          <NavLink to="/personnalisation" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
-            <span className="ic"><Icon name="palette" size={19} /></span>
-            Personnalisation
-          </NavLink>
-          <NavLink to="/aide" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
-            <span className="ic"><Icon name="lightbulb" size={19} /></span>
-            Aide &amp; support
-          </NavLink>
           <NavLink to="/profil" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
             <span className="ic">
               {user?.avatar_url ? (
@@ -122,19 +185,33 @@ export default function Layout({ children }: { children: ReactNode }) {
               <span className="muted small">@{user?.handle}</span>
             </span>
           </NavLink>
-          <div className="row gap-2 wrap">
-            <button className="btn btn-soft btn-sm grow" onClick={toggleTheme}>
-              <Icon name={theme === "dark" ? "sun" : "moon"} size={15} /> {theme === "dark" ? "Clair" : "Sombre"}
+
+          <div className="nav-section">Réglages</div>
+          <NavLink to="/personnalisation" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
+            <span className="ic"><Icon name="palette" size={19} /></span>
+            Personnalisation
+          </NavLink>
+          <NavLink to="/aide" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={close}>
+            <span className="ic"><Icon name="lightbulb" size={19} /></span>
+            Aide &amp; support
+          </NavLink>
+
+          {/* Actions de compte en icônes : ne débordent jamais sur deux lignes. */}
+          <div className="row gap-2 sidebar-actions">
+            <button className="btn btn-soft btn-icon" onClick={toggleTheme} title={theme === "dark" ? "Passer en clair" : "Passer en sombre"} aria-label="Changer de thème">
+              <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
             </button>
             <InstallApp />
             <button
-              className="btn btn-soft btn-sm grow"
+              className="btn btn-soft btn-icon"
+              title="Se déconnecter"
+              aria-label="Se déconnecter"
               onClick={async () => {
                 await logout();
                 navigate("/login");
               }}
             >
-              Déconnexion
+              <Icon name="logout" size={16} />
             </button>
           </div>
         </div>
@@ -143,12 +220,12 @@ export default function Layout({ children }: { children: ReactNode }) {
       <div className="main">
         <header className="topbar">
           <button className="btn btn-soft btn-icon menu-btn" onClick={() => setOpen((o) => !o)} aria-label="Menu"><Icon name="menu" size={18} /></button>
-          <NotificationBell />
+          <span className="topbar-title">{pageTitle(pathname)}</span>
           <div className="brand topbar-brand">
             <img src="/favicon.svg" alt="" className="brand-logo" style={{ width: 28, height: 28 }} />
             <span className="brand-name" style={{ fontSize: "1.05rem" }}>MarieNour</span>
           </div>
-          <div className="grow" />
+          <NotificationBell />
         </header>
         <main className="content">
           {children}
