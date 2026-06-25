@@ -54,6 +54,12 @@ export default function Friends() {
     queryFn: () => api.friends(),
   });
 
+  // Partage la même clé que PollsPanel (pas de requête en double) : sert juste à
+  // savoir s'il existe déjà des sondages, pour ne pas les cacher à un membre sans
+  // amis (sondage qu'il a créé, ou reçu en public/partagé).
+  const pollsQ = useQuery({ queryKey: ["polls"], queryFn: () => api.polls() });
+  const hasPolls = (pollsQ.data?.polls?.length ?? 0) > 0;
+
   const search = useQuery({
     queryKey: ["search-users", q],
     queryFn: () => api.searchUsers(q),
@@ -264,9 +270,10 @@ export default function Friends() {
         </div>
       )}
 
-      {/* ── Sondages : apparaissent dès qu'on a au moins un ami (décisions
-          de groupe). Réapparaissent automatiquement à l'ajout d'un ami. ── */}
-      {friends.length > 0 && (
+      {/* ── Sondages : visibles dès qu'on a un ami OU qu'il existe déjà des
+          sondages (créés, ou reçus en public/partagé). On garde la page d'un
+          compte tout neuf épurée sans jamais masquer un sondage existant. ── */}
+      {(friends.length > 0 || hasPolls) && (
         <div style={{ marginTop: "var(--space-6)" }}>
           <PollsPanel />
         </div>

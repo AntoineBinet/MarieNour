@@ -64,7 +64,9 @@ function pageTitle(pathname: string): string {
   const prefix = TITLE_LOOKUP.filter((l) => l.to !== "/" && pathname.startsWith(l.to)).sort(
     (a, b) => b.to.length - a.to.length,
   )[0];
-  return prefix?.label ?? "Accueil";
+  // Pas de repli sur « Accueil » pour une route inconnue (profil public, pages
+  // légales) : mieux vaut pas de titre qu'un titre trompeur.
+  return prefix?.label ?? "";
 }
 
 function isItemActive(pathname: string, item: NavItem): boolean {
@@ -100,7 +102,11 @@ function NavSection({ group, onNavigate }: { group: NavGroup; onNavigate: () => 
   });
   const expanded = open || activeInMore; // la section de la page active reste ouverte
   const toggle = () => {
-    const v = !open;
+    // Quand la page active est dans la traîne, la section ne peut pas se replier :
+    // on ne touche pas à la préférence pour ne pas la corrompre (sinon « Moins »
+    // mémoriserait « ouvert » par erreur).
+    if (activeInMore) return;
+    const v = !expanded;
     setOpen(v);
     try {
       localStorage.setItem(storeKey, v ? "1" : "0");
@@ -116,7 +122,8 @@ function NavSection({ group, onNavigate }: { group: NavGroup; onNavigate: () => 
         <NavItemLink key={item.to} item={item} onNavigate={onNavigate} />
       ))}
       {expanded && more.map((item) => <NavItemLink key={item.to} item={item} onNavigate={onNavigate} />)}
-      {more.length > 0 && (
+      {/* Pas de bascule quand la page active est dans la traîne (toujours dépliée). */}
+      {more.length > 0 && !activeInMore && (
         <button type="button" className="nav-more" onClick={toggle} aria-expanded={expanded}>
           <span className="ic"><Icon name="dots" size={18} /></span>
           {expanded ? "Moins" : "Plus"}

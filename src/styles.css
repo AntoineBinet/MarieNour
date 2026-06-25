@@ -413,6 +413,10 @@ a:hover { text-decoration: underline; }
    métriques de la police d'affichage du H1. */
 .greeting-emoji { font-size: 0.85em; margin-left: 0.3em; font-family: var(--font-body); }
 
+/* Actions de compte (thème / installer / déconnexion) : icônes sur une seule
+   ligne, jamais de retour à la ligne. */
+.sidebar-actions { flex-wrap: nowrap; }
+
 /* ── Generic content grids ────────────────────────────────────────────── */
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4); }
 .masonry { columns: 3 220px; column-gap: var(--space-4); }
@@ -1025,6 +1029,7 @@ body { overscroll-behavior-y: none; }
   --ink-2: #424a55;
   --muted: #69717c;
   --radius: 14px; --radius-sm: 10px; --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(18, 26, 38, 0.07), 0 1px 3px rgba(18, 26, 38, 0.06);
   --shadow: 0 1px 2px rgba(18, 26, 38, 0.06), 0 10px 30px rgba(18, 26, 38, 0.10);
   --shadow-lg: 0 16px 48px rgba(14, 20, 30, 0.22);
 }
@@ -1038,6 +1043,7 @@ body { overscroll-behavior-y: none; }
   --ink: #eef1f5;
   --ink-2: #b9c2cd;
   --muted: #7e8a98;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 36px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 18px 56px rgba(0, 0, 0, 0.7);
 }
@@ -1055,6 +1061,7 @@ body { overscroll-behavior-y: none; }
   --ink-2: #4a463f;
   --muted: #837d73;
   --radius: 6px; --radius-sm: 4px; --radius-lg: 10px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.12);
 }
