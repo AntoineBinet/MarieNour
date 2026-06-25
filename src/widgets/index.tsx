@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
+import AssistantCard from "../components/AssistantCard";
 import type { WidgetDef } from "@shared/types";
 
 export const WIDGET_CATALOG: WidgetDef[] = [
+  { type: "assistant", name: "Aujourd'hui", description: "Ce qui mérite ton attention, priorisé.", emoji: "✨", icon: "sparkle" },
   { type: "lists", name: "Listes & checklists", description: "Tes listes en cours et leur avancement.", emoji: "✅", icon: "lists" },
   { type: "notes", name: "Notes récentes", description: "Tes dernières notes et idées.", emoji: "📝", icon: "notes" },
   { type: "trips", name: "Prochain voyage", description: "Compte à rebours du prochain départ.", emoji: "✈️", icon: "trips" },
@@ -144,7 +146,7 @@ function InspirationWidget() {
         <p><strong style={{ fontSize: "1.6rem", color: "var(--accent)" }}>{items.length}</strong> à trier</p>
         <div className="row gap-2 wrap" style={{ marginTop: 8 }}>
           {items.slice(0, 4).map((i) => i.image_url ? (
-            <img key={i.id} src={i.image_url} alt="" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }} />
+            <img key={i.id} src={i.image_url} alt="" width={48} height={48} loading="lazy" decoding="async" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }} />
           ) : (
             <span key={i.id} className="chip">{i.source}</span>
           ))}
@@ -163,7 +165,7 @@ function PhotosWidget() {
     <WBody>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
         {media.map((m) => (
-          <Link key={m.id} to="/photos"><img src={m.url} alt={m.caption ?? ""} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8 }} /></Link>
+          <Link key={m.id} to="/photos"><img src={m.url} alt={m.caption ?? ""} loading="lazy" decoding="async" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8 }} /></Link>
         ))}
       </div>
     </WBody>
@@ -225,6 +227,7 @@ function QuoteWidget({ config }: { config: Record<string, unknown> }) {
 
 export function WidgetContent({ type, config }: { type: string; config: Record<string, unknown> }) {
   switch (type) {
+    case "assistant": return <AssistantCard bare />;
     case "lists": return <ListsWidget />;
     case "notes": return <NotesWidget />;
     case "trips": return <TripsWidget />;

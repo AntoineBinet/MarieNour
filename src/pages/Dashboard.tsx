@@ -17,6 +17,7 @@ import { Modal, Spinner, useToast } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
 import { WIDGET_CATALOG, WIDGET_DEFS, WidgetContent } from "../widgets";
 import FirstSteps from "../components/FirstSteps";
+import AssistantCard from "../components/AssistantCard";
 import type { Widget, WidgetSize } from "@shared/types";
 
 function SortableWidget({
@@ -145,6 +146,10 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* « Aujourd'hui » — l'assistant intelligent. Hero priorisé qui s'efface les
+          jours calmes (hideWhenEmpty) pour ne jamais encombrer un espace serein. */}
+      {!isEmpty && <AssistantCard hideWhenEmpty />}
 
       {/* Une seule surface d'accueil à la fois : la carte « Premiers pas » n'arrive
           qu'une fois l'espace amorcé (au moins un widget), jamais en même temps

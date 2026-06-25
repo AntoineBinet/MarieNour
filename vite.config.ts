@@ -13,6 +13,19 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    sourcemap: true,
+    // Pas de sourcemaps en production : payload servi plus léger sur le tunnel
+    // Cloudflare (les sourcemaps n'apportent rien à l'utilisateur final).
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Sépare les grosses dépendances dans des chunks stables et mis en cache
+        // longue durée (elles changent rarement vs le code applicatif).
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "query-vendor": ["@tanstack/react-query"],
+          "dnd-vendor": ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+        },
+      },
+    },
   },
 });

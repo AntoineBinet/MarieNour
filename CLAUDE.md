@@ -63,8 +63,16 @@ server/routes/*.ts          → auth, friends, widgets, lists, notes, trips,
                               tâches, programme, « qui apporte quoi »),
                               fil (« Mon fil » : souvenirs photos/vidéos/liens,
                               collections au partage choisi privé/amis/amis
-                              précis/public, récap hebdo « stories »)
+                              précis/public, récap hebdo « stories »),
+                              assistant (digest « Aujourd'hui » : flux DÉRIVÉ et
+                              priorisé — RSVP, tâches, listes à échéance, alertes
+                              budget, soldes Tricount, départs, récap ; rien stocké),
+                              search (recherche universelle de la palette ⌘K :
+                              notes, listes, voyages, événements, recettes,
+                              inspirations, collections, dépenses, transactions, amis)
 src/pages/Fil.tsx           → page « Mon fil » (fil, collections, compositeur)
+src/components/AssistantCard.tsx → carte « Aujourd'hui » (accueil + widget), digest priorisé
+src/components/CommandPalette.tsx → palette ⌘K : navigation + recherche universelle
 src/components/StoryViewer.tsx → lecteur de stories plein écran (récap hebdo)
 src/components/Icon.tsx      → jeu d'icônes SVG « maison » (remplace les emojis)
 src/components/QrCode.tsx    → QR en SVG (lib qrcode-generator, hors-ligne)

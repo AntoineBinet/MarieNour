@@ -19,8 +19,14 @@ import type {
 } from "@shared/types";
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
-const money = (n: number | null | undefined, cur?: string) =>
-  (n ?? 0).toLocaleString("fr-FR", { style: "currency", currency: cur || "EUR" });
+const money = (n: number | null | undefined, cur?: string) => {
+  try {
+    return (n ?? 0).toLocaleString("fr-FR", { style: "currency", currency: cur || "EUR" });
+  } catch {
+    // Code devise invalide (ISO 4217) : repli numérique au lieu de planter le rendu.
+    return `${(n ?? 0).toFixed(2)} ${cur || "EUR"}`;
+  }
+};
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -1092,6 +1098,8 @@ function TxModal({
     if (!Number.isFinite(amount) || amount <= 0) return toast.push("Indique un montant", true);
     if (!form.account_id) return toast.push("Choisis un compte", true);
     if (form.type === "transfer" && !form.transfer_account_id) return toast.push("Choisis le compte de destination", true);
+    if (form.type === "transfer" && form.transfer_account_id === form.account_id)
+      return toast.push("Les comptes source et destination doivent être différents", true);
     save.mutate({
       type: form.type,
       amount,
@@ -1535,6 +1543,11 @@ function GoalsTab({ canEdit, owner }: { canEdit: boolean; owner: string }) {
 
   const { data, isLoading } = useQuery({ queryKey: ["finance", "goals"], queryFn: () => api.financeGoals() });
   const goals = data?.goals ?? [];
+  // Devise réelle de l'espace (1er compte), au lieu d'un EUR codé en dur — réutilise
+  // la requête « accounts » déjà en cache (aucun appel réseau supplémentaire).
+  const accountsQ = useQuery({ queryKey: ["finance", "accounts"], queryFn: () => api.financeAccounts() });
+  const accs = accountsQ.data?.accounts ?? [];
+  const cur = (accs.find((a) => !a.archived) ?? accs[0])?.currency || "EUR";
 
   const del = useMutation({
     mutationFn: (id: string) => api.deleteGoal(id),
@@ -1571,7 +1584,7 @@ function GoalsTab({ canEdit, owner }: { canEdit: boolean; owner: string }) {
                 </div>
                 <ProgressBar pct={pct} color={colorVar(g.color)} />
                 <p className="small muted">
-                  {money(g.saved_amount)} / {money(g.target_amount)} · {Math.round(pct)}%
+                  {money(g.saved_amount, cur)} / {money(g.target_amount, cur)} · {Math.round(pct)}%
                   {g.target_date ? ` · échéance ${fmtDate(g.target_date)}` : ""}
                 </p>
                 {canEdit && (
@@ -1589,7 +1602,7 @@ function GoalsTab({ canEdit, owner }: { canEdit: boolean; owner: string }) {
       )}
 
       {(adding || editing) && <GoalModal goal={editing} owner={owner} onClose={() => { setAdding(false); setEditing(null); }} />}
-      {contrib && <ContributeModal goal={contrib} cur="EUR" onClose={() => setContrib(null)} />}
+      {contrib && <ContributeModal goal={contrib} cur={cur} onClose={() => setContrib(null)} />}
       {confirmNode}
     </div>
   );

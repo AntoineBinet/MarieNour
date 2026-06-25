@@ -2,6 +2,7 @@ import type {
   Album,
   AlbumDetail,
   AppNotification,
+  AssistantDigest,
   Board,
   Comment,
   Expense,
@@ -39,6 +40,7 @@ import type {
   Poll,
   PublicUser,
   Recipe,
+  SearchResult,
   SplitMode,
   Trip,
   TripParticipant,
@@ -445,6 +447,12 @@ export const api = {
     patch<{ ok: true }>(`/fil/memories/${id}`, b),
   deleteMemory: (id: string) => del<{ ok: true }>(`/fil/memories/${id}`),
   linkPreview: (url: string) => post<{ preview: LinkPreview }>("/fil/preview", { url }),
+
+  // Assistant « Aujourd'hui » (digest intelligent dérivé)
+  assistant: () => get<{ digest: AssistantDigest }>("/assistant"),
+
+  // Recherche universelle (palette ⌘K)
+  search: (q: string) => get<{ results: SearchResult[] }>(`/search?q=${encodeURIComponent(q)}`),
 
   // Notifications (cloche)
   notifications: () => get<{ notifications: AppNotification[] }>("/notifications"),

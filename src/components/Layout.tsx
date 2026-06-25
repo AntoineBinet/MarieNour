@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { api } from "../api";
@@ -6,6 +6,7 @@ import { Icon, type IconName } from "./Icon";
 import { IntroTour } from "./IntroTour";
 import InstallApp from "./InstallApp";
 import NotificationBell from "./NotificationBell";
+import CommandPalette from "./CommandPalette";
 import { resolvedTheme, toggleThemeMode } from "../theme";
 
 interface NavItem { to: string; label: string; ic: IconName; end?: boolean; more?: boolean }
@@ -139,7 +140,20 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  const [palette, setPalette] = useState(false);
   const [theme, setTheme] = useState(resolvedTheme());
+
+  // Raccourci clavier global ⌘K / Ctrl+K : ouvre la palette de commandes.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPalette((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const toggleTheme = () => {
     const mode = toggleThemeMode(); // applique immédiatement clair/sombre
@@ -232,6 +246,19 @@ export default function Layout({ children }: { children: ReactNode }) {
             <img src="/favicon.svg" alt="" className="brand-logo" style={{ width: 28, height: 28 }} />
             <span className="brand-name" style={{ fontSize: "1.05rem" }}>MarieNour</span>
           </div>
+          <button
+            className="btn btn-soft topbar-search"
+            onClick={() => setPalette(true)}
+            aria-label="Rechercher"
+            title="Rechercher (⌘K)"
+          >
+            <Icon name="search" size={16} />
+            <span className="topbar-search-label">Rechercher</span>
+            <kbd className="topbar-search-kbd">⌘K</kbd>
+          </button>
+          <button className="btn btn-soft btn-icon topbar-search-icon" onClick={() => setPalette(true)} aria-label="Rechercher">
+            <Icon name="search" size={18} />
+          </button>
           <NotificationBell />
         </header>
         <main className="content">
@@ -269,6 +296,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           <span>Menu</span>
         </button>
       </nav>
+
+      <CommandPalette open={palette} onClose={() => setPalette(false)} />
 
       <IntroTour />
     </div>
