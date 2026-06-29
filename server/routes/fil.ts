@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { attachUser, requireAuth } from "../auth";
 import { canViewCollection, canViewMemory, friendIds, areFriends } from "../access";
+import { PUB_U, toPub } from "../pub";
 import { now, str, uid, intOrNull, isImageOrVideoUpload, safeServedContentType, isBlockedPreviewHost } from "../util";
 import type {
   CollectionVisibility,
@@ -24,25 +25,6 @@ const MAX_BYTES = 60 * 1024 * 1024; // 60 Mo (autorise de courtes vidéos)
 const COLL_VIS: CollectionVisibility[] = ["private", "friends", "custom", "public"];
 const cleanCollVis = (v: unknown): CollectionVisibility =>
   COLL_VIS.includes(v as never) ? (v as CollectionVisibility) : "private";
-
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
-const PUB_U = PUB.split(", ")
-  .map((c) => `u.${c}`)
-  .join(", ");
-
-function toPub(r: Record<string, unknown>): PublicUser {
-  return {
-    id: r.id as string,
-    display_name: r.display_name as string,
-    handle: (r.handle as string) ?? null,
-    role: r.role as PublicUser["role"],
-    avatar_url: (r.avatar_url as string) ?? null,
-    bio: (r.bio as string) ?? null,
-    accent: (r.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: r.created_at as number,
-  };
-}
 
 function toOwner(r: Record<string, unknown>): TripOwner {
   return {
@@ -158,16 +140,11 @@ app.get("/collections", async (c) => {
   )
     .bind(me)
     .all<Record<string, unknown>>();
-
-  const mine: MemoryCollection[] = [];
-  for (const r of mineRes.results ?? []) {
-    mine.push(await collectionSummary(c.env.DB, r, me, true, null));
-  }
+  const mineRows = mineRes.results ?? [];
 
   // Collections d'autres personnes auxquelles j'ai accès (avec ≥1 souvenir).
   const fids = await friendIds(c.env.DB, me);
   const { sql, binds } = visibleWhere(me, fids);
-  // On réutilise la clause de visibilité, mais en excluant les miennes.
   const sharedRes = await c.env.DB.prepare(
     `SELECT c.*, ${PUB_U} FROM memory_collections c
      JOIN users u ON u.id = c.user_id
@@ -177,45 +154,80 @@ app.get("/collections", async (c) => {
   )
     .bind(me, ...binds)
     .all<Record<string, unknown>>();
+  const sharedRows = sharedRes.results ?? [];
 
-  const shared: MemoryCollection[] = [];
-  for (const r of sharedRes.results ?? []) {
-    shared.push(await collectionSummary(c.env.DB, r, me, false, toOwner(r)));
+  // ── Agrégats GROUPÉS (au lieu de 2-3 requêtes PAR collection, cf. audit N+1) ──
+  const ids = [...mineRows, ...sharedRows].map((r) => r.id as string);
+  const counts = new Map<string, number>();
+  const previews = new Map<string, string[]>();
+  const membersMap = new Map<string, PublicUser[]>();
+
+  if (ids.length) {
+    const ph = ids.map(() => "?").join(",");
+    const countRows = await c.env.DB.prepare(
+      `SELECT collection_id, COUNT(*) AS n FROM memories WHERE collection_id IN (${ph}) GROUP BY collection_id`,
+    )
+      .bind(...ids)
+      .all<{ collection_id: string; n: number }>();
+    for (const r of countRows.results ?? []) counts.set(r.collection_id, r.n);
+
+    // 4 vignettes les plus récentes par collection, en une requête (window function).
+    const previewRows = await c.env.DB.prepare(
+      `SELECT id, collection_id, kind, r2_key, link_image, rn FROM (
+         SELECT id, collection_id, kind, r2_key, link_image,
+                ROW_NUMBER() OVER (PARTITION BY collection_id ORDER BY taken_at DESC) AS rn
+         FROM memories WHERE collection_id IN (${ph})
+       ) WHERE rn <= 4 ORDER BY collection_id, rn`,
+    )
+      .bind(...ids)
+      .all<Record<string, unknown>>();
+    for (const r of previewRows.results ?? []) {
+      const url = previewUrl(r);
+      if (!url) continue;
+      const cid = r.collection_id as string;
+      const arr = previews.get(cid);
+      if (arr) arr.push(url);
+      else previews.set(cid, [url]);
+    }
+
+    // Membres des collections « custom » QUE JE POSSÈDE (les seules à exposer les membres).
+    const customMineIds = mineRows
+      .filter((r) => (r.visibility as string) === "custom")
+      .map((r) => r.id as string);
+    if (customMineIds.length) {
+      const cph = customMineIds.map(() => "?").join(",");
+      const memRows = await c.env.DB.prepare(
+        `SELECT mcm.collection_id, ${PUB_U} FROM memory_collection_members mcm
+         JOIN users u ON u.id = mcm.user_id WHERE mcm.collection_id IN (${cph})`,
+      )
+        .bind(...customMineIds)
+        .all<Record<string, unknown>>();
+      for (const r of memRows.results ?? []) {
+        const cid = r.collection_id as string;
+        const arr = membersMap.get(cid);
+        if (arr) arr.push(toPub(r));
+        else membersMap.set(cid, [toPub(r)]);
+      }
+    }
   }
 
+  const mine = mineRows.map((r) => buildCollectionSummary(r, true, null, counts, previews, membersMap));
+  const shared = sharedRows.map((r) => buildCollectionSummary(r, false, toOwner(r), counts, previews, membersMap));
   return c.json({ collections: mine, shared });
 });
 
-/** Résumé d'une collection : compteur, vignettes, membres (si propriétaire). */
-async function collectionSummary(
-  db: AppEnv["Bindings"]["DB"],
+/** Assemble un résumé de collection à partir des agrégats déjà chargés (groupés). */
+function buildCollectionSummary(
   r: Record<string, unknown>,
-  me: string,
   isOwner: boolean,
   owner: TripOwner | null,
-): Promise<MemoryCollection> {
+  counts: Map<string, number>,
+  previews: Map<string, string[]>,
+  membersMap: Map<string, PublicUser[]>,
+): MemoryCollection {
   const id = r.id as string;
-  const countRow = await db
-    .prepare("SELECT COUNT(*) AS n FROM memories WHERE collection_id = ?")
-    .bind(id)
-    .first<{ n: number }>();
-  const recent = await db
-    .prepare("SELECT id, kind, r2_key, link_image FROM memories WHERE collection_id = ? ORDER BY taken_at DESC LIMIT 4")
-    .bind(id)
-    .all<Record<string, unknown>>();
-  const preview_urls = (recent.results ?? []).map(previewUrl).filter((x): x is string => !!x);
-
   let members: PublicUser[] | undefined;
-  if (isOwner && (r.visibility as string) === "custom") {
-    const mres = await db
-      .prepare(
-        `SELECT ${PUB_U} FROM memory_collection_members mcm JOIN users u ON u.id = mcm.user_id WHERE mcm.collection_id = ?`,
-      )
-      .bind(id)
-      .all<Record<string, unknown>>();
-    members = (mres.results ?? []).map(toPub);
-  }
-
+  if (isOwner && (r.visibility as string) === "custom") members = membersMap.get(id) ?? [];
   return {
     id,
     title: r.title as string,
@@ -226,12 +238,49 @@ async function collectionSummary(
     position: (r.position as number) ?? 0,
     created_at: r.created_at as number,
     updated_at: r.updated_at as number,
-    memory_count: countRow?.n ?? 0,
-    preview_urls,
+    memory_count: counts.get(id) ?? 0,
+    preview_urls: previews.get(id) ?? [],
     is_owner: isOwner,
     owner,
     members,
   };
+}
+
+/** Résumé d'UNE collection (page de détail) : agrégats chargés à la demande. */
+async function loadCollectionSummary(
+  db: AppEnv["Bindings"]["DB"],
+  r: Record<string, unknown>,
+  isOwner: boolean,
+  owner: TripOwner | null,
+): Promise<MemoryCollection> {
+  const id = r.id as string;
+  const counts = new Map<string, number>();
+  const previews = new Map<string, string[]>();
+  const membersMap = new Map<string, PublicUser[]>();
+
+  const countRow = await db
+    .prepare("SELECT COUNT(*) AS n FROM memories WHERE collection_id = ?")
+    .bind(id)
+    .first<{ n: number }>();
+  counts.set(id, countRow?.n ?? 0);
+
+  const recent = await db
+    .prepare("SELECT id, kind, r2_key, link_image FROM memories WHERE collection_id = ? ORDER BY taken_at DESC LIMIT 4")
+    .bind(id)
+    .all<Record<string, unknown>>();
+  previews.set(id, (recent.results ?? []).map(previewUrl).filter((x): x is string => !!x));
+
+  if (isOwner && (r.visibility as string) === "custom") {
+    const mres = await db
+      .prepare(
+        `SELECT ${PUB_U} FROM memory_collection_members mcm JOIN users u ON u.id = mcm.user_id WHERE mcm.collection_id = ?`,
+      )
+      .bind(id)
+      .all<Record<string, unknown>>();
+    membersMap.set(id, (mres.results ?? []).map(toPub));
+  }
+
+  return buildCollectionSummary(r, isOwner, owner, counts, previews, membersMap);
 }
 
 // Crée une collection.
@@ -289,7 +338,7 @@ app.get("/collections/:id", async (c) => {
   if (!(await canViewCollection(c.env.DB, me, col.user_id as string, col.visibility as string, id)))
     return c.json({ error: "Accès refusé" }, 403);
 
-  const summary = await collectionSummary(c.env.DB, col, me, isOwner, isOwner ? null : toOwner(col));
+  const summary = await loadCollectionSummary(c.env.DB, col, isOwner, isOwner ? null : toOwner(col));
 
   const memsRes = await c.env.DB.prepare(
     `SELECT ${MEM_COLS}, ${PUB_U} FROM memories m

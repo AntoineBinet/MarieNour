@@ -3,6 +3,7 @@ import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { bool, cleanSharedWith, cleanVisibility, now, str, uid } from "../util";
 import { friendIds, setEntityShares, getEntityShares, deleteEntityShares } from "../access";
+import { PUB_U, toPub } from "../pub";
 import type { Poll, PollOption, PublicUser, Visibility } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -13,24 +14,6 @@ const VOTERS_CAP = 12;
 // Nombre maximum d'options autorisées à la création.
 const MAX_OPTIONS = 10;
 
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
-const PUB_U = PUB.split(", ")
-  .map((c) => `u.${c}`)
-  .join(", ");
-
-function toPub(row: Record<string, unknown>): PublicUser {
-  return {
-    id: row.id as string,
-    display_name: row.display_name as string,
-    handle: (row.handle as string) ?? null,
-    role: row.role as PublicUser["role"],
-    avatar_url: (row.avatar_url as string) ?? null,
-    bio: (row.bio as string) ?? null,
-    accent: (row.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: row.created_at as number,
-  };
-}
 
 interface PollRow {
   id: string;

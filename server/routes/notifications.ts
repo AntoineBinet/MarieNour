@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
+import { PUB, toPub } from "../pub";
 import { now, str } from "../util";
-import type { AppNotification, PublicUser } from "@shared/types";
+import type { AppNotification } from "@shared/types";
 
 // Cloche de notifications (en haut de l'app). Le flux est DÉRIVÉ des données
 // existantes — on ne stocke pas chaque notification :
@@ -16,21 +17,6 @@ import type { AppNotification, PublicUser } from "@shared/types";
 const app = new Hono<AppEnv>();
 app.use("*", requireAuth);
 
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
-
-function toPub(row: Record<string, unknown>): PublicUser {
-  return {
-    id: row.id as string,
-    display_name: row.display_name as string,
-    handle: (row.handle as string) ?? null,
-    role: row.role as PublicUser["role"],
-    avatar_url: (row.avatar_url as string) ?? null,
-    bio: (row.bio as string) ?? null,
-    accent: (row.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: row.created_at as number,
-  };
-}
 
 /** Timestamp (ms) d'une date 'YYYY-MM-DD', ou fallback fourni. */
 function dateMs(day: string | null, fallback: number): number {

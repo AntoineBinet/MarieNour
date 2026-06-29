@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { areFriends } from "../access";
+import { PUB_U, toPub } from "../pub";
 import { bool, intOrNull, now, numOrNull, str, uid } from "../util";
 import type {
   AccountKind,
@@ -41,25 +42,6 @@ const cleanCategoryKind = (v: unknown): CategoryKind =>
 const cleanTxType = (v: unknown): TxType | null => (TX_TYPES.includes(v as TxType) ? (v as TxType) : null);
 const cleanCadence = (v: unknown): Cadence => (CADENCES.includes(v as Cadence) ? (v as Cadence) : "monthly");
 
-/* ── Colonnes utilisateur public (identique à friends.ts) ───────────────── */
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
-const PUB_U = PUB.split(", ")
-  .map((c) => `u.${c}`)
-  .join(", ");
-
-function toPub(row: Record<string, unknown>): PublicUser {
-  return {
-    id: row.id as string,
-    display_name: row.display_name as string,
-    handle: (row.handle as string) ?? null,
-    role: row.role as PublicUser["role"],
-    avatar_url: (row.avatar_url as string) ?? null,
-    bio: (row.bio as string) ?? null,
-    accent: (row.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: row.created_at as number,
-  };
-}
 
 /* ── Dates ──────────────────────────────────────────────────────────────── */
 /** Mois courant 'YYYY-MM' (UTC). */

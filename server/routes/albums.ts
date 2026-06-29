@@ -2,26 +2,12 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { areFriends, canViewAlbum, friendIds } from "../access";
+import { PUB, toPub } from "../pub";
 import { cleanVisibility, now, str, uid } from "../util";
 import type { Album, AlbumDetail, MediaItem, PublicUser, Visibility } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 app.use("*", requireAuth);
-
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
-function toPub(r: Record<string, unknown>): PublicUser {
-  return {
-    id: r.id as string,
-    display_name: r.display_name as string,
-    handle: (r.handle as string) ?? null,
-    role: r.role as PublicUser["role"],
-    avatar_url: (r.avatar_url as string) ?? null,
-    bio: (r.bio as string) ?? null,
-    accent: (r.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: r.created_at as number,
-  };
-}
 
 function toMedia(r: Record<string, unknown>): MediaItem {
   return {
