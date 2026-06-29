@@ -11,6 +11,7 @@ import {
   mergePrefs,
   parsePrefs,
   toPublicUser,
+  verifyPassword,
   writeSessionCookie,
 } from "../auth";
 import { notifyAdminNewUser, sendVerificationEmail, smtpReady } from "../mailer";
@@ -368,6 +369,106 @@ app.delete("/me/avatar", async (c) => {
   await c.env.DB.prepare("UPDATE users SET avatar_url = NULL, updated_at = ? WHERE id = ?").bind(now(), user.id).run();
   const row = await c.env.DB.prepare(`SELECT ${SELF_COLS} FROM users WHERE id = ?`).bind(user.id).first();
   return c.json({ user: toPublicUser(row as any, true) });
+});
+
+// ── Export de mes données (RGPD) ─────────────────────────────────────────────
+// Renvoie toutes mes données personnelles en JSON téléchargeable. Chaque requête
+// est tolérante (try/catch → []) pour ne jamais échouer sur une table absente du
+// repli serverless. Les clés R2 internes sont exclues (on exporte les métadonnées).
+app.get("/me/export", async (c) => {
+  const user = c.var.user;
+  if (!user) return c.json({ error: "Non authentifié" }, 401);
+  const me = user.id;
+  const db = c.env.DB;
+  const safe = async (sql: string, ...binds: unknown[]): Promise<unknown[]> => {
+    try {
+      const r = await db.prepare(sql).bind(...binds).all<Record<string, unknown>>();
+      return r.results ?? [];
+    } catch {
+      return [];
+    }
+  };
+  const data: Record<string, unknown> = {};
+  data.profile = await safe(
+    "SELECT id, email, display_name, handle, role, avatar_url, bio, accent, prefs, gender, created_at FROM users WHERE id = ?",
+    me,
+  );
+  data.notes = await safe("SELECT * FROM notes WHERE user_id = ?", me);
+  data.lists = await safe("SELECT * FROM lists WHERE user_id = ?", me);
+  data.list_items = await safe(
+    "SELECT li.* FROM list_items li JOIN lists l ON l.id = li.list_id WHERE l.user_id = ?",
+    me,
+  );
+  data.trips = await safe("SELECT * FROM trips WHERE user_id = ?", me);
+  data.trip_items = await safe(
+    "SELECT ti.* FROM trip_items ti JOIN trips t ON t.id = ti.trip_id WHERE t.user_id = ?",
+    me,
+  );
+  data.recipes = await safe("SELECT * FROM recipes WHERE user_id = ?", me);
+  data.boards = await safe("SELECT * FROM boards WHERE user_id = ?", me);
+  data.inspirations = await safe("SELECT * FROM inspirations WHERE user_id = ?", me);
+  data.media = await safe(
+    "SELECT id, filename, content_type, size, caption, visibility, created_at FROM media WHERE user_id = ?",
+    me,
+  );
+  data.albums = await safe("SELECT * FROM albums WHERE user_id = ?", me);
+  data.memory_collections = await safe("SELECT * FROM memory_collections WHERE user_id = ?", me);
+  data.memories = await safe(
+    "SELECT id, collection_id, kind, caption, url, link_title, link_provider, taken_at, created_at FROM memories WHERE user_id = ?",
+    me,
+  );
+  data.events = await safe("SELECT * FROM events WHERE user_id = ?", me);
+  data.expense_groups = await safe("SELECT * FROM expense_groups WHERE owner_id = ?", me);
+  data.expenses = await safe(
+    "SELECT e.* FROM expenses e JOIN expense_groups g ON g.id = e.group_id WHERE g.owner_id = ?",
+    me,
+  );
+  data.finance_accounts = await safe("SELECT * FROM finance_accounts WHERE user_id = ?", me);
+  data.finance_categories = await safe("SELECT * FROM finance_categories WHERE user_id = ?", me);
+  data.finance_transactions = await safe("SELECT * FROM finance_transactions WHERE user_id = ?", me);
+  data.finance_recurring = await safe("SELECT * FROM finance_recurring WHERE user_id = ?", me);
+  data.finance_goals = await safe("SELECT * FROM finance_goals WHERE user_id = ?", me);
+  data.polls = await safe("SELECT * FROM polls WHERE user_id = ?", me);
+  data.widgets = await safe("SELECT * FROM widgets WHERE user_id = ?", me);
+
+  c.header("Content-Disposition", `attachment; filename="marienour-export.json"`);
+  return c.json({ exported_at: new Date().toISOString(), app: c.env.APP_NAME ?? "MarieNour", user_id: me, data });
+});
+
+// ── Suppression de mon compte (RGPD) ─────────────────────────────────────────
+// Irréversible. Exige une RE-CONFIRMATION par mot de passe. Le compte propriétaire
+// (admin) ne peut pas se supprimer ici (éviter de se verrouiller hors de l'app).
+app.post("/me/delete", async (c) => {
+  const user = c.var.user;
+  if (!user) return c.json({ error: "Non authentifié" }, 401);
+  if (user.role === "admin") {
+    return c.json({ error: "Le compte propriétaire ne peut pas être supprimé depuis l'app." }, 403);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  const password = str(body.password, 200);
+  if (!password) return c.json({ error: "Saisis ton mot de passe pour confirmer" }, 400);
+
+  const row = await c.env.DB.prepare("SELECT password_hash, password_salt FROM users WHERE id = ?")
+    .bind(user.id)
+    .first<{ password_hash: string; password_salt: string }>();
+  if (!row || !(await verifyPassword(password, row.password_hash, row.password_salt))) {
+    return c.json({ error: "Mot de passe incorrect" }, 403);
+  }
+
+  // Nettoie les blobs R2 (le CASCADE supprime les lignes, pas les fichiers).
+  const media = await c.env.DB.prepare("SELECT r2_key FROM media WHERE user_id = ?")
+    .bind(user.id)
+    .all<{ r2_key: string }>();
+  const memories = await c.env.DB.prepare("SELECT r2_key FROM memories WHERE user_id = ? AND r2_key IS NOT NULL")
+    .bind(user.id)
+    .all<{ r2_key: string }>();
+  for (const r of [...(media.results ?? []), ...(memories.results ?? [])]) {
+    if (r.r2_key) await c.env.MEDIA.delete(r.r2_key).catch(() => {});
+  }
+
+  await clearSession(c);
+  await c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id).run();
+  return c.json({ ok: true });
 });
 
 export default app;

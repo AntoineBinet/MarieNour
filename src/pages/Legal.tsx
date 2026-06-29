@@ -318,8 +318,9 @@ export function Confidentialite() {
       <Section title="Vos droits (RGPD)">
         Vous disposez d'un droit d'<strong>accès</strong>, de <strong>rectification</strong>,
         d'<strong>effacement</strong>, de <strong>portabilité</strong> (export de vos données),
-        d'<strong>opposition</strong> et de <strong>limitation</strong> du traitement. Pour les exercer —
-        ou pour <strong>supprimer votre compte et vos données</strong> — écrivez à{" "}
+        d'<strong>opposition</strong> et de <strong>limitation</strong> du traitement. Depuis votre{" "}
+        <strong>profil</strong>, vous pouvez directement <strong>exporter toutes vos données</strong> (JSON) et{" "}
+        <strong>supprimer définitivement votre compte</strong>. Pour toute autre demande, écrivez à{" "}
         <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. Vous pouvez aussi introduire une réclamation auprès de
         la <strong>CNIL</strong> (<a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">cnil.fr</a>).
       </Section>
