@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { now, parseJson, str, uid } from "../util";
+import { now, parseJson, PatchSet, str, uid } from "../util";
 import type { Widget, WidgetSize } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -61,23 +61,18 @@ app.patch("/:id", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   if (typeof body.title === "string") {
-    fields.push("title = ?");
-    values.push(str(body.title, 80));
+    p.set("title", str(body.title, 80));
   }
   if (SIZES.includes(body.size)) {
-    fields.push("size = ?");
-    values.push(body.size);
+    p.set("size", body.size);
   }
   if (body.config && typeof body.config === "object") {
-    fields.push("config = ?");
-    values.push(JSON.stringify(body.config));
+    p.set("config", JSON.stringify(body.config));
   }
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  values.push(id, me);
-  await c.env.DB.prepare(`UPDATE widgets SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  await c.env.DB.prepare(`UPDATE widgets SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   return c.json({ ok: true });
 });
 

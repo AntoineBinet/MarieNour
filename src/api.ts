@@ -138,6 +138,10 @@ export const api = {
     post<{ user?: PublicUser; pending?: boolean }>("/auth/register", { email, password, display_name, gender }),
   resendVerification: (email: string) => post<{ ok: true }>("/auth/resend-verification", { email }),
   logout: () => post<{ ok: true }>("/auth/logout"),
+  // Export RGPD : URL de téléchargement direct (la session/cookie est envoyée par
+  // la navigation du navigateur ; la réponse a un Content-Disposition attachment).
+  exportUrl: "/api/auth/me/export",
+  deleteMyAccount: (password: string) => post<{ ok: true }>("/auth/me/delete", { password }),
   updateMe: (
     patch_: Partial<{
       display_name: string;

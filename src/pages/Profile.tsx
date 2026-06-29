@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import { Spinner, Field, useToast } from "../ui";
+import { Spinner, Field, Modal, useToast } from "../ui";
 import { Icon } from "../components/Icon";
 import { useAuth } from "../auth";
 import { IMAGE_ACCEPT, isImageFile } from "../images";
@@ -83,6 +83,18 @@ export default function Profile() {
     }
     uploadAvatar.mutate(file);
   };
+
+  // Suppression de compte (re-confirmation par mot de passe).
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const del = useMutation({
+    mutationFn: () => api.deleteMyAccount(deletePassword),
+    onSuccess: () => {
+      // Session effacée côté serveur : on recharge sur l'écran de connexion.
+      window.location.href = "/login";
+    },
+    onError: (e: any) => toast.push(e.message || "Suppression impossible", true),
+  });
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -226,6 +238,71 @@ export default function Profile() {
         </span>
         <Icon name="arrowRight" size={18} />
       </Link>
+
+      {/* Données & compte (RGPD) : export + suppression. */}
+      <div className="card" style={{ maxWidth: 620, marginTop: "var(--space-4)" }}>
+        <h2 className="row gap-2" style={{ marginTop: 0, marginBottom: 6 }}>
+          <Icon name="lock" size={18} /> Données &amp; compte
+        </h2>
+        <p className="muted small" style={{ marginTop: 0 }}>
+          Télécharge une copie de tout ce que tu as créé, ou supprime définitivement ton compte.
+        </p>
+        <div className="row gap-2 wrap" style={{ marginTop: "var(--space-3)" }}>
+          <a className="btn btn-soft" href={api.exportUrl} download>
+            <Icon name="download" size={15} /> Exporter mes données
+          </a>
+          {user.role !== "admin" && (
+            <button className="btn btn-danger" onClick={() => setShowDelete(true)}>
+              <Icon name="trash" size={15} /> Supprimer mon compte
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showDelete && (
+        <Modal
+          title="Supprimer mon compte"
+          onClose={() => {
+            setShowDelete(false);
+            setDeletePassword("");
+          }}
+          footer={
+            <>
+              <button
+                className="btn btn-soft"
+                onClick={() => {
+                  setShowDelete(false);
+                  setDeletePassword("");
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={() => del.mutate()}
+                disabled={!deletePassword || del.isPending}
+              >
+                {del.isPending ? "Suppression…" : "Supprimer définitivement"}
+              </button>
+            </>
+          }
+        >
+          <p style={{ marginTop: 0 }}>
+            Cette action est <strong>irréversible</strong>. Toutes tes données (notes, listes, voyages, photos,
+            souvenirs, dépenses…) seront définitivement supprimées.
+          </p>
+          <Field label="Confirme avec ton mot de passe">
+            <input
+              className="input"
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="Ton mot de passe"
+            />
+          </Field>
+        </Modal>
+      )}
     </div>
   );
 }

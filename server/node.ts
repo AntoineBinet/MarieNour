@@ -9,7 +9,7 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
-import { secureHeaders } from "hono/secure-headers";
+import { createSecureHeaders } from "./security";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createApp } from "./app";
@@ -98,10 +98,8 @@ const indexHtml = hasBuild
 const root = new Hono();
 
 // En-têtes de sécurité sur TOUTES les réponses (SPA, statiques, API, médias) :
-// nosniff, X-Frame-Options, HSTS, Referrer-Policy… (valeurs par défaut Hono).
-// Pas de Content-Security-Policy ici : à activer séparément après validation du
-// front (cf. audit) pour ne pas risquer de casser des ressources légitimes.
-root.use("*", secureHeaders());
+// nosniff, X-Frame-Options, HSTS, Referrer-Policy + CSP (cf. server/security.ts).
+root.use("*", createSecureHeaders());
 
 // Cache long & immuable pour les assets Vite (noms hashés → jamais réutilisés
 // après un changement de contenu). Le reste (index.html, etc.) n'est pas mis en

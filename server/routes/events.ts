@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanSharedWith, cleanVisibility, intOrNull, now, numOrNull, str, uid } from "../util";
+import { bool, cleanSharedWith, cleanVisibility, intOrNull, now, numOrNull, PatchSet, str, uid } from "../util";
 import {
   canView as canViewContent,
   setEntityShares,
@@ -324,12 +324,10 @@ app.patch("/:id", async (c) => {
   if (!ctx) return c.json({ error: "Introuvable" }, 404);
   if (!ctx.canEdit) return c.json({ error: "Action réservée à l'organisateur" }, 403);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("title", "title", (v) => str(v, 120).trim() || "Événement");
@@ -349,10 +347,9 @@ app.patch("/:id", async (c) => {
   setIf("status", "status", (v) => pick(STATUSES, v, "planning"));
   setIf("date_decided", "date_decided", (v) => (bool(v) ? 1 : 0));
   setIf("visibility", "visibility", (v) => cleanVisibility(v));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id);
-  await c.env.DB.prepare(`UPDATE events SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE events SET ${p.clause()} WHERE id = ?`).bind(...p.values(), id).run();
   // Les partages appartiennent à l'organisateur (propriétaire), pas au co-hôte.
   const _sw = cleanSharedWith(body.shared_with);
   if (_sw) await setEntityShares(c.env.DB, ctx.ev.user_id as string, { type: "event", id }, _sw);
@@ -410,12 +407,10 @@ app.patch("/:id/guests/:gid", async (c) => {
   if (!ctx) return c.json({ error: "Introuvable" }, 404);
   if (!ctx.canEdit) return c.json({ error: "Action réservée à l'organisateur" }, 403);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("name", "name", (v) => str(v, 80).trim() || "Invité");
@@ -423,9 +418,8 @@ app.patch("/:id/guests/:gid", async (c) => {
   setIf("rsvp", "rsvp", (v) => pick(RSVPS, v, "pending"));
   setIf("plus_ones", "plus_ones", (v) => Math.max(0, intOrNull(v) ?? 0));
   setIf("note", "note", (v) => str(v, 500) || null);
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  values.push(gid, id);
-  await c.env.DB.prepare(`UPDATE event_guests SET ${fields.join(", ")} WHERE id = ? AND event_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  await c.env.DB.prepare(`UPDATE event_guests SET ${p.clause()} WHERE id = ? AND event_id = ?`).bind(...p.values(), gid, id).run();
   await touch(c, id);
   return c.json({ ok: true });
 });
@@ -587,21 +581,18 @@ app.patch("/:id/tasks/:tid", async (c) => {
       .first();
     if (!mine) return c.json({ error: "Tâche non assignée à toi" }, 403);
   }
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("title", "title", (v) => str(v, 200).trim() || "Tâche");
   setIf("assignee_id", "assignee_id", (v) => str(v, 60) || null);
   setIf("due_date", "due_date", (v) => str(v, 30) || null);
   setIf("done", "done", (v) => (bool(v) ? 1 : 0));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  values.push(tid, id);
-  await c.env.DB.prepare(`UPDATE event_tasks SET ${fields.join(", ")} WHERE id = ? AND event_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  await c.env.DB.prepare(`UPDATE event_tasks SET ${p.clause()} WHERE id = ? AND event_id = ?`).bind(...p.values(), tid, id).run();
   await touch(c, id);
   return c.json({ ok: true });
 });
@@ -654,12 +645,10 @@ app.patch("/:id/items/:iid", async (c) => {
   if (!ctx) return c.json({ error: "Introuvable" }, 404);
   if (!ctx.canEdit) return c.json({ error: "Action réservée à l'organisateur" }, 403);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("day_date", "day_date", (v) => str(v, 30) || null);
@@ -668,9 +657,8 @@ app.patch("/:id/items/:iid", async (c) => {
   setIf("kind", "kind", (v) => pick(ITEM_KINDS, v, "activity"));
   setIf("location", "location", (v) => str(v, 200) || null);
   setIf("notes", "notes", (v) => str(v, 2000) || null);
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  values.push(c.req.param("iid"), id);
-  await c.env.DB.prepare(`UPDATE event_items SET ${fields.join(", ")} WHERE id = ? AND event_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  await c.env.DB.prepare(`UPDATE event_items SET ${p.clause()} WHERE id = ? AND event_id = ?`).bind(...p.values(), c.req.param("iid"), id).run();
   await touch(c, id);
   return c.json({ ok: true });
 });
@@ -716,12 +704,10 @@ app.patch("/:id/bring/:bid", async (c) => {
   if (!ctx) return c.json({ error: "Introuvable" }, 404);
   if (!ctx.canEdit) return c.json({ error: "Action réservée à l'organisateur" }, 403);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("title", "title", (v) => str(v, 200).trim() || "À apporter");
@@ -729,9 +715,8 @@ app.patch("/:id/bring/:bid", async (c) => {
   setIf("category", "category", (v) => pick(BRING_CATS, v, "other"));
   setIf("claimed_by", "claimed_by", (v) => str(v, 60) || null);
   setIf("note", "note", (v) => str(v, 300) || null);
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  values.push(c.req.param("bid"), id);
-  await c.env.DB.prepare(`UPDATE event_bring SET ${fields.join(", ")} WHERE id = ? AND event_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  await c.env.DB.prepare(`UPDATE event_bring SET ${p.clause()} WHERE id = ? AND event_id = ?`).bind(...p.values(), c.req.param("bid"), id).run();
   await touch(c, id);
   return c.json({ ok: true });
 });

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { canView, canViewMemory, friendIds } from "../access";
+import { PUB, PUB_U, toPub } from "../pub";
 import { cleanVisibility, now, str, uid } from "../util";
 import type { Comment, FeedItem, PublicUser, Visibility } from "@shared/types";
 
@@ -85,23 +86,6 @@ async function canAccessEntity(
   return false;
 }
 
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
-const PUB_U = PUB.split(", ")
-  .map((c) => `u.${c}`)
-  .join(", ");
-function toPub(r: Record<string, unknown>): PublicUser {
-  return {
-    id: r.id as string,
-    display_name: r.display_name as string,
-    handle: (r.handle as string) ?? null,
-    role: r.role as PublicUser["role"],
-    avatar_url: (r.avatar_url as string) ?? null,
-    bio: (r.bio as string) ?? null,
-    accent: (r.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: r.created_at as number,
-  };
-}
 
 // ── Feed des amis ──────────────────────────────────────────────────────────
 app.get("/feed", async (c) => {

@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
+import { PUB, toPub } from "../pub";
 import { now, str, uid } from "../util";
-import type { InviteKind, PublicUser } from "@shared/types";
+import type { InviteKind } from "@shared/types";
 
 // Invitations génériques — alimentent les QR codes de l'app. Trois usages :
 //   • 'friend' : ajouter en ami la personne qui scanne (même pas encore inscrite)
@@ -22,22 +23,6 @@ function inviteToken(): string {
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
 }
-
-function toPub(row: Record<string, unknown>): PublicUser {
-  return {
-    id: row.id as string,
-    display_name: row.display_name as string,
-    handle: (row.handle as string) ?? null,
-    role: row.role as PublicUser["role"],
-    avatar_url: (row.avatar_url as string) ?? null,
-    bio: (row.bio as string) ?? null,
-    accent: (row.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: row.created_at as number,
-  };
-}
-
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
 
 /** Relie deux personnes en amis (accepté d'office). Respecte un éventuel blocage
  *  et ne recrée pas un lien existant. Utilisé quand on rejoint un voyage / groupe

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { attachUser, requireAuth } from "../auth";
 import { canView, mediaVisibleViaAlbum, setEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
-import { cleanVisibility, cleanSharedWith, isImageUpload, now, safeServedContentType, str, uid } from "../util";
+import { cleanVisibility, cleanSharedWith, isImageUpload, now, PatchSet, safeServedContentType, str, uid } from "../util";
 import type { MediaItem } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -121,21 +121,17 @@ app.patch("/:id", requireAuth, async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id")!;
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   if (body.caption !== undefined) {
-    fields.push("caption = ?");
-    values.push(str(body.caption, 500) || null);
+    p.set("caption", str(body.caption, 500) || null);
   }
   if (body.visibility !== undefined) {
-    fields.push("visibility = ?");
-    values.push(cleanVisibility(body.visibility));
+    p.set("visibility", cleanVisibility(body.visibility));
   }
   const _sw = cleanSharedWith(body.shared_with);
-  if (!fields.length && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
-  if (fields.length) {
-    values.push(id, me);
-    await c.env.DB.prepare(`UPDATE media SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (!p.empty) {
+    await c.env.DB.prepare(`UPDATE media SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   }
   if (_sw) await setEntityShares(c.env.DB, me, { type: "media", id }, _sw);
   return c.json({ ok: true });

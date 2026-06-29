@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { cleanSharedWith, cleanVisibility, now, parseJson, str, uid } from "../util";
+import { cleanSharedWith, cleanVisibility, now, parseJson, PatchSet, str, uid } from "../util";
 import { setEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
 import type { Board, Inspiration } from "@shared/types";
 
@@ -91,22 +91,19 @@ app.patch("/boards/:id", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("title", "title", (v) => str(v, 120));
   setIf("description", "description", (v) => str(v, 1000) || null);
   setIf("cover_url", "cover_url", (v) => str(v, 1000) || null);
   setIf("visibility", "visibility", (v) => cleanVisibility(v));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE boards SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE boards SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   const _sw = cleanSharedWith(body.shared_with);
   if (_sw) await setEntityShares(c.env.DB, me, { type: "board", id }, _sw);
   return c.json({ ok: true });
@@ -184,12 +181,10 @@ app.patch("/items/:id", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("board_id", "board_id", (v) => str(v, 60) || null);
@@ -203,11 +198,10 @@ app.patch("/items/:id", async (c) => {
   setIf("tags", "tags", (v) =>
     JSON.stringify(Array.isArray(v) ? v.slice(0, 20).map((t: unknown) => str(t, 40)) : []),
   );
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE inspirations SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`)
-    .bind(...values)
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE inspirations SET ${p.clause()} WHERE id = ? AND user_id = ?`)
+    .bind(...p.values(), id, me)
     .run();
   const _sw = cleanSharedWith(body.shared_with);
   if (_sw) await setEntityShares(c.env.DB, me, { type: "inspiration", id }, _sw);

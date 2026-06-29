@@ -2,26 +2,12 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { areFriends, canViewAlbum, friendIds } from "../access";
-import { cleanVisibility, now, str, uid } from "../util";
+import { PUB, toPub } from "../pub";
+import { cleanVisibility, now, PatchSet, str, uid } from "../util";
 import type { Album, AlbumDetail, MediaItem, PublicUser, Visibility } from "@shared/types";
 
 const app = new Hono<AppEnv>();
 app.use("*", requireAuth);
-
-const PUB = "id, display_name, handle, role, avatar_url, bio, accent, created_at";
-function toPub(r: Record<string, unknown>): PublicUser {
-  return {
-    id: r.id as string,
-    display_name: r.display_name as string,
-    handle: (r.handle as string) ?? null,
-    role: r.role as PublicUser["role"],
-    avatar_url: (r.avatar_url as string) ?? null,
-    bio: (r.bio as string) ?? null,
-    accent: (r.accent as string) ?? "terracotta",
-    prefs: {},
-    created_at: r.created_at as number,
-  };
-}
 
 function toMedia(r: Record<string, unknown>): MediaItem {
   return {
@@ -216,19 +202,15 @@ app.patch("/:id", async (c) => {
   const row = await loadOwned(c.env.DB, me, id);
   if (!row) return c.json({ error: "Album introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   if (typeof body.title === "string" && body.title.trim()) {
-    fields.push("title = ?");
-    values.push(str(body.title, 120).trim());
+    p.set("title", str(body.title, 120).trim());
   }
   if (body.description !== undefined) {
-    fields.push("description = ?");
-    values.push(str(body.description, 1000) || null);
+    p.set("description", str(body.description, 1000) || null);
   }
   if (body.visibility !== undefined) {
-    fields.push("visibility = ?");
-    values.push(cleanVisibility(body.visibility));
+    p.set("visibility", cleanVisibility(body.visibility));
   }
   if (body.cover_media_id !== undefined) {
     const cover = str(body.cover_media_id, 60) || null;
@@ -237,13 +219,11 @@ app.patch("/:id", async (c) => {
       const inAlbum = await c.env.DB.prepare("SELECT 1 FROM album_media WHERE album_id = ? AND media_id = ?").bind(id, cover).first();
       if (!inAlbum) return c.json({ error: "Cette photo n'est pas dans l'album" }, 400);
     }
-    fields.push("cover_media_id = ?");
-    values.push(cover);
+    p.set("cover_media_id", cover);
   }
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE albums SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE albums SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   return c.json({ ok: true });
 });
 
