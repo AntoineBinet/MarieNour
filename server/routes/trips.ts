@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanSharedWith, cleanVisibility, now, numOrNull, str, uid } from "../util";
+import { bool, cleanSharedWith, cleanVisibility, now, numOrNull, PatchSet, str, uid } from "../util";
 import { deleteEntityShares, getEntityShares, getEntitySharesBulk, setEntityShares } from "../access";
 import { sendPushToUser } from "../push";
 import type { Trip, TripItem, TripKind, TripParticipant } from "@shared/types";
@@ -283,12 +283,10 @@ app.patch("/:id", async (c) => {
   const id = c.req.param("id");
   if (!(await ownsTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("title", "title", (v) => str(v, 120));
@@ -302,11 +300,10 @@ app.patch("/:id", async (c) => {
   setIf("visibility", "visibility", (v) => cleanVisibility(v));
   setIf("kind", "kind", (v) => cleanTripKind(v));
   const _sw = cleanSharedWith(body.shared_with);
-  if (!fields.length && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
-  if (fields.length) {
-    fields.push("updated_at = ?");
-    values.push(now(), id, me);
-    await c.env.DB.prepare(`UPDATE trips SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (!p.empty) {
+    p.set("updated_at", now());
+    await c.env.DB.prepare(`UPDATE trips SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   }
   if (_sw) await setEntityShares(c.env.DB, me, { type: "trip", id }, _sw);
   return c.json({ ok: true });
@@ -356,12 +353,10 @@ app.patch("/:id/items/:itemId", async (c) => {
   const id = c.req.param("id");
   if (!(await ownsTrip(c, id))) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("day_date", "day_date", (v) => str(v, 30) || null);
@@ -373,10 +368,9 @@ app.patch("/:id/items/:itemId", async (c) => {
   setIf("notes", "notes", (v) => str(v, 2000) || null);
   setIf("cost", "cost", (v) => numOrNull(v));
   setIf("done", "done", (v) => (bool(v) ? 1 : 0));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  values.push(c.req.param("itemId"), id);
-  await c.env.DB.prepare(`UPDATE trip_items SET ${fields.join(", ")} WHERE id = ? AND trip_id = ?`)
-    .bind(...values)
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  await c.env.DB.prepare(`UPDATE trip_items SET ${p.clause()} WHERE id = ? AND trip_id = ?`)
+    .bind(...p.values(), c.req.param("itemId"), id)
     .run();
   return c.json({ ok: true });
 });

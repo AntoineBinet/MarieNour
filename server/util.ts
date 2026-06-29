@@ -62,6 +62,49 @@ export function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Builder de mise à jour partielle (UPDATE … SET). Remplace le couple
+ *  `fields: string[]` / `values: unknown[]` réécrit dans une douzaine de routes.
+ *  L'appelant calcule la valeur ; le builder accumule colonne + valeur dans
+ *  l'ordre d'appel (donc l'ordre des binds est préservé). Les binds du WHERE se
+ *  passent APRÈS : `.bind(...p.values(), id, me)`. */
+export class PatchSet {
+  private cols: string[] = [];
+  private vals: unknown[] = [];
+
+  /** Ajoute « col = ? » avec sa valeur. */
+  set(col: string, value: unknown): this {
+    this.cols.push(`${col} = ?`);
+    this.vals.push(value);
+    return this;
+  }
+
+  /** Ajoute « col = ? » seulement si `value !== undefined` (champ absent du corps). */
+  setIf(col: string, value: unknown): this {
+    if (value !== undefined) this.set(col, value);
+    return this;
+  }
+
+  /** Aucun champ à mettre à jour ? */
+  get empty(): boolean {
+    return this.cols.length === 0;
+  }
+
+  /** Nombre de colonnes posées. */
+  get size(): number {
+    return this.cols.length;
+  }
+
+  /** Fragment SQL « col1 = ?, col2 = ? ». */
+  clause(): string {
+    return this.cols.join(", ");
+  }
+
+  /** Valeurs des colonnes, dans l'ordre des `set` (à étaler avant les binds du WHERE). */
+  values(): unknown[] {
+    return this.vals;
+  }
+}
+
 /* ── Sécurité des médias (uploads & service binaire) ─────────────────────────
  * Empêche le « XSS stocké via fichier » : un fichier uploadé puis servi depuis
  * l'origine du site avec un Content-Type exécutable (text/html, image/svg+xml)

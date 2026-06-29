@@ -3,7 +3,7 @@ import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { areFriends } from "../access";
 import { PUB_U, toPub } from "../pub";
-import { bool, intOrNull, now, numOrNull, str, uid } from "../util";
+import { PatchSet, bool, intOrNull, now, numOrNull, str, uid } from "../util";
 import type {
   AccountKind,
   BudgetLine,
@@ -517,12 +517,10 @@ app.patch("/accounts/:id", async (c) => {
     .first();
   if (!existing) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("name", "name", (v) => str(v, 80).trim() || "Compte");
@@ -533,11 +531,10 @@ app.patch("/accounts/:id", async (c) => {
   setIf("color", "color", (v) => str(v, 40) || "sand");
   setIf("archived", "archived", (v) => (bool(v) ? 1 : 0));
   setIf("position", "position", (v) => intOrNull(v) ?? 0);
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE finance_accounts SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`)
-    .bind(...values)
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE finance_accounts SET ${p.clause()} WHERE id = ? AND user_id = ?`)
+    .bind(...p.values(), id, me)
     .run();
   return c.json({ ok: true });
 });
@@ -599,12 +596,10 @@ app.patch("/categories/:id", async (c) => {
     .first();
   if (!existing) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("name", "name", (v) => str(v, 80).trim() || "Catégorie");
@@ -614,11 +609,10 @@ app.patch("/categories/:id", async (c) => {
   setIf("monthly_budget", "monthly_budget", (v) => numOrNull(v));
   setIf("position", "position", (v) => intOrNull(v) ?? 0);
   setIf("archived", "archived", (v) => (bool(v) ? 1 : 0));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE finance_categories SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`)
-    .bind(...values)
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE finance_categories SET ${p.clause()} WHERE id = ? AND user_id = ?`)
+    .bind(...p.values(), id, me)
     .run();
   return c.json({ ok: true });
 });
@@ -812,11 +806,9 @@ app.patch("/transactions/:id", async (c) => {
   const type = body.type !== undefined ? cleanTxType(body.type) : cleanTxType(current.type);
   if (!type) return c.json({ error: "Type invalide" }, 400);
 
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const push = (col: string, val: unknown) => {
-    fields.push(`${col} = ?`);
-    values.push(val);
+    p.set(col, val);
   };
 
   if (body.amount !== undefined) {
@@ -865,11 +857,10 @@ app.patch("/transactions/:id", async (c) => {
   if (body.payee !== undefined) push("payee", str(body.payee, 120) || null);
   if (body.note !== undefined) push("note", str(body.note, 2000) || null);
 
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
   push("updated_at", now());
-  values.push(id);
-  await c.env.DB.prepare(`UPDATE finance_transactions SET ${fields.join(", ")} WHERE id = ?`)
-    .bind(...values)
+  await c.env.DB.prepare(`UPDATE finance_transactions SET ${p.clause()} WHERE id = ?`)
+    .bind(...p.values(), id)
     .run();
   return c.json({ ok: true });
 });
@@ -955,11 +946,9 @@ app.patch("/recurring/:id", async (c) => {
   const type = body.type !== undefined ? cleanTxType(body.type) : cleanTxType(existing.type);
   if (!type) return c.json({ error: "Type invalide" }, 400);
 
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const push = (col: string, val: unknown) => {
-    fields.push(`${col} = ?`);
-    values.push(val);
+    p.set(col, val);
   };
 
   if (body.account_id !== undefined) {
@@ -991,11 +980,10 @@ app.patch("/recurring/:id", async (c) => {
   if (body.next_date !== undefined) push("next_date", str(body.next_date, 30) || (existing.next_date as string));
   if (body.active !== undefined) push("active", bool(body.active) ? 1 : 0);
 
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
   push("updated_at", now());
-  values.push(id, me);
-  await c.env.DB.prepare(`UPDATE finance_recurring SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`)
-    .bind(...values)
+  await c.env.DB.prepare(`UPDATE finance_recurring SET ${p.clause()} WHERE id = ? AND user_id = ?`)
+    .bind(...p.values(), id, me)
     .run();
   return c.json({ ok: true });
 });
@@ -1097,11 +1085,9 @@ app.patch("/goals/:id", async (c) => {
     .first();
   if (!existing) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const push = (col: string, val: unknown) => {
-    fields.push(`${col} = ?`);
-    values.push(val);
+    p.set(col, val);
   };
   if (body.name !== undefined) push("name", str(body.name, 80).trim() || "Objectif");
   if (body.target_amount !== undefined) push("target_amount", numOrNull(body.target_amount) ?? 0);
@@ -1119,11 +1105,10 @@ app.patch("/goals/:id", async (c) => {
   }
   if (body.icon !== undefined) push("icon", str(body.icon, 40) || "target");
   if (body.color !== undefined) push("color", str(body.color, 40) || "sage");
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
   push("updated_at", now());
-  values.push(id, me);
-  await c.env.DB.prepare(`UPDATE finance_goals SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`)
-    .bind(...values)
+  await c.env.DB.prepare(`UPDATE finance_goals SET ${p.clause()} WHERE id = ? AND user_id = ?`)
+    .bind(...p.values(), id, me)
     .run();
   return c.json({ ok: true });
 });

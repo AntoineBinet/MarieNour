@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanSharedWith, cleanVisibility, intOrNull, now, parseJson, str, uid } from "../util";
+import { bool, cleanSharedWith, cleanVisibility, intOrNull, now, parseJson, PatchSet, str, uid } from "../util";
 import { setEntityShares, getEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
 import type { Recipe } from "@shared/types";
 
@@ -96,12 +96,10 @@ app.patch("/:id", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
+      p.set(col, t(body[key]));
     }
   };
   setIf("title", "title", (v) => str(v, 160));
@@ -116,10 +114,9 @@ app.patch("/:id", async (c) => {
   setIf("source_url", "source_url", (v) => str(v, 1000) || null);
   setIf("favorite", "favorite", (v) => (bool(v) ? 1 : 0));
   setIf("visibility", "visibility", (v) => cleanVisibility(v));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE recipes SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE recipes SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   const _sw = cleanSharedWith(body.shared_with);
   if (_sw) await setEntityShares(c.env.DB, me, { type: "recipe", id }, _sw);
   return c.json({ ok: true });

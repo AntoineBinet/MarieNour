@@ -3,7 +3,7 @@ import type { AppEnv } from "../types";
 import { attachUser, requireAuth } from "../auth";
 import { canViewCollection, canViewMemory, friendIds, areFriends } from "../access";
 import { PUB_U, toPub } from "../pub";
-import { now, str, uid, intOrNull, isImageOrVideoUpload, safeServedContentType, isBlockedPreviewHost } from "../util";
+import { now, str, uid, intOrNull, isImageOrVideoUpload, safeServedContentType, isBlockedPreviewHost, PatchSet } from "../util";
 import type {
   CollectionVisibility,
   LinkPreview,
@@ -26,9 +26,11 @@ const COLL_VIS: CollectionVisibility[] = ["private", "friends", "custom", "publi
 const cleanCollVis = (v: unknown): CollectionVisibility =>
   COLL_VIS.includes(v as never) ? (v as CollectionVisibility) : "private";
 
+// NB : sur une ligne `SELECT c.*, u.…` (collection + propriétaire), l'id du
+// propriétaire est `c.user_id` (et NON `id`, qui appartient à la collection).
 function toOwner(r: Record<string, unknown>): TripOwner {
   return {
-    id: r.id as string,
+    id: r.user_id as string,
     display_name: r.display_name as string,
     handle: (r.handle as string) ?? null,
     avatar_url: (r.avatar_url as string) ?? null,
@@ -146,7 +148,9 @@ app.get("/collections", async (c) => {
   const fids = await friendIds(c.env.DB, me);
   const { sql, binds } = visibleWhere(me, fids);
   const sharedRes = await c.env.DB.prepare(
-    `SELECT c.*, ${PUB_U} FROM memory_collections c
+    // On ne sélectionne QUE les colonnes propriétaire non-conflictuelles (sinon
+    // u.id/u.accent/u.created_at écraseraient c.id/c.accent/c.created_at).
+    `SELECT c.*, u.display_name, u.handle, u.avatar_url FROM memory_collections c
      JOIN users u ON u.id = c.user_id
      WHERE c.user_id != ? AND ${sql}
        AND EXISTS (SELECT 1 FROM memories mm WHERE mm.collection_id = c.id)
@@ -329,7 +333,7 @@ app.get("/collections/:id", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
   const col = await c.env.DB.prepare(
-    `SELECT c.*, ${PUB_U} FROM memory_collections c JOIN users u ON u.id = c.user_id WHERE c.id = ?`,
+    `SELECT c.*, u.display_name, u.handle, u.avatar_url FROM memory_collections c JOIN users u ON u.id = c.user_id WHERE c.id = ?`,
   )
     .bind(id)
     .first<Record<string, unknown>>();
@@ -364,38 +368,24 @@ app.patch("/collections/:id", async (c) => {
   if (!col) return c.json({ error: "Collection introuvable" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   if (body.title !== undefined) {
     const t = str(body.title, 120).trim();
     if (!t) return c.json({ error: "Titre requis" }, 400);
-    fields.push("title = ?");
-    values.push(t);
+    p.set("title", t);
   }
-  if (body.description !== undefined) {
-    fields.push("description = ?");
-    values.push(str(body.description, 500) || null);
-  }
-  if (body.accent !== undefined) {
-    fields.push("accent = ?");
-    values.push(str(body.accent, 24) || "terracotta");
-  }
-  if (body.cover_url !== undefined) {
-    fields.push("cover_url = ?");
-    values.push(str(body.cover_url, 400) || null);
-  }
+  if (body.description !== undefined) p.set("description", str(body.description, 500) || null);
+  if (body.accent !== undefined) p.set("accent", str(body.accent, 24) || "terracotta");
+  if (body.cover_url !== undefined) p.set("cover_url", str(body.cover_url, 400) || null);
   let nextVis = col.visibility;
   if (body.visibility !== undefined) {
     nextVis = cleanCollVis(body.visibility);
-    fields.push("visibility = ?");
-    values.push(nextVis);
+    p.set("visibility", nextVis);
   }
-  if (fields.length) {
-    fields.push("updated_at = ?");
-    values.push(now());
-    values.push(id, me);
-    await c.env.DB.prepare(`UPDATE memory_collections SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`)
-      .bind(...values)
+  if (!p.empty) {
+    p.set("updated_at", now());
+    await c.env.DB.prepare(`UPDATE memory_collections SET ${p.clause()} WHERE id = ? AND user_id = ?`)
+      .bind(...p.values(), id, me)
       .run();
   }
   // Membres : pris en compte si fournis et visibilité finale 'custom'.
@@ -641,29 +631,19 @@ app.patch("/memories/:id", async (c) => {
   const own = await c.env.DB.prepare("SELECT id FROM memories WHERE id = ? AND user_id = ?").bind(id, me).first();
   if (!own) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  if (body.caption !== undefined) {
-    fields.push("caption = ?");
-    values.push(str(body.caption, 1000) || null);
-  }
-  if (body.taken_at !== undefined) {
-    fields.push("taken_at = ?");
-    values.push(intOrNull(body.taken_at) ?? now());
-  }
+  const p = new PatchSet();
+  if (body.caption !== undefined) p.set("caption", str(body.caption, 1000) || null);
+  if (body.taken_at !== undefined) p.set("taken_at", intOrNull(body.taken_at) ?? now());
   if (body.collection_id !== undefined) {
     const target = await c.env.DB.prepare("SELECT id FROM memory_collections WHERE id = ? AND user_id = ?")
       .bind(str(body.collection_id, 60), me)
       .first();
     if (!target) return c.json({ error: "Collection invalide" }, 400);
-    fields.push("collection_id = ?");
-    values.push(str(body.collection_id, 60));
+    p.set("collection_id", str(body.collection_id, 60));
   }
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now());
-  values.push(id, me);
-  await c.env.DB.prepare(`UPDATE memories SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE memories SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   return c.json({ ok: true });
 });
 

@@ -14,7 +14,7 @@ import {
   writeSessionCookie,
 } from "../auth";
 import { notifyAdminNewUser, sendVerificationEmail, smtpReady } from "../mailer";
-import { now, slugifyHandle, str, uid } from "../util";
+import { now, PatchSet, slugifyHandle, str, uid } from "../util";
 import { clientIp, rateLimit } from "../ratelimit";
 
 const VERIFY_TTL_MS = 1000 * 60 * 60 * 24; // 24 h
@@ -239,8 +239,7 @@ app.patch("/me", async (c) => {
   if (!user) return c.json({ error: "Non authentifié" }, 401);
   const body = await c.req.json().catch(() => ({}));
 
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
 
   // E-mail : modifiable, mais validé et unique (insensible à la casse).
   if (typeof body.email === "string") {
@@ -248,8 +247,7 @@ app.patch("/me", async (c) => {
     if (!EMAIL_RE.test(email)) return c.json({ error: "Email invalide" }, 400);
     const clash = await c.env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND id <> ?").bind(email, user.id).first();
     if (clash) return c.json({ error: "Un compte existe déjà avec cet email" }, 409);
-    fields.push("email = ?");
-    values.push(email);
+    p.set("email", email);
   }
 
   // Pseudo (handle) : normalisé en slug, non vide, unique.
@@ -258,32 +256,26 @@ app.patch("/me", async (c) => {
     if (!handle) return c.json({ error: "Pseudo invalide" }, 400);
     const clash = await c.env.DB.prepare("SELECT 1 FROM users WHERE handle = ? AND id <> ?").bind(handle, user.id).first();
     if (clash) return c.json({ error: "Ce pseudo est déjà pris" }, 409);
-    fields.push("handle = ?");
-    values.push(handle);
+    p.set("handle", handle);
   }
 
   if (typeof body.display_name === "string" && body.display_name.trim()) {
-    fields.push("display_name = ?");
-    values.push(str(body.display_name, 60).trim());
+    p.set("display_name", str(body.display_name, 60).trim());
   }
   if (typeof body.bio === "string") {
-    fields.push("bio = ?");
-    values.push(str(body.bio, 500));
+    p.set("bio", str(body.bio, 500));
   }
   if (typeof body.avatar_url === "string") {
-    fields.push("avatar_url = ?");
-    values.push(str(body.avatar_url, 1000));
+    p.set("avatar_url", str(body.avatar_url, 1000));
   }
   if (typeof body.accent === "string") {
-    fields.push("accent = ?");
-    values.push(str(body.accent, 40));
+    p.set("accent", str(body.accent, 40));
   }
 
   // Sexe : modifiable depuis le profil. N'altère PAS le style en place — c'est
   // juste une donnée de profil (le style reste piloté par les réglages).
   if (typeof body.gender === "string" || body.gender === null) {
-    fields.push("gender = ?");
-    values.push(parseGender(body.gender));
+    p.set("gender", parseGender(body.gender));
   }
 
   // Préférences d'apparence & d'accueil : fusionnées avec l'existant (un champ
@@ -294,16 +286,13 @@ app.patch("/me", async (c) => {
       .bind(user.id)
       .first<{ prefs: string | null }>();
     const merged = mergePrefs(parsePrefs(current?.prefs), body.prefs);
-    fields.push("prefs = ?");
-    values.push(JSON.stringify(merged));
+    p.set("prefs", JSON.stringify(merged));
   }
 
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
 
-  fields.push("updated_at = ?");
-  values.push(now());
-  values.push(user.id);
-  await c.env.DB.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE users SET ${p.clause()} WHERE id = ?`).bind(...p.values(), user.id).run();
 
   const row = await c.env.DB.prepare(
     "SELECT id, email, display_name, handle, role, avatar_url, bio, accent, prefs, gender, created_at FROM users WHERE id = ?",

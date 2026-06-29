@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, now, numOrNull, str, uid } from "../util";
+import { bool, now, numOrNull, PatchSet, str, uid } from "../util";
 import type {
   Expense,
   ExpenseGroup,
@@ -445,22 +445,17 @@ app.patch("/:id", async (c) => {
   const id = c.req.param("id");
   if (!(await isOwner(c, id))) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, t: (v: unknown) => unknown) => {
-    if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(t(body[key]));
-    }
+    if (body[key] !== undefined) p.set(col, t(body[key]));
   };
   setIf("title", "title", (v) => str(v, 120));
   setIf("icon", "icon", (v) => str(v, 40) || "wallet");
   setIf("currency", "currency", (v) => str(v, 8) || "EUR");
   setIf("archived", "archived", (v) => (bool(v) ? 1 : 0));
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id);
-  await c.env.DB.prepare(`UPDATE expense_groups SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE expense_groups SET ${p.clause()} WHERE id = ?`).bind(...p.values(), id).run();
   return c.json({ ok: true });
 });
 
@@ -613,24 +608,17 @@ app.patch("/:id/expenses/:expenseId", async (c) => {
   const splitMode = body.split_mode !== undefined ? cleanSplit(body.split_mode) : cleanSplit(current.split_mode);
   const title = body.title !== undefined ? str(body.title, 200).trim() || (current.title as string) : (current.title as string);
 
-  const fields: string[] = ["title = ?", "amount = ?", "payer_id = ?", "split_mode = ?"];
-  const values: unknown[] = [title, r2(amount), payerId, splitMode];
-  if (body.category !== undefined) {
-    fields.push("category = ?");
-    values.push(cleanCategory(body.category));
-  }
-  if (body.spent_at !== undefined) {
-    fields.push("spent_at = ?");
-    values.push(str(body.spent_at, 30) || null);
-  }
-  if (body.note !== undefined) {
-    fields.push("note = ?");
-    values.push(str(body.note, 2000) || null);
-  }
-  fields.push("updated_at = ?");
-  values.push(now(), expenseId, id);
-  await c.env.DB.prepare(`UPDATE expenses SET ${fields.join(", ")} WHERE id = ? AND group_id = ?`)
-    .bind(...values)
+  const p = new PatchSet();
+  p.set("title", title);
+  p.set("amount", r2(amount));
+  p.set("payer_id", payerId);
+  p.set("split_mode", splitMode);
+  if (body.category !== undefined) p.set("category", cleanCategory(body.category));
+  if (body.spent_at !== undefined) p.set("spent_at", str(body.spent_at, 30) || null);
+  if (body.note !== undefined) p.set("note", str(body.note, 2000) || null);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE expenses SET ${p.clause()} WHERE id = ? AND group_id = ?`)
+    .bind(...p.values(), expenseId, id)
     .run();
 
   // Recalcule systématiquement les parts (approche robuste : on efface puis réinsère).

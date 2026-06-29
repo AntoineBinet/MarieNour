@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanVisibility, cleanSharedWith, now, str, uid } from "../util";
+import { bool, cleanVisibility, cleanSharedWith, now, PatchSet, str, uid } from "../util";
 import { setEntityShares, getEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
 import type { List, ListItem } from "@shared/types";
 
@@ -114,12 +114,10 @@ app.patch("/:id", async (c) => {
   const id = c.req.param("id");
   if (!(await ownsList(c, id))) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   const setIf = (key: string, col: string, transform: (v: unknown) => unknown) => {
     if (body[key] !== undefined) {
-      fields.push(`${col} = ?`);
-      values.push(transform(body[key]));
+      p.set(col, transform(body[key]));
     }
   };
   setIf("title", "title", (v) => str(v, 120));
@@ -129,11 +127,10 @@ app.patch("/:id", async (c) => {
   setIf("archived", "archived", (v) => (bool(v) ? 1 : 0));
   setIf("kind", "kind", (v) => (v === "list" ? "list" : "checklist"));
   const _sw = cleanSharedWith(body.shared_with);
-  if (!fields.length && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
-  if (fields.length) {
-    fields.push("updated_at = ?");
-    values.push(now(), id, me);
-    await c.env.DB.prepare(`UPDATE lists SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty && !_sw) return c.json({ error: "Rien à mettre à jour" }, 400);
+  if (!p.empty) {
+    p.set("updated_at", now());
+    await c.env.DB.prepare(`UPDATE lists SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   }
   if (_sw) await setEntityShares(c.env.DB, me, { type: "list", id }, _sw);
   return c.json({ ok: true });
@@ -171,29 +168,23 @@ app.patch("/:id/items/:itemId", async (c) => {
   const id = c.req.param("id");
   if (!(await ownsList(c, id))) return c.json({ error: "Introuvable" }, 404);
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   if (body.content !== undefined) {
-    fields.push("content = ?");
-    values.push(str(body.content, 500));
+    p.set("content", str(body.content, 500));
   }
   if (body.note !== undefined) {
-    fields.push("note = ?");
-    values.push(str(body.note, 1000) || null);
+    p.set("note", str(body.note, 1000) || null);
   }
   if (body.done !== undefined) {
-    fields.push("done = ?");
-    values.push(bool(body.done) ? 1 : 0);
+    p.set("done", bool(body.done) ? 1 : 0);
   }
   if (body.due_date !== undefined) {
-    fields.push("due_date = ?");
-    values.push(str(body.due_date, 30) || null);
+    p.set("due_date", str(body.due_date, 30) || null);
   }
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), c.req.param("itemId"), id);
-  await c.env.DB.prepare(`UPDATE list_items SET ${fields.join(", ")} WHERE id = ? AND list_id = ?`)
-    .bind(...values)
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE list_items SET ${p.clause()} WHERE id = ? AND list_id = ?`)
+    .bind(...p.values(), c.req.param("itemId"), id)
     .run();
   return c.json({ ok: true });
 });

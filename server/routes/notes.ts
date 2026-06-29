@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
-import { bool, cleanVisibility, cleanSharedWith, now, parseJson, str, uid } from "../util";
+import { bool, cleanVisibility, cleanSharedWith, now, parseJson, PatchSet, str, uid } from "../util";
 import { setEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
 import type { Note } from "@shared/types";
 
@@ -68,36 +68,28 @@ app.patch("/:id", async (c) => {
   const me = c.var.user!.id;
   const id = c.req.param("id");
   const body = await c.req.json().catch(() => ({}));
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  const p = new PatchSet();
   if (body.title !== undefined) {
-    fields.push("title = ?");
-    values.push(str(body.title, 200) || null);
+    p.set("title", str(body.title, 200) || null);
   }
   if (body.body !== undefined) {
-    fields.push("body = ?");
-    values.push(str(body.body, 20000) || null);
+    p.set("body", str(body.body, 20000) || null);
   }
   if (body.color !== undefined) {
-    fields.push("color = ?");
-    values.push(str(body.color, 24));
+    p.set("color", str(body.color, 24));
   }
   if (body.pinned !== undefined) {
-    fields.push("pinned = ?");
-    values.push(bool(body.pinned) ? 1 : 0);
+    p.set("pinned", bool(body.pinned) ? 1 : 0);
   }
   if (body.visibility !== undefined) {
-    fields.push("visibility = ?");
-    values.push(cleanVisibility(body.visibility));
+    p.set("visibility", cleanVisibility(body.visibility));
   }
   if (body.tags !== undefined) {
-    fields.push("tags = ?");
-    values.push(JSON.stringify(Array.isArray(body.tags) ? body.tags.slice(0, 20).map((t: unknown) => str(t, 40)) : []));
+    p.set("tags", JSON.stringify(Array.isArray(body.tags) ? body.tags.slice(0, 20).map((t: unknown) => str(t, 40)) : []));
   }
-  if (!fields.length) return c.json({ error: "Rien à mettre à jour" }, 400);
-  fields.push("updated_at = ?");
-  values.push(now(), id, me);
-  await c.env.DB.prepare(`UPDATE notes SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`).bind(...values).run();
+  if (p.empty) return c.json({ error: "Rien à mettre à jour" }, 400);
+  p.set("updated_at", now());
+  await c.env.DB.prepare(`UPDATE notes SET ${p.clause()} WHERE id = ? AND user_id = ?`).bind(...p.values(), id, me).run();
   const _sw = cleanSharedWith(body.shared_with);
   if (_sw) await setEntityShares(c.env.DB, me, { type: "note", id }, _sw);
   return c.json({ ok: true });
