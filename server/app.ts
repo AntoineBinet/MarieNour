@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 import type { AppEnv } from "./types";
 import { attachUser } from "./auth";
 
@@ -27,6 +28,11 @@ import searchRoutes from "./routes/search";
 
 export function createApp() {
   const app = new Hono<AppEnv>().basePath("/api");
+
+  // En-têtes de sécurité (couvre aussi le repli serverless Cloudflare Pages, où
+  // node.ts n'est pas dans la chaîne). Sur la VM Node, secureHeaders est déjà
+  // monté sur l'app racine ; le re-poser ici est idempotent.
+  app.use("*", secureHeaders());
 
   // Charge l'utilisateur courant pour toutes les routes.
   app.use("*", attachUser);

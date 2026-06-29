@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useRef,
   useState,
   type ReactElement,
   type ReactNode,
@@ -27,7 +28,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ push }}>
       {children}
-      <div className="toast-wrap">
+      {/* aria-live=polite + role=status : les toasts sont annoncés aux lecteurs d'écran. */}
+      <div className="toast-wrap" role="status" aria-live="polite" aria-atomic="false">
         {toasts.map((t) => (
           <div key={t.id} className={`toast${t.error ? " error" : ""}`}>{t.message}</div>
         ))}
@@ -51,18 +53,53 @@ export function Modal({
   wide?: boolean;
   footer?: ReactNode;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    // Mémorise le focus de départ pour le restaurer à la fermeture.
+    const prevActive = document.activeElement as HTMLElement | null;
+    const el = ref.current;
+    const FOCUSABLE =
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusables = () => (el ? Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)) : []);
+    // Focus initial : premier champ/bouton du dialogue (ou le dialogue lui-même).
+    (focusables()[0] ?? el)?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Piège le focus : Tab/Shift+Tab bouclent à l'intérieur de la modale.
+      if (e.key === "Tab" && el) {
+        const f = focusables();
+        if (!f.length) {
+          e.preventDefault();
+          el.focus();
+          return;
+        }
+        const first = f[0];
+        const last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
+      // Restaure le focus sur l'élément déclencheur s'il est toujours dans le DOM.
+      if (prevActive && document.contains(prevActive)) prevActive.focus();
     };
   }, [onClose]);
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal${wide ? " modal-lg" : ""}`} role="dialog" aria-modal="true">
+      <div className={`modal${wide ? " modal-lg" : ""}`} role="dialog" aria-modal="true" ref={ref} tabIndex={-1}>
         {title && (
           <div className="modal-head">
             <h2>{title}</h2>

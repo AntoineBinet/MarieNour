@@ -13,6 +13,8 @@
     "start": "node dist-server/server.mjs",
     "start:prod": "node dist-server/server.mjs",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
     "deploy": "npm run build && wrangler pages deploy dist",
     "db:migrate:local": "wrangler d1 migrations apply marienour --local --persist-to .wrangler/state",
@@ -41,6 +43,7 @@
     "esbuild": "^0.24.2",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
+    "vitest": "^2.1.9",
     "wrangler": "^3.80.0"
   }
 }

@@ -83,8 +83,14 @@ server/mailer.ts            → compose les e-mails + contrat `Mailer` (envoi
                               délégué au runtime) : e-mail d'activation de compte
                               (vérification d'adresse, obligatoire à l'inscription
                               d'un membre) + alerte admin à chaque inscription
-server/node.ts              → entrée Node (VM) : env + static + SPA + listen :8002
+server/node.ts              → entrée Node (VM) : env + static + SPA + en-têtes de
+                              sécurité (secureHeaders) + handlers d'erreurs + listen :8002
+server/node-maintenance.ts  → maintenance Node (VM) : snapshot SQLite local rotatif
+                              (data/backups/), purge sessions, checkpoint WAL (24 h)
+                              — exclu de tsc, bundlé esbuild (comme node-update.ts)
+server/ratelimit.ts         → limiteur de débit en mémoire (anti-brute-force login/register)
 server/adapters/{d1,r2,smtp}.ts → bindings locaux (SQLite / fichiers / SMTP nodemailer)
+                              · d1 : pragmas perf + cache de statements + runDbMaintenance
 shared/types.ts             → types partagés front/back
 migrations/000X_*.sql       → schéma (rejoué auto au démarrage sur la VM)
 deployment/                 → kit VM Oracle + tunnel
@@ -97,6 +103,7 @@ docs/SETUP-MAIL-CHROME.md   → runbook « Claude dans Chrome » (activer les e-
 ```bash
 npm install
 npm run typecheck        # tsc front + serveur (workers-types)
+npm test                 # vitest : calculs Tricount/soldes, crypto auth, gardes sécurité (CI)
 npm run build:all        # front (dist/) + serveur (dist-server/server.mjs)
 npm start                # lance le serveur Node (lit MARIENOUR_PORT, défaut 8002)
 # Dev VM rapide :

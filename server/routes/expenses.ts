@@ -92,7 +92,7 @@ async function isOwner(
  * Renvoie une liste {member_id, amount} dont la somme vaut exactement `amount`
  * (le reliquat d'arrondi est ajouté à la plus grosse part).
  */
-function computeShares(
+export function computeShares(
   amount: number,
   splitMode: SplitMode,
   members: { id: string; weight: number }[],
@@ -151,7 +151,7 @@ interface BalanceInput {
   settlements: { from_id: string; to_id: string; amount: number }[];
 }
 
-function computeBalances(data: BalanceInput): MemberBalance[] {
+export function computeBalances(data: BalanceInput): MemberBalance[] {
   const paid = new Map<string, number>();
   const owed = new Map<string, number>();
   const sent = new Map<string, number>();
@@ -178,7 +178,7 @@ function computeBalances(data: BalanceInput): MemberBalance[] {
 }
 
 /** Plan d'équilibrage glouton (cash-flow minimal). */
-function computeSettlePlan(balances: MemberBalance[]): SettlePlanStep[] {
+export function computeSettlePlan(balances: MemberBalance[]): SettlePlanStep[] {
   const EPS = 0.01;
   // Copie mutable des soldes nets.
   const net = balances.map((b) => ({ id: b.member_id, bal: b.balance }));
@@ -228,31 +228,65 @@ app.get("/", async (c) => {
     .bind(me, me)
     .all<Record<string, unknown>>();
 
-  const groups: ExpenseGroup[] = [];
-  for (const g of res.results ?? []) {
-    const groupId = g.id as string;
-    const members = await loadMembers(c, groupId);
-    const expensesRes = await c.env.DB.prepare("SELECT payer_id, amount FROM expenses WHERE group_id = ?")
-      .bind(groupId)
-      .all<{ payer_id: string; amount: number }>();
-    const sharesRes = await c.env.DB.prepare(
-      `SELECT s.member_id, s.amount FROM expense_shares s
-       JOIN expenses e ON e.id = s.expense_id WHERE e.group_id = ?`,
-    )
-      .bind(groupId)
-      .all<{ member_id: string; amount: number }>();
-    const settlementsRes = await c.env.DB.prepare(
-      "SELECT from_id, to_id, amount FROM settlements WHERE group_id = ?",
-    )
-      .bind(groupId)
-      .all<{ from_id: string; to_id: string; amount: number }>();
+  const groupRows = res.results ?? [];
+  const groupIds = groupRows.map((g) => g.id as string);
 
-    const expenses = expensesRes.results ?? [];
+  // Agrège membres / dépenses / parts / remboursements de TOUS les groupes en 4
+  // requêtes (au lieu de 4 PAR groupe, cf. audit N+1), puis on calcule en mémoire.
+  const membersByGroup = new Map<string, { id: string; user_id: string | null }[]>();
+  const expensesByGroup = new Map<string, { payer_id: string; amount: number }[]>();
+  const sharesByGroup = new Map<string, { member_id: string; amount: number }[]>();
+  const settlementsByGroup = new Map<string, { from_id: string; to_id: string; amount: number }[]>();
+
+  if (groupIds.length) {
+    const ph = groupIds.map(() => "?").join(",");
+    const push = <T>(map: Map<string, T[]>, gid: string, v: T) => {
+      const arr = map.get(gid);
+      if (arr) arr.push(v);
+      else map.set(gid, [v]);
+    };
+
+    const membersRes = await c.env.DB.prepare(
+      `SELECT id, group_id, user_id FROM expense_members WHERE group_id IN (${ph}) ORDER BY created_at ASC`,
+    )
+      .bind(...groupIds)
+      .all<{ id: string; group_id: string; user_id: string | null }>();
+    for (const m of membersRes.results ?? []) push(membersByGroup, m.group_id, { id: m.id, user_id: m.user_id });
+
+    const expRes = await c.env.DB.prepare(
+      `SELECT group_id, payer_id, amount FROM expenses WHERE group_id IN (${ph})`,
+    )
+      .bind(...groupIds)
+      .all<{ group_id: string; payer_id: string; amount: number }>();
+    for (const e of expRes.results ?? []) push(expensesByGroup, e.group_id, { payer_id: e.payer_id, amount: e.amount });
+
+    const shareRes = await c.env.DB.prepare(
+      `SELECT e.group_id, s.member_id, s.amount FROM expense_shares s
+       JOIN expenses e ON e.id = s.expense_id WHERE e.group_id IN (${ph})`,
+    )
+      .bind(...groupIds)
+      .all<{ group_id: string; member_id: string; amount: number }>();
+    for (const s of shareRes.results ?? []) push(sharesByGroup, s.group_id, { member_id: s.member_id, amount: s.amount });
+
+    const setRes = await c.env.DB.prepare(
+      `SELECT group_id, from_id, to_id, amount FROM settlements WHERE group_id IN (${ph})`,
+    )
+      .bind(...groupIds)
+      .all<{ group_id: string; from_id: string; to_id: string; amount: number }>();
+    for (const s of setRes.results ?? [])
+      push(settlementsByGroup, s.group_id, { from_id: s.from_id, to_id: s.to_id, amount: s.amount });
+  }
+
+  const groups: ExpenseGroup[] = [];
+  for (const g of groupRows) {
+    const groupId = g.id as string;
+    const members = membersByGroup.get(groupId) ?? [];
+    const expenses = expensesByGroup.get(groupId) ?? [];
     const balances = computeBalances({
-      members: members.map((m) => ({ id: m.id as string })),
+      members: members.map((m) => ({ id: m.id })),
       expenses,
-      shares: sharesRes.results ?? [],
-      settlements: settlementsRes.results ?? [],
+      shares: sharesByGroup.get(groupId) ?? [],
+      settlements: settlementsByGroup.get(groupId) ?? [],
     });
     const myMember = members.find((m) => m.user_id != null && m.user_id === me);
     const myBalance = myMember ? balances.find((b) => b.member_id === myMember.id)?.balance ?? 0 : 0;

@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 // better-sqlite3 n'est pas typé ici (fichier non inclus dans le typecheck tsc) :
 // on reste volontairement souple.
 type SqliteDb = any;
+type Stmt = any;
 
 /** D1 accepte les booléens (→ 1/0) ; better-sqlite3 non. On normalise aussi
  *  `undefined` → `null` pour ne jamais lever sur un champ optionnel. */
@@ -26,22 +27,22 @@ function normalizeParams(params: unknown[]): unknown[] {
 
 class PreparedStatement {
   constructor(
-    private db: SqliteDb,
+    private prep: (sql: string) => Stmt,
     private sql: string,
     private params: unknown[] = [],
   ) {}
 
   bind(...params: unknown[]): PreparedStatement {
-    return new PreparedStatement(this.db, this.sql, normalizeParams(params));
+    return new PreparedStatement(this.prep, this.sql, normalizeParams(params));
   }
 
   async all<T = Record<string, unknown>>(): Promise<{ results: T[]; success: boolean; meta: Record<string, unknown> }> {
-    const rows = this.db.prepare(this.sql).all(...this.params) as T[];
+    const rows = this.prep(this.sql).all(...this.params) as T[];
     return { results: rows, success: true, meta: {} };
   }
 
   async first<T = Record<string, unknown>>(): Promise<T | null> {
-    const row = this.db.prepare(this.sql).get(...this.params) as T | undefined;
+    const row = this.prep(this.sql).get(...this.params) as T | undefined;
     return row === undefined ? null : row;
   }
 
@@ -51,7 +52,7 @@ class PreparedStatement {
 
   /** Exécution synchrone — nécessaire dans les transactions better-sqlite3. */
   runSync() {
-    return this.db.prepare(this.sql).run(...this.params);
+    return this.prep(this.sql).run(...this.params);
   }
 
   toResult(info: { changes?: number; lastInsertRowid?: number | bigint }) {
@@ -68,10 +69,23 @@ class PreparedStatement {
 }
 
 class D1Adapter {
+  // Cache des statements compilés : `prepare()` est appelé des milliers de fois
+  // avec les mêmes chaînes SQL ; recompiler à chaque appel est du gâchis CPU sur
+  // la micro-VM. Les Statement better-sqlite3 sont réutilisables sans risque.
+  private stmtCache = new Map<string, Stmt>();
+  private prep = (sql: string): Stmt => {
+    let s = this.stmtCache.get(sql);
+    if (!s) {
+      s = this.db.prepare(sql);
+      this.stmtCache.set(sql, s);
+    }
+    return s;
+  };
+
   constructor(private db: SqliteDb) {}
 
   prepare(sql: string): PreparedStatement {
-    return new PreparedStatement(this.db, sql);
+    return new PreparedStatement(this.prep, sql);
   }
 
   /** Exécute des statements (déjà bindés) dans une seule transaction. */
@@ -84,6 +98,13 @@ class D1Adapter {
   async exec(sql: string) {
     this.db.exec(sql);
     return { count: 0, duration: 0 };
+  }
+
+  /** Accès à la base better-sqlite3 sous-jacente — réservé à la maintenance Node
+   *  (sauvegarde, checkpoint WAL, purge des sessions). N'est PAS exposé aux routes
+   *  partagées (qui ne voient que la surface D1). */
+  rawDb(): SqliteDb {
+    return this.db;
   }
 }
 
@@ -121,8 +142,32 @@ function applyMigrations(db: SqliteDb, migrationsDir: string) {
 export function createD1(dbPath: string, migrationsDir: string): D1Adapter {
   mkdirSync(dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
+  // Réglages de fiabilité/perf adaptés à la micro-VM (1 vCPU / 1 Go) :
   db.pragma("journal_mode = WAL"); // meilleure concurrence lecture/écriture
+  db.pragma("synchronous = NORMAL"); // sûr en WAL, nettement moins d'fsync (perf écriture)
   db.pragma("foreign_keys = ON"); // honore les ON DELETE CASCADE/SET NULL du schéma (comme D1)
+  db.pragma("busy_timeout = 5000"); // attend jusqu'à 5 s au lieu d'échouer en SQLITE_BUSY
+  db.pragma("cache_size = -16000"); // ~16 Mo de cache page (valeur négative = Kio)
+  db.pragma("mmap_size = 134217728"); // 128 Mo en mmap : moins de syscalls de lecture
+  db.pragma("wal_autocheckpoint = 1000"); // borne la croissance du fichier -wal
   applyMigrations(db, migrationsDir);
   return new D1Adapter(db);
+}
+
+/** Maintenance périodique (Node uniquement) : purge des sessions expirées +
+ *  checkpoint WAL (tronque le fichier -wal). Best-effort, ne lève jamais. */
+export function runDbMaintenance(db: SqliteDb): { sessionsPurged: number } {
+  let sessionsPurged = 0;
+  try {
+    const r = db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(Date.now());
+    sessionsPurged = r.changes ?? 0;
+  } catch (e) {
+    console.error("[marienour] purge sessions échouée:", e);
+  }
+  try {
+    db.pragma("wal_checkpoint(TRUNCATE)");
+  } catch (e) {
+    console.error("[marienour] checkpoint WAL échoué:", e);
+  }
+  return { sessionsPurged };
 }

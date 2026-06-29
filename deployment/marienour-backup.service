@@ -1,0 +1,23 @@
+# Sauvegarde marienour (oneshot) — déclenchée par marienour-backup.timer.
+#
+# Installation (une seule fois sur la VM) :
+#   sudo cp deployment/marienour-backup.service /etc/systemd/system/
+#   sudo cp deployment/marienour-backup.timer   /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now marienour-backup.timer
+#
+# Pour activer la copie off-site, configurer rclone (ex. remote R2) puis ajouter
+# Environment=MARIENOUR_RCLONE_REMOTE=r2:marienour-backups ci-dessous.
+[Unit]
+Description=marienour — sauvegarde (SQLite + médias)
+After=marienour.service
+
+[Service]
+Type=oneshot
+User=marienour
+Group=marienour
+WorkingDirectory=/opt/marienour/app
+Environment=MARIENOUR_DATA_DIR=/opt/marienour/app/data
+# Décommente et adapte pour pousser hors-site (protège de la perte du disque) :
+# Environment=MARIENOUR_RCLONE_REMOTE=r2:marienour-backups
+ExecStart=/usr/bin/env bash /opt/marienour/app/deployment/backup.sh

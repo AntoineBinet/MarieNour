@@ -105,6 +105,20 @@ app.patch("/users/:id", async (c) => {
 app.delete("/users/:id", async (c) => {
   const id = c.req.param("id");
   if (id === c.var.user!.id) return c.json({ error: "Impossible de supprimer ton propre compte admin" }, 400);
+
+  // Nettoie les fichiers/blobs R2 AVANT le DELETE : le ON DELETE CASCADE supprime
+  // les LIGNES (media, memories, avatars), mais PAS les fichiers → sinon fuite de
+  // disque non bornée sur la micro-VM. (avatars = lignes media, déjà couverts.)
+  const media = await c.env.DB.prepare("SELECT r2_key FROM media WHERE user_id = ?")
+    .bind(id)
+    .all<{ r2_key: string }>();
+  const memories = await c.env.DB.prepare("SELECT r2_key FROM memories WHERE user_id = ? AND r2_key IS NOT NULL")
+    .bind(id)
+    .all<{ r2_key: string }>();
+  for (const r of [...(media.results ?? []), ...(memories.results ?? [])]) {
+    if (r.r2_key) await c.env.MEDIA.delete(r.r2_key).catch(() => {});
+  }
+
   await c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(id).run();
   return c.json({ ok: true });
 });

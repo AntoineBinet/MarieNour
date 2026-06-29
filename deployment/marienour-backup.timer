@@ -1,0 +1,12 @@
+# Déclenche la sauvegarde marienour chaque jour (cf. marienour-backup.service).
+[Unit]
+Description=marienour — sauvegarde quotidienne
+
+[Timer]
+# Tous les jours à 03:30 (heure de la VM), avec rattrapage si la VM était éteinte.
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

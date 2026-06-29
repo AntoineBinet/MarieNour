@@ -138,10 +138,36 @@ Deux options :
 
 ## Sauvegarde
 
-Les données vivent dans `/opt/marienour/app/data/` (SQLite + médias). Sauvegarde
-simple par cron (ex. snapshot quotidien `sqlite3 .backup` + `tar` du dossier
-`media/` vers un stockage externe). Pour une réplication continue style Prospup,
-on pourra ajouter Litestream → R2 plus tard.
+Les données vivent dans `/opt/marienour/app/data/` (SQLite + médias), **hors git**.
+Deux niveaux, complémentaires :
+
+1. **Snapshots locaux — AUTOMATIQUES (rien à faire).** Le service Node fait un
+   snapshot SQLite cohérent rotatif (7 jours) dans `data/backups/`, purge les
+   sessions expirées et fait un checkpoint WAL toutes les 24 h
+   (`server/node-maintenance.ts`). Protège de la corruption de base et des
+   suppressions accidentelles (restauration rapide), **pas** de la perte du disque.
+
+2. **Copie hors-site — à activer UNE FOIS** (protège de la perte du disque) :
+
+   ```bash
+   # a) (recommandé) configurer rclone vers un bucket objet (ex. Cloudflare R2) :
+   rclone config   # créer un remote, ex. "r2"  → bucket "marienour-backups"
+
+   # b) installer le timer de sauvegarde quotidien :
+   sudo cp deployment/marienour-backup.service /etc/systemd/system/
+   sudo cp deployment/marienour-backup.timer   /etc/systemd/system/
+   #   → dans le .service, décommenter/adapter MARIENOUR_RCLONE_REMOTE=r2:marienour-backups
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now marienour-backup.timer
+   ```
+
+   `deployment/backup.sh` fait alors chaque nuit : `sqlite3 .backup` + `tar` des
+   médias → push `rclone` hors-site, avec purge locale au-delà de 14 jours. Sans
+   `MARIENOUR_RCLONE_REMOTE`, il se contente d'archives locales.
+
+**Restauration** : arrêter le service, remplacer `data/marienour.db` par un
+snapshot (`marienour-*.db`) et ré-extraire `media-*.tar.gz` dans `data/`, puis
+redémarrer (`sudo systemctl restart marienour`).
 
 ## Dépannage
 

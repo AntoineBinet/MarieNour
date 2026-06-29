@@ -47,6 +47,7 @@ import type {
   Visibility,
   Widget,
 } from "@shared/types";
+import { compressImage } from "./images";
 
 export class ApiError extends Error {
   status: number;
@@ -94,11 +95,32 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     (opts.headers as Record<string, string>)["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
-  const res = await fetch(`/api${path}`, opts);
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new ApiError(data?.error || `Erreur ${res.status}`, res.status);
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, opts);
+  } catch {
+    // Coupure réseau / serveur injoignable : message clair plutôt qu'un crash.
+    throw new ApiError("Connexion impossible. Vérifie ta connexion et réessaie.", 0);
+  }
+  const data = await parseJsonResponse(res);
+  if (!res.ok) throw new ApiError((data as { error?: string })?.error || `Erreur ${res.status}`, res.status);
   return data as T;
+}
+
+/** Lit le corps JSON d'une réponse en tolérant le non-JSON (HTML d'erreur 502/504
+ *  du tunnel Cloudflare, page d'erreur…) : on ne laisse jamais JSON.parse crasher
+ *  l'app — on lève une ApiError parlante à la place. */
+async function parseJsonResponse(res: Response): Promise<unknown> {
+  const text = await res.text().catch(() => "");
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ApiError(
+      res.ok ? "Réponse inattendue du serveur." : `Service momentanément indisponible (${res.status}).`,
+      res.status || 0,
+    );
+  }
 }
 
 const get = <T>(p: string) => request<T>("GET", p);
@@ -195,12 +217,12 @@ export const api = {
   media: () => get<{ media: MediaItem[] }>("/media"),
   uploadMedia: async (file: File, caption?: string, visibility?: Visibility, sharedWith?: string[]) => {
     const form = new FormData();
-    form.append("file", file);
+    form.append("file", await compressImage(file));
     if (caption) form.append("caption", caption);
     if (visibility) form.append("visibility", visibility);
     if (sharedWith) form.append("shared_with", JSON.stringify(sharedWith));
     const res = await fetch("/api/media", { method: "POST", body: form, credentials: "include" });
-    const data = await res.json();
+    const data = (await parseJsonResponse(res)) as { error?: string } & { media: MediaItem };
     if (!res.ok) throw new ApiError(data?.error || "Upload échoué", res.status);
     return data as { media: MediaItem };
   },
@@ -211,9 +233,9 @@ export const api = {
   // Photo de profil (envoi direct)
   uploadAvatar: async (file: File) => {
     const form = new FormData();
-    form.append("file", file);
+    form.append("file", await compressImage(file));
     const res = await fetch("/api/auth/me/avatar", { method: "POST", body: form, credentials: "include" });
-    const data = await res.json();
+    const data = (await parseJsonResponse(res)) as { error?: string } & { user: PublicUser };
     if (!res.ok) throw new ApiError(data?.error || "Envoi échoué", res.status);
     return data as { user: PublicUser };
   },
@@ -434,12 +456,13 @@ export const api = {
   }) => post<{ id: string }>("/fil/memories", b),
   uploadMemory: async (file: File, opts?: { collection_id?: string; caption?: string; taken_at?: number }) => {
     const form = new FormData();
-    form.append("file", file);
+    // compressImage laisse passer les vidéos telles quelles (souvenirs = photo OU vidéo).
+    form.append("file", await compressImage(file));
     if (opts?.collection_id) form.append("collection_id", opts.collection_id);
     if (opts?.caption) form.append("caption", opts.caption);
     if (opts?.taken_at) form.append("taken_at", String(opts.taken_at));
     const res = await fetch("/api/fil/memories", { method: "POST", body: form, credentials: "include" });
-    const data = await res.json();
+    const data = (await parseJsonResponse(res)) as { error?: string } & { id: string };
     if (!res.ok) throw new ApiError(data?.error || "Import échoué", res.status);
     return data as { id: string };
   },

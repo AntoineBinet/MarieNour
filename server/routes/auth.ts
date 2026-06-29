@@ -15,8 +15,11 @@ import {
 } from "../auth";
 import { notifyAdminNewUser, sendVerificationEmail, smtpReady } from "../mailer";
 import { now, slugifyHandle, str, uid } from "../util";
+import { clientIp, rateLimit } from "../ratelimit";
 
 const VERIFY_TTL_MS = 1000 * 60 * 60 * 24; // 24 h
+const LOGIN_LIMIT = { limit: 10, windowMs: 15 * 60 * 1000 }; // 10 essais / 15 min
+const REGISTER_LIMIT = { limit: 8, windowMs: 60 * 60 * 1000 }; // 8 inscriptions / h / IP
 
 /** Base URL publique (https://marienour.work) déduite de la requête. */
 function appOrigin(reqUrl: string): string {
@@ -51,6 +54,14 @@ function seedAppearance(gender: Gender | null): { accent?: string; prefs?: UserP
 }
 
 app.post("/register", async (c) => {
+  // Anti-abus : borne les inscriptions par IP (l'envoi d'e-mails coûte + évite le
+  // spam de comptes non vérifiés).
+  const rlReg = rateLimit(`register:${clientIp(c)}`, REGISTER_LIMIT);
+  if (!rlReg.ok) {
+    c.header("Retry-After", String(rlReg.retryAfter));
+    return c.json({ error: "Trop d'inscriptions depuis cet appareil. Réessaie plus tard." }, 429);
+  }
+
   const body = await c.req.json().catch(() => ({}));
   const email = str(body.email, 200).trim().toLowerCase();
   const password = str(body.password, 200);
@@ -184,6 +195,13 @@ app.post("/login", async (c) => {
   const email = str(body.email, 200).trim().toLowerCase();
   const password = str(body.password, 200);
   if (!email || !password) return c.json({ error: "Email et mot de passe requis" }, 400);
+
+  // Anti-brute-force : borne les essais par IP+email.
+  const rl = rateLimit(`login:${clientIp(c)}:${email}`, LOGIN_LIMIT);
+  if (!rl.ok) {
+    c.header("Retry-After", String(rl.retryAfter));
+    return c.json({ error: "Trop de tentatives. Réessaie dans quelques minutes." }, 429);
+  }
 
   const user = await authenticate(c, email, password);
   if (!user) return c.json({ error: "Identifiants incorrects" }, 401);
