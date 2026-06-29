@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { disablePush, enablePush, isPushSubscribed, pushSupported } from "../push";
 import { Icon, type IconName } from "./Icon";
 import type { AppNotification } from "@shared/types";
 
@@ -67,6 +68,30 @@ export default function NotificationBell() {
     mutationFn: () => api.dismissAllNotifications(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
+
+  // ── Notifications push (par appareil) ──────────────────────────────────────
+  const [pushOn, setPushOn] = useState<boolean | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (open && pushSupported()) isPushSubscribed().then(setPushOn);
+  }, [open]);
+  const togglePush = async () => {
+    setPushBusy(true);
+    setPushMsg(null);
+    try {
+      if (pushOn) {
+        await disablePush();
+        setPushOn(false);
+      } else {
+        const r = await enablePush();
+        if (r.ok) setPushOn(true);
+        else setPushMsg(r.reason);
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   // Fermer le panneau au clic en dehors / touche Échap.
   useEffect(() => {
@@ -154,6 +179,20 @@ export default function NotificationBell() {
                 </li>
               ))}
             </ul>
+          )}
+
+          {pushSupported() && pushOn !== null && (
+            <div className="notif-panel-foot" style={{ padding: "10px 12px", borderTop: "1px solid var(--border)" }}>
+              <button className="notif-clear" onClick={togglePush} disabled={pushBusy}>
+                <Icon name="bell" size={14} />
+                {pushOn ? " Désactiver les notifications" : " Activer les notifications push"}
+              </button>
+              {pushMsg && (
+                <div className="muted small" style={{ marginTop: 6 }}>
+                  {pushMsg}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -9,6 +9,7 @@ import {
   getEntitySharesBulk,
   deleteEntityShares,
 } from "../access";
+import { sendPushToUser } from "../push";
 import type {
   EventAgendaItem,
   EventBringItem,
@@ -389,6 +390,15 @@ app.post("/:id/guests", async (c) => {
     .bind(gid, id, userId, name || "Invité", role, now())
     .run();
   await touch(c, id);
+  // Notifie l'invité inscrit.
+  if (userId) {
+    await sendPushToUser(c.env, userId, {
+      title: `Invitation : ${ctx.ev.title as string}`,
+      body: "Réponds à l'invitation",
+      url: `/evenements/${id}`,
+      tag: `event-invite-${id}`,
+    });
+  }
   return c.json({ id: gid });
 });
 

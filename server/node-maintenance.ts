@@ -17,6 +17,8 @@
 import { mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { runDbMaintenance } from "./adapters/d1";
+import { sendPushToUser } from "./push";
+import { writeSetting } from "./settings";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KEEP_SNAPSHOTS = 7; // ~1 semaine de snapshots quotidiens
@@ -59,8 +61,10 @@ function safeMtime(path: string): number {
   }
 }
 
-/** Effectue un snapshot + la maintenance. `db` = base better-sqlite3 brute. */
-async function runOnce(db: any, dataDir: string): Promise<void> {
+/** Effectue un snapshot + la maintenance + les rappels push. `env` = bindings
+ *  Node (env.DB = adaptateur D1, env.PUSHER, etc.). */
+async function runOnce(env: any, dataDir: string): Promise<void> {
+  const db = env.DB.rawDb();
   try {
     const backupsDir = join(dataDir, "backups");
     mkdirSync(backupsDir, { recursive: true });
@@ -74,15 +78,65 @@ async function runOnce(db: any, dataDir: string): Promise<void> {
     // Une sauvegarde ratée ne doit jamais faire tomber le service.
     console.error("[marienour] maintenance/sauvegarde échouée:", e);
   }
+  try {
+    await sendUpcomingEventReminders(env);
+  } catch (e) {
+    console.error("[marienour] rappels d'événements échoués:", e);
+  }
+}
+
+/**
+ * Rappel push « événement demain » : pour chaque événement non annulé qui
+ * commence DEMAIN, notifie l'organisateur et les invités inscrits qui n'ont pas
+ * décliné. Anti-doublon par jour (réglage push_reminded_date) → pas de spam si le
+ * service redémarre plusieurs fois dans la journée.
+ */
+async function sendUpcomingEventReminders(env: any): Promise<void> {
+  if (!env.PUSHER || !env.PUSHER.publicKey) return; // push indisponible → rien à faire
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.now() + DAY_MS).toISOString().slice(0, 10);
+
+  const settings = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'push_reminded_date'")
+    .first()
+    .catch(() => null);
+  if (settings && settings.value === today) return; // déjà fait aujourd'hui
+
+  const events = await env.DB.prepare(
+    "SELECT id, title, user_id FROM events WHERE start_date = ? AND status != 'cancelled'",
+  )
+    .bind(tomorrow)
+    .all();
+
+  for (const ev of events.results ?? []) {
+    const recipients = new Set<string>();
+    if (ev.user_id) recipients.add(ev.user_id);
+    const guests = await env.DB.prepare(
+      "SELECT user_id FROM event_guests WHERE event_id = ? AND user_id IS NOT NULL AND rsvp != 'no'",
+    )
+      .bind(ev.id)
+      .all();
+    for (const g of guests.results ?? []) if (g.user_id) recipients.add(g.user_id);
+
+    for (const userId of recipients) {
+      await sendPushToUser(env, userId, {
+        title: `Demain : ${ev.title}`,
+        body: "Ton événement approche",
+        url: `/evenements/${ev.id}`,
+        tag: `event-soon-${ev.id}`,
+      });
+    }
+  }
+
+  await writeSetting(env.DB, "push_reminded_date", today).catch(() => {});
 }
 
 /**
  * Démarre la maintenance : une première passe ~30 s après le démarrage (laisse le
  * service se stabiliser), puis toutes les 24 h. Renvoie une fonction d'arrêt.
  */
-export function startMaintenance(db: any, dataDir: string): () => void {
-  const first = setTimeout(() => void runOnce(db, dataDir), 30_000);
-  const timer = setInterval(() => void runOnce(db, dataDir), DAY_MS);
+export function startMaintenance(env: any, dataDir: string): () => void {
+  const first = setTimeout(() => void runOnce(env, dataDir), 30_000);
+  const timer = setInterval(() => void runOnce(env, dataDir), DAY_MS);
   // Ne maintient pas le process en vie juste pour ces timers.
   if (typeof first.unref === "function") first.unref();
   if (typeof timer.unref === "function") timer.unref();

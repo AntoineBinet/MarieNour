@@ -471,6 +471,12 @@ export const api = {
   deleteMemory: (id: string) => del<{ ok: true }>(`/fil/memories/${id}`),
   linkPreview: (url: string) => post<{ preview: LinkPreview }>("/fil/preview", { url }),
 
+  // Notifications Web Push
+  pushKey: () => get<{ key: string | null }>("/push/key"),
+  pushSubscribe: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    post<{ ok: true }>("/push/subscribe", sub),
+  pushUnsubscribe: (b: { endpoint: string }) => post<{ ok: true }>("/push/unsubscribe", b),
+
   // Assistant « Aujourd'hui » (digest intelligent dérivé)
   assistant: () => get<{ digest: AssistantDigest }>("/assistant"),
 

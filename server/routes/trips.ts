@@ -3,6 +3,7 @@ import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
 import { bool, cleanSharedWith, cleanVisibility, now, numOrNull, str, uid } from "../util";
 import { deleteEntityShares, getEntityShares, getEntitySharesBulk, setEntityShares } from "../access";
+import { sendPushToUser } from "../push";
 import type { Trip, TripItem, TripKind, TripParticipant } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -197,6 +198,16 @@ app.post("/:id/participants", async (c) => {
   )
     .bind(pid, id, userId, name || "Invité", role, now())
     .run();
+  // Notifie l'ami inscrit qu'on lui a partagé un voyage.
+  if (userId) {
+    const trip = await c.env.DB.prepare("SELECT title FROM trips WHERE id = ?").bind(id).first<{ title: string }>();
+    await sendPushToUser(c.env, userId, {
+      title: `${c.var.user!.display_name} t'a partagé un voyage`,
+      body: trip?.title ?? null,
+      url: `/voyages/${id}`,
+      tag: `trip-${id}`,
+    });
+  }
   return c.json({ id: pid });
 });
 

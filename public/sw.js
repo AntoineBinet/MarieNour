@@ -7,7 +7,7 @@
    - assets      → stale-while-revalidate (réponse cache immédiate + revalidation) ;
    - /api/*      → jamais en cache (données multi-utilisateurs / médias, réseau seul). */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const CACHE = "marienour-" + VERSION;
 const SHELL = "/";
 
@@ -67,6 +67,45 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
       return cached || network;
+    }),
+  );
+});
+
+/* ── Notifications Web Push ──────────────────────────────────────────────────
+   Le serveur envoie un payload JSON { title, body, url, tag }. On affiche une
+   notification système ; un clic ouvre/focalise l'app sur l'URL ciblée. */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: event.data ? event.data.text() : "marienour" };
+  }
+  const title = data.title || "marienour";
+  const options = {
+    body: data.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: data.tag || undefined,
+    renotify: !!data.tag,
+    data: { url: data.url || "/" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        // Réutilise un onglet marienour déjà ouvert.
+        if ("focus" in client) {
+          if ("navigate" in client) client.navigate(target).catch(() => {});
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
     }),
   );
 });

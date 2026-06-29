@@ -89,8 +89,13 @@ server/node-maintenance.ts  → maintenance Node (VM) : snapshot SQLite local ro
                               (data/backups/), purge sessions, checkpoint WAL (24 h)
                               — exclu de tsc, bundlé esbuild (comme node-update.ts)
 server/ratelimit.ts         → limiteur de débit en mémoire (anti-brute-force login/register)
-server/adapters/{d1,r2,smtp}.ts → bindings locaux (SQLite / fichiers / SMTP nodemailer)
-                              · d1 : pragmas perf + cache de statements + runDbMaintenance
+server/push.ts              → notifications Web Push (couche partagée) : contrat
+                              `Pusher` injecté dans l'env (env.PUSHER) + sendPushToUser
+server/routes/push.ts       → clé VAPID publique + abonnement/désabonnement (table push_subscriptions)
+server/adapters/{d1,r2,smtp,web-push}.ts → bindings locaux (SQLite / fichiers / SMTP /
+                              Web Push). d1 : pragmas perf + cache de statements + runDbMaintenance.
+                              web-push : clés VAPID auto-générées/persistées (data/vapid.json)
+src/push.ts                 → abonnement push côté navigateur (toggle dans la cloche)
 shared/types.ts             → types partagés front/back
 migrations/000X_*.sql       → schéma (rejoué auto au démarrage sur la VM)
 deployment/                 → kit VM Oracle + tunnel

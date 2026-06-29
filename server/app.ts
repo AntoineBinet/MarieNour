@@ -25,6 +25,7 @@ import notificationsRoutes from "./routes/notifications";
 import filRoutes from "./routes/fil";
 import assistantRoutes from "./routes/assistant";
 import searchRoutes from "./routes/search";
+import pushRoutes from "./routes/push";
 
 export function createApp() {
   const app = new Hono<AppEnv>().basePath("/api");
@@ -61,6 +62,7 @@ export function createApp() {
   app.route("/fil", filRoutes);
   app.route("/assistant", assistantRoutes);
   app.route("/search", searchRoutes);
+  app.route("/push", pushRoutes);
 
   app.notFound((c) => c.json({ error: "Route introuvable" }, 404));
   app.onError((err, c) => {
