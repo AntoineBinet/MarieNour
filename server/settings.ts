@@ -10,7 +10,7 @@ import type { Bindings } from "./types";
 import { now } from "./util";
 
 /** Clés de réglages connues (stockées en TEXT). */
-export type SettingKey = "notify_email" | "notify_on_signup" | "smtp_pass";
+export type SettingKey = "notify_email" | "notify_on_signup" | "smtp_pass" | "push_reminded_date";
 
 /** Réglages effectifs après fusion base ← env ← défaut. */
 export interface EffectiveSettings {

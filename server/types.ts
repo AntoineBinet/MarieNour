@@ -1,5 +1,6 @@
 import type { PublicUser } from "@shared/types";
 import type { Mailer } from "./mailer";
+import type { Pusher } from "./push";
 
 export interface Bindings {
   DB: D1Database;
@@ -24,6 +25,10 @@ export interface Bindings {
   // Envoi d'e-mails (optionnel). Injecté par le runtime Node (SMTP/nodemailer) ;
   // absent sur le repli Cloudflare → e-mails désactivés. Cf. server/mailer.ts.
   MAILER?: Mailer;
+  // Notifications Web Push (optionnel). Injecté par le runtime Node (lib web-push,
+  // clés VAPID auto-générées) ; absent sur le repli Cloudflare → push désactivé.
+  // Cf. server/push.ts + server/adapters/web-push.ts.
+  PUSHER?: Pusher;
 }
 
 export interface Variables {

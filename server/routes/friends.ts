@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { requireAuth } from "../auth";
+import { sendPushToUser } from "../push";
 import { now, str, uid } from "../util";
 import type { PublicUser } from "@shared/types";
 
@@ -101,6 +102,12 @@ app.post("/request", async (c) => {
   )
     .bind(uid(), me, target, ts, ts)
     .run();
+  await sendPushToUser(c.env, target, {
+    title: `${c.var.user!.display_name} veut t'ajouter en ami`,
+    body: c.var.user!.handle ? `@${c.var.user!.handle}` : null,
+    url: "/amis",
+    tag: "friend-request",
+  });
   return c.json({ status: "pending" });
 });
 

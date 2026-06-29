@@ -16,6 +16,7 @@ import { createApp } from "./app";
 import { createD1 } from "./adapters/d1";
 import { createR2 } from "./adapters/r2";
 import { createSmtpMailer } from "./adapters/smtp";
+import { createWebPushPusher } from "./adapters/web-push";
 import { attachUser, requireAdmin } from "./auth";
 import { getEffectiveSmtpPass } from "./settings";
 import { getCurrentCommit, getStatus, startUpdate } from "./node-update";
@@ -66,6 +67,7 @@ const env = {
   SMTP_HOST,
   SMTP_PASS,
   MAILER: undefined,
+  PUSHER: undefined,
 };
 // Mailer SMTP (Node) : toujours instancié. Le mot de passe est lu à l'envoi
 // (réglage admin en base puis repli SMTP_PASS) ; si aucun n'est posé, l'envoi
@@ -77,6 +79,14 @@ env.MAILER = createSmtpMailer({
   user: SMTP_USER,
   from: MAIL_FROM,
   getPass: () => getEffectiveSmtpPass(env),
+});
+
+// Web Push (Node) : clés VAPID auto-générées/persistées (data/vapid.json). Le
+// sujet VAPID = e-mail de contact. Si la génération échoue, publicKey = null →
+// push désactivé proprement (aucune route ne casse).
+env.PUSHER = createWebPushPusher({
+  dataDir: DATA_DIR,
+  subject: env.NOTIFY_EMAIL || env.ADMIN_EMAIL || "admin@marienour.work",
 });
 
 const indexHtmlPath = join(STATIC_DIR, "index.html");
@@ -135,7 +145,7 @@ serve(
   (info) => {
     console.log(`[marienour] en écoute sur http://${HOST}:${info.port}`);
     console.log(`[marienour] données: ${DATA_DIR}  ·  statiques: ${hasBuild ? STATIC_DIR : "(non buildé)"}`);
-    // Sauvegarde locale rotative + purge sessions + checkpoint WAL (24 h).
-    startMaintenance(db.rawDb(), DATA_DIR);
+    // Sauvegarde locale rotative + purge sessions + checkpoint WAL + rappels push (24 h).
+    startMaintenance(env, DATA_DIR);
   },
 );

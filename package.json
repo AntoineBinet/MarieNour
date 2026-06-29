@@ -32,13 +32,15 @@
     "qrcode-generator": "^1.5.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241004.0",
     "@types/qrcode-generator": "^0.0.16",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^4.3.2",
     "esbuild": "^0.24.2",
     "typescript": "^5.6.2",
