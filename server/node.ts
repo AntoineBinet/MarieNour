@@ -9,6 +9,7 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createApp } from "./app";
@@ -18,6 +19,17 @@ import { createSmtpMailer } from "./adapters/smtp";
 import { attachUser, requireAdmin } from "./auth";
 import { getEffectiveSmtpPass } from "./settings";
 import { getCurrentCommit, getStatus, startUpdate } from "./node-update";
+import { startMaintenance } from "./node-maintenance";
+
+// Filets de sécurité process : sans handler, une promesse rejetée non gérée ou
+// une exception asynchrone non capturée peut tuer le service. On journalise et
+// on reste debout (systemd Restart=always couvre les cas vraiment fatals).
+process.on("unhandledRejection", (reason) => {
+  console.error("[marienour] unhandledRejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[marienour] uncaughtException:", err);
+});
 
 const ROOT = process.cwd();
 const PORT = Number(process.env.MARIENOUR_PORT || process.env.PORT || 8002);
@@ -41,8 +53,9 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
 const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER;
 
 // Bindings (équivalents des bindings Cloudflare, mais locaux).
+const db = createD1(join(DATA_DIR, "marienour.db"), MIGRATIONS_DIR);
 const env = {
-  DB: createD1(join(DATA_DIR, "marienour.db"), MIGRATIONS_DIR),
+  DB: db,
   MEDIA: createR2(join(DATA_DIR, "media")),
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || "",
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "",
@@ -73,6 +86,20 @@ const indexHtml = hasBuild
   : "<!doctype html><meta charset=utf-8><title>marienour</title><p>Front non buildé : lance <code>npm run build</code>.</p>";
 
 const root = new Hono();
+
+// En-têtes de sécurité sur TOUTES les réponses (SPA, statiques, API, médias) :
+// nosniff, X-Frame-Options, HSTS, Referrer-Policy… (valeurs par défaut Hono).
+// Pas de Content-Security-Policy ici : à activer séparément après validation du
+// front (cf. audit) pour ne pas risquer de casser des ressources légitimes.
+root.use("*", secureHeaders());
+
+// Cache long & immuable pour les assets Vite (noms hashés → jamais réutilisés
+// après un changement de contenu). Le reste (index.html, etc.) n'est pas mis en
+// cache agressif pour que les MAJ soient prises en compte.
+root.use("/assets/*", async (c, next) => {
+  await next();
+  if (c.res.ok) c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+});
 
 // 0) Mise à jour in-app — routes SPÉCIFIQUES au runtime Node (git pull + build +
 //    restart via exit 42). Enregistrées AVANT l'app partagée pour avoir la
@@ -108,5 +135,7 @@ serve(
   (info) => {
     console.log(`[marienour] en écoute sur http://${HOST}:${info.port}`);
     console.log(`[marienour] données: ${DATA_DIR}  ·  statiques: ${hasBuild ? STATIC_DIR : "(non buildé)"}`);
+    // Sauvegarde locale rotative + purge sessions + checkpoint WAL (24 h).
+    startMaintenance(db.rawDb(), DATA_DIR);
   },
 );

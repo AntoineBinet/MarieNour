@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { attachUser, requireAuth } from "../auth";
 import { canViewCollection, canViewMemory, friendIds, areFriends } from "../access";
-import { now, str, uid, intOrNull } from "../util";
+import { now, str, uid, intOrNull, isImageOrVideoUpload, safeServedContentType, isBlockedPreviewHost } from "../util";
 import type {
   CollectionVisibility,
   LinkPreview,
@@ -89,24 +89,33 @@ function toMemory(row: Record<string, unknown>, author: PublicUser, me: string):
   };
 }
 
-/** Remplit like_count / comment_count / liked_by_me pour une liste de souvenirs. */
+/** Remplit like_count / comment_count / liked_by_me pour une liste de souvenirs.
+ *  Groupé en 3 requêtes (au lieu de 3 PAR souvenir) — cf. audit N+1. */
 async function attachSocial(db: AppEnv["Bindings"]["DB"], me: string, items: Memory[]): Promise<void> {
+  if (!items.length) return;
+  const ids = items.map((it) => it.id);
+  const ph = ids.map(() => "?").join(",");
+
+  const likeRows = await db
+    .prepare(`SELECT entity_id, COUNT(*) AS n FROM likes WHERE entity_type = 'memory' AND entity_id IN (${ph}) GROUP BY entity_id`)
+    .bind(...ids)
+    .all<{ entity_id: string; n: number }>();
+  const commentRows = await db
+    .prepare(`SELECT entity_id, COUNT(*) AS n FROM comments WHERE entity_type = 'memory' AND entity_id IN (${ph}) GROUP BY entity_id`)
+    .bind(...ids)
+    .all<{ entity_id: string; n: number }>();
+  const mineRows = await db
+    .prepare(`SELECT entity_id FROM likes WHERE user_id = ? AND entity_type = 'memory' AND entity_id IN (${ph})`)
+    .bind(me, ...ids)
+    .all<{ entity_id: string }>();
+
+  const likeMap = new Map((likeRows.results ?? []).map((r) => [r.entity_id, r.n]));
+  const commentMap = new Map((commentRows.results ?? []).map((r) => [r.entity_id, r.n]));
+  const mineSet = new Set((mineRows.results ?? []).map((r) => r.entity_id));
   for (const it of items) {
-    const likeCount = await db
-      .prepare("SELECT COUNT(*) AS n FROM likes WHERE entity_type = 'memory' AND entity_id = ?")
-      .bind(it.id)
-      .first<{ n: number }>();
-    const commentCount = await db
-      .prepare("SELECT COUNT(*) AS n FROM comments WHERE entity_type = 'memory' AND entity_id = ?")
-      .bind(it.id)
-      .first<{ n: number }>();
-    const mine = await db
-      .prepare("SELECT 1 FROM likes WHERE user_id = ? AND entity_type = 'memory' AND entity_id = ?")
-      .bind(me, it.id)
-      .first();
-    it.like_count = likeCount?.n ?? 0;
-    it.comment_count = commentCount?.n ?? 0;
-    it.liked_by_me = !!mine;
+    it.like_count = likeMap.get(it.id) ?? 0;
+    it.comment_count = commentMap.get(it.id) ?? 0;
+    it.liked_by_me = mineSet.has(it.id);
   }
 }
 
@@ -463,6 +472,8 @@ app.post("/memories", async (c) => {
     if (!raw || typeof raw === "string") return c.json({ error: "Fichier manquant" }, 400);
     const file = raw as unknown as { size: number; name: string; type: string; arrayBuffer(): Promise<ArrayBuffer> };
     if (file.size > MAX_BYTES) return c.json({ error: "Fichier trop volumineux (max 60 Mo)" }, 413);
+    // Souvenirs = photos ou vidéos uniquement (cf. XSS stocké via fichier piégé).
+    if (!isImageOrVideoUpload(file.type)) return c.json({ error: "Choisis une photo ou une vidéo" }, 400);
 
     const collectionId = await resolveCollection(c.env.DB, me, str(form.get("collection_id"), 60));
     if (!collectionId) return c.json({ error: "Collection invalide" }, 400);
@@ -566,7 +577,10 @@ app.get("/memories/:id/raw", attachUser, async (c) => {
   const obj = await c.env.MEDIA.get(row.r2_key);
   if (!obj) return c.json({ error: "Fichier absent" }, 404);
   const headers = new Headers();
-  headers.set("Content-Type", row.content_type || "application/octet-stream");
+  // Content-Type assaini + nosniff (cf. media.ts) : pas d'exécution d'un fichier piégé.
+  headers.set("Content-Type", safeServedContentType(row.content_type));
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Content-Disposition", "inline");
   headers.set("Cache-Control", "private, max-age=86400");
   return new Response(obj.body, { headers });
 });
@@ -698,7 +712,9 @@ async function fetchLinkPreview(
   }
 
   // Sinon, tentative best-effort de récupération des métadonnées OpenGraph.
-  if (!image || !title) {
+  // Garde SSRF : on ne va PAS chercher une URL pointant vers le réseau interne /
+  // l'endpoint de métadonnées cloud (Oracle 169.254.169.254, localhost, IP privée).
+  if ((!image || !title) && !isBlockedPreviewHost(url.hostname)) {
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 4500);

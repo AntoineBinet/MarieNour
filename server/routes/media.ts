@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { attachUser, requireAuth } from "../auth";
 import { canView, mediaVisibleViaAlbum, setEntityShares, getEntitySharesBulk, deleteEntityShares } from "../access";
-import { cleanVisibility, cleanSharedWith, now, str, uid } from "../util";
+import { cleanVisibility, cleanSharedWith, isImageUpload, now, safeServedContentType, str, uid } from "../util";
 import type { MediaItem } from "@shared/types";
 
 const app = new Hono<AppEnv>();
@@ -51,7 +51,10 @@ app.post("/", requireAuth, async (c) => {
     type: string;
     arrayBuffer(): Promise<ArrayBuffer>;
   };
-  if (file.size > MAX_BYTES) return c.json({ error: "Fichier trop volumineux (max 15 Mo)" }, 413);
+  if (file.size > MAX_BYTES) return c.json({ error: "Fichier trop volumineux (max 25 Mo)" }, 413);
+  // La galerie n'accepte que des images (cohérent avec l'avatar) : un fichier
+  // HTML/SVG piégé servi depuis notre origine = XSS stocké.
+  if (!isImageUpload(file.type)) return c.json({ error: "Choisis une image" }, 400);
 
   const id = uid();
   const safeName = str(file.name || "image", 120).replace(/[^\w.\-]+/g, "_");
@@ -105,7 +108,11 @@ app.get("/:id/raw", attachUser, async (c) => {
   const obj = await c.env.MEDIA.get(row.r2_key as string);
   if (!obj) return c.json({ error: "Fichier absent" }, 404);
   const headers = new Headers();
-  headers.set("Content-Type", (row.content_type as string) || "application/octet-stream");
+  // Content-Type assaini (jamais text/html ni svg exécutable) + nosniff : empêche
+  // le navigateur d'interpréter un fichier piégé comme du HTML/JS same-origin.
+  headers.set("Content-Type", safeServedContentType(row.content_type));
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Content-Disposition", "inline");
   headers.set("Cache-Control", "private, max-age=86400");
   return new Response(obj.body, { headers });
 });

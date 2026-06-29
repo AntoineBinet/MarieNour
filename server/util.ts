@@ -62,6 +62,79 @@ export function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/* ── Sécurité des médias (uploads & service binaire) ─────────────────────────
+ * Empêche le « XSS stocké via fichier » : un fichier uploadé puis servi depuis
+ * l'origine du site avec un Content-Type exécutable (text/html, image/svg+xml)
+ * s'exécuterait dans le contexte de marienour.work. On filtre à l'upload ET au
+ * service. Logique pure (aucune API runtime) → vaut pour les deux runtimes. */
+
+const MEDIA_TYPE_RE = /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/;
+
+/** Normalise un Content-Type entrant : minuscules, sans paramètres, validé. */
+function normMime(v: unknown): string {
+  const s = str(v, 120).toLowerCase().split(";")[0].trim();
+  return MEDIA_TYPE_RE.test(s) ? s : "";
+}
+
+/** Un upload « image » est-il acceptable ? (type vide toléré : certains
+ *  navigateurs ne le renseignent pas — on ne bloque que les types EXPLICITEMENT
+ *  non-image, comme le fait déjà l'avatar). */
+export function isImageUpload(type: unknown): boolean {
+  const v = normMime(type);
+  return v === "" || v.startsWith("image/");
+}
+
+/** Un upload « image ou vidéo » est-il acceptable ? (idem, type vide toléré). */
+export function isImageOrVideoUpload(type: unknown): boolean {
+  const v = normMime(type);
+  return v === "" || v.startsWith("image/") || v.startsWith("video/");
+}
+
+/** Content-Type SÛR à renvoyer « inline ». Seuls image/* (hors SVG), video/* et
+ *  audio/* sont servis tels quels ; tout le reste (HTML, SVG, inconnu…) devient
+ *  application/octet-stream (téléchargé, jamais interprété par le navigateur). */
+export function safeServedContentType(ct: unknown): string {
+  const v = normMime(ct);
+  if (!v || v === "image/svg+xml") return "application/octet-stream";
+  if (v.startsWith("image/") || v.startsWith("video/") || v.startsWith("audio/")) return v;
+  return "application/octet-stream";
+}
+
+/** Bloque (best-effort, sans DNS — compatible Workers) les hôtes qui pointent
+ *  vers le réseau interne / métadonnées cloud, pour limiter la SSRF sur les
+ *  aperçus de lien. Ne couvre pas le DNS-rebinding (hôte public résolvant en IP
+ *  privée), mais arrête les cas directs (IP littérale privée, localhost, .local,
+ *  endpoint de métadonnées 169.254.169.254). */
+export function isBlockedPreviewHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/\.$/, "");
+  if (!h || h === "localhost" || h.endsWith(".localhost")) return true;
+  if (h.endsWith(".local") || h.endsWith(".internal") || h === "metadata") return true;
+
+  // IPv4 littérale ?
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (m) {
+    const o = m.slice(1).map(Number);
+    if (o.some((n) => n > 255)) return true;
+    const [a, b] = o;
+    if (a === 0 || a === 127 || a === 10) return true; // this-host, loopback, privé
+    if (a === 169 && b === 254) return true; // link-local + métadonnées cloud
+    if (a === 192 && b === 168) return true; // privé
+    if (a === 172 && b >= 16 && b <= 31) return true; // privé
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    return false;
+  }
+
+  // IPv6 littérale ? (loopback, ULA fc00::/7, link-local fe80::/10, v4-mapped)
+  if (h.includes(":")) {
+    const x = h.replace(/^\[|\]$/g, "");
+    if (x === "::1" || x === "::") return true;
+    if (/^f[cd][0-9a-f]{2}:/.test(x)) return true;
+    if (/^fe[89ab][0-9a-f]:/.test(x)) return true;
+    if (x.startsWith("::ffff:")) return true;
+  }
+  return false;
+}
+
 /** Génère un handle simple à partir d'un nom/email. */
 export function slugifyHandle(input: string): string {
   return (

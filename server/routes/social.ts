@@ -163,20 +163,39 @@ app.get("/feed", async (c) => {
   raw.sort((a, b) => b._ts - a._ts);
   const feed = raw.slice(0, 60);
 
-  // Compteurs likes/commentaires + liked_by_me.
-  for (const item of feed) {
-    const likeCount = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM likes WHERE entity_type = ? AND entity_id = ?")
-      .bind(item.entity_type, item.entity_id)
-      .first<{ n: number }>();
-    const commentCount = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM comments WHERE entity_type = ? AND entity_id = ?")
-      .bind(item.entity_type, item.entity_id)
-      .first<{ n: number }>();
-    const mine = await c.env.DB.prepare("SELECT 1 FROM likes WHERE user_id = ? AND entity_type = ? AND entity_id = ?")
-      .bind(me, item.entity_type, item.entity_id)
-      .first();
-    item.like_count = likeCount?.n ?? 0;
-    item.comment_count = commentCount?.n ?? 0;
-    item.liked_by_me = !!mine;
+  // Compteurs likes/commentaires + liked_by_me — groupé en 3 requêtes (au lieu
+  // de 3 PAR item, cf. audit N+1). Les entity_id sont des UUID uniques : on filtre
+  // par id puis on indexe par couple type:id pour rester exact.
+  if (feed.length) {
+    const ids = feed.map((it) => it.entity_id);
+    const ph = ids.map(() => "?").join(",");
+    const key = (t: string, id: string) => `${t}:${id}`;
+
+    const likeRows = await c.env.DB.prepare(
+      `SELECT entity_type, entity_id, COUNT(*) AS n FROM likes WHERE entity_id IN (${ph}) GROUP BY entity_type, entity_id`,
+    )
+      .bind(...ids)
+      .all<{ entity_type: string; entity_id: string; n: number }>();
+    const commentRows = await c.env.DB.prepare(
+      `SELECT entity_type, entity_id, COUNT(*) AS n FROM comments WHERE entity_id IN (${ph}) GROUP BY entity_type, entity_id`,
+    )
+      .bind(...ids)
+      .all<{ entity_type: string; entity_id: string; n: number }>();
+    const mineRows = await c.env.DB.prepare(
+      `SELECT entity_type, entity_id FROM likes WHERE user_id = ? AND entity_id IN (${ph})`,
+    )
+      .bind(me, ...ids)
+      .all<{ entity_type: string; entity_id: string }>();
+
+    const likeMap = new Map((likeRows.results ?? []).map((r) => [key(r.entity_type, r.entity_id), r.n]));
+    const commentMap = new Map((commentRows.results ?? []).map((r) => [key(r.entity_type, r.entity_id), r.n]));
+    const mineSet = new Set((mineRows.results ?? []).map((r) => key(r.entity_type, r.entity_id)));
+    for (const item of feed) {
+      const k = key(item.entity_type, item.entity_id);
+      item.like_count = likeMap.get(k) ?? 0;
+      item.comment_count = commentMap.get(k) ?? 0;
+      item.liked_by_me = mineSet.has(k);
+    }
   }
 
   return c.json({ feed: feed.map(({ _ts, ...rest }) => rest) });

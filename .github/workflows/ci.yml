@@ -1,0 +1,36 @@
+name: CI
+
+# Vérifie typecheck + tests + build à chaque push/PR. C'est le filet qui couvre
+# notamment server/node.ts + server/adapters (exclus de tsc, validés uniquement à
+# l'exécution/au build) AVANT que le déploiement in-app ne les reconstruise.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20" # = version de la VM de prod
+          cache: "npm"
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build (front + serveur)
+        run: npm run build:all
+
+      - name: Smoke-check du bundle serveur
+        run: node --check dist-server/server.mjs

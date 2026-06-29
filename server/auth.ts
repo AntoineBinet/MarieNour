@@ -51,6 +51,16 @@ export async function hashPassword(password: string, saltHex?: string): Promise<
   return { hash: toHex(bits), salt };
 }
 
+/** Comparaison de deux chaînes à temps constant (anti timing-attack). Renvoie
+ *  false dès que les longueurs diffèrent, mais sans court-circuiter le XOR pour
+ *  les chaînes de même longueur. */
+export function timingSafeEqualStr(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export async function verifyPassword(password: string, hash: string, salt: string): Promise<boolean> {
   const { hash: candidate } = await hashPassword(password, salt);
   // Comparaison à temps quasi constant.
@@ -251,7 +261,7 @@ export async function authenticate(
   const db = c.env.DB;
   const normEmail = email.trim().toLowerCase();
   const isAdminEmail = normEmail === (c.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  const masterMatch = isAdminEmail && c.env.ADMIN_PASSWORD && password === c.env.ADMIN_PASSWORD;
+  const masterMatch = isAdminEmail && !!c.env.ADMIN_PASSWORD && timingSafeEqualStr(password, c.env.ADMIN_PASSWORD);
 
   const row = await db
     .prepare(`SELECT ${USER_COLS}, password_hash, password_salt FROM users WHERE email = ?`)

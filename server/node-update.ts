@@ -16,7 +16,7 @@
 // être importé par server/app.ts ni par les routes partagées (repli serverless).
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const APP_DIR = process.cwd();
@@ -132,6 +132,24 @@ async function must(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promi
   return r;
 }
 
+/** Vérifie que le build a produit des artefacts plausibles (sinon un `vite build`
+ *  qui a échoué partiellement — ex. OOM — laisserait un dist/ vide). Lève si KO. */
+function assertBuildArtifacts(): void {
+  const checks: { path: string; min: number; label: string }[] = [
+    { path: join(APP_DIR, "dist", "index.html"), min: 200, label: "front (dist/index.html)" },
+    { path: join(APP_DIR, "dist-server", "server.mjs"), min: 10_000, label: "serveur (dist-server/server.mjs)" },
+  ];
+  for (const ch of checks) {
+    let size = 0;
+    try {
+      size = statSync(ch.path).size;
+    } catch {
+      throw new Error(`Build incomplet : ${ch.label} manquant`);
+    }
+    if (size < ch.min) throw new Error(`Build incomplet : ${ch.label} trop petit (${size} o)`);
+  }
+}
+
 async function gitShort(ref: string): Promise<string> {
   const r = await run("git", ["rev-parse", "--short", ref], { quiet: true });
   return r.code === 0 ? r.out.trim() : "";
@@ -177,21 +195,45 @@ async function doUpdate() {
       return; // rien à reconstruire, pas de redémarrage
     }
 
+    // `local` = commit AVANT la MAJ : sert de point de rollback si le build casse.
+    const prevHead = local;
+
     setStep("Application des changements (git pull)");
     await must("git", ["checkout", BRANCH]);
     await must("git", ["merge", "--ff-only", `origin/${BRANCH}`]);
 
-    // Réinstaller les dépendances seulement si le lockfile a bougé.
-    const lock = await run("git", ["diff", "--name-only", `${local}`, "HEAD", "--", "package-lock.json"], {
-      quiet: true,
-    });
-    if (lock.out.trim().length > 0) {
-      setStep("Installation des dépendances (npm ci)");
-      await must("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], { NODE_ENV: "development" });
-    }
+    // À partir d'ici, git a avancé : toute panne (npm ci, build, smoke-test) doit
+    // RESTAURER la version précédente pour ne pas laisser le service cassé sans
+    // rollback (le serveur en cours sert toujours l'ancien build tant qu'on n'a
+    // pas sorti en 42).
+    try {
+      // Réinstaller les dépendances seulement si le lockfile a bougé.
+      const lock = await run("git", ["diff", "--name-only", `${prevHead}`, "HEAD", "--", "package-lock.json"], {
+        quiet: true,
+      });
+      if (lock.out.trim().length > 0) {
+        setStep("Installation des dépendances (npm ci)");
+        await must("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], { NODE_ENV: "development" });
+      }
 
-    setStep("Reconstruction (front + serveur)");
-    await must("npm", ["run", "build:all"], { NODE_ENV: "production" });
+      setStep("Reconstruction (front + serveur)");
+      await must("npm", ["run", "build:all"], { NODE_ENV: "production" });
+
+      // Smoke-test : le nouveau build est-il exploitable AVANT de redémarrer ?
+      setStep("Vérification du build");
+      assertBuildArtifacts();
+      // `node --check` parse le bundle serveur sans l'exécuter (pas de bind :8002).
+      await must("node", ["--check", join(APP_DIR, "dist-server", "server.mjs")]);
+    } catch (buildErr) {
+      setStep("Échec du build — restauration de la version précédente");
+      // Rollback best-effort : on revient au commit qui tournait + on rebuild pour
+      // garantir un dist/ cohérent au prochain (re)démarrage.
+      if (prevHead) await run("git", ["reset", "--hard", prevHead]);
+      await run("npm", ["run", "build:all"], { env: { NODE_ENV: "production" } });
+      throw new Error(
+        `${(buildErr as Error)?.message || String(buildErr)} — version précédente restaurée (aucun redémarrage).`,
+      );
+    }
 
     current.toCommit = (await gitShort("HEAD")) || null;
     setStep("Redémarrage du service…");
