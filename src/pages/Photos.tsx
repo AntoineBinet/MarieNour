@@ -23,7 +23,7 @@ function formatDate(ts: number): string {
 /* ════════════════════════════════════════════════════════════════════════
    Aperçu / édition d'une photo
    ════════════════════════════════════════════════════════════════════════ */
-function PhotoModal({ media, onClose, onDelete }: { media: MediaItem; onClose: () => void; onDelete: (m: MediaItem) => void }) {
+function PhotoModal({ media, onClose, onDelete, onPrev, onNext }: { media: MediaItem; onClose: () => void; onDelete: (m: MediaItem) => void; onPrev?: () => void; onNext?: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [caption, setCaption] = useState(media.caption ?? "");
@@ -59,8 +59,19 @@ function PhotoModal({ media, onClose, onDelete }: { media: MediaItem; onClose: (
         <img
           src={media.url}
           alt={media.caption ?? media.filename ?? ""}
-          style={{ width: "100%", maxHeight: "60vh", objectFit: "contain", borderRadius: "var(--radius)", background: "var(--surface-2)" }}
+          decoding="async"
+          style={{ width: "100%", maxHeight: "60dvh", objectFit: "contain", borderRadius: "var(--radius)", background: "var(--surface-2)" }}
         />
+        {(onPrev || onNext) && (
+          <div className="row gap-2" style={{ justifyContent: "center" }}>
+            <button className="btn btn-icon btn-soft" onClick={onPrev} disabled={!onPrev} aria-label="Photo précédente">
+              <Icon name="arrowLeft" size={18} />
+            </button>
+            <button className="btn btn-icon btn-soft" onClick={onNext} disabled={!onNext} aria-label="Photo suivante">
+              <Icon name="arrowRight" size={18} />
+            </button>
+          </div>
+        )}
         <Field label="Légende">
           <input
             className="input"
@@ -69,6 +80,9 @@ function PhotoModal({ media, onClose, onDelete }: { media: MediaItem; onClose: (
             onBlur={saveCaption}
             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
             placeholder="Ajoute une légende…"
+            enterKeyHint="done"
+            autoCapitalize="sentences"
+            autoComplete="off"
           />
         </Field>
         <Field label="Visibilité">
@@ -195,7 +209,7 @@ function MyPhotos() {
           <p className="muted">Envoi en cours… {uploading.done}/{uploading.total}</p>
         ) : (
           <p className="muted">
-            <strong style={{ color: "var(--accent-ink)" }}>Glisse tes photos ici</strong> ou clique pour parcourir — JPEG, PNG, HEIC…
+            <strong style={{ color: "var(--accent-ink)" }}>Ajoute tes photos</strong> — touche ici pour parcourir (ou glisse-les depuis un ordinateur) — JPEG, PNG, HEIC…
           </p>
         )}
       </div>
@@ -233,7 +247,7 @@ function MyPhotos() {
         <div className="masonry">
           {media.map((m) => (
             <div key={m.id} className="card card-pad-sm" style={{ padding: 0, overflow: "hidden", cursor: "pointer" }} onClick={() => setViewing(m)}>
-              <img src={m.url} alt={m.caption ?? m.filename ?? ""} loading="lazy" style={{ width: "100%", display: "block", borderRadius: "var(--radius)" }} />
+              <img src={m.url} alt={m.caption ?? m.filename ?? ""} loading="lazy" decoding="async" style={{ width: "100%", display: "block", borderRadius: "var(--radius)" }} />
               {(m.caption || m.visibility !== "private") && (
                 <div style={{ padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                   {m.caption && <span className="small" style={{ color: "var(--ink-2)" }}>{m.caption}</span>}
@@ -245,7 +259,21 @@ function MyPhotos() {
         </div>
       )}
 
-      {viewing && <PhotoModal media={viewing} onClose={() => setViewing(null)} onDelete={askDelete} />}
+      {viewing && (() => {
+        // Navigation entre photos sans fermer la feuille ; `key` réinitialise
+        // l'état interne (légende/visibilité) quand on change de photo.
+        const idx = media.findIndex((m) => m.id === viewing.id);
+        return (
+          <PhotoModal
+            key={viewing.id}
+            media={viewing}
+            onClose={() => setViewing(null)}
+            onDelete={askDelete}
+            onPrev={idx > 0 ? () => setViewing(media[idx - 1]) : undefined}
+            onNext={idx >= 0 && idx < media.length - 1 ? () => setViewing(media[idx + 1]) : undefined}
+          />
+        );
+      })()}
       {confirmNode}
     </div>
   );
@@ -298,7 +326,7 @@ function AddPhotosModal({ albumId, existing, onClose }: { albumId: string; exist
             const on = sel.has(m.id);
             return (
               <button key={m.id} type="button" className={`photo-pick-item${on ? " sel" : ""}`} onClick={() => toggle(m.id)} aria-pressed={on}>
-                <img src={m.url} alt={m.caption ?? ""} loading="lazy" />
+                <img src={m.url} alt={m.caption ?? ""} loading="lazy" decoding="async" />
                 {on && <span className="photo-pick-check"><Icon name="check" size={14} /></span>}
               </button>
             );
@@ -378,7 +406,10 @@ function AlbumModal({ albumId, onClose }: { albumId: string; onClose: () => void
                 <input
                   className="input"
                   defaultValue={album.title}
+                  enterKeyHint="done"
+                  autoCapitalize="sentences"
                   onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== album.title) patch.mutate({ title: v }); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                 />
               </Field>
               <Field label="Description">
@@ -419,7 +450,7 @@ function AlbumModal({ albumId, onClose }: { albumId: string; onClose: () => void
             <div className="album-grid">
               {album.photos.map((m) => (
                 <div key={m.id} className="album-grid-item">
-                  <img src={m.url} alt={m.caption ?? ""} loading="lazy" onClick={() => setZoom(m)} />
+                  <img src={m.url} alt={m.caption ?? ""} loading="lazy" decoding="async" onClick={() => setZoom(m)} />
                   {owner && (
                     <div className="album-grid-actions">
                       <button
@@ -498,7 +529,7 @@ function AlbumModal({ albumId, onClose }: { albumId: string; onClose: () => void
       {adding && <AddPhotosModal albumId={albumId} existing={new Set(album.photos.map((p) => p.id))} onClose={() => setAdding(false)} />}
       {zoom && (
         <Modal title={zoom.caption || "Photo"} onClose={() => setZoom(null)} wide>
-          <img src={zoom.url} alt={zoom.caption ?? ""} style={{ width: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: "var(--radius)", background: "var(--surface-2)" }} />
+          <img src={zoom.url} alt={zoom.caption ?? ""} decoding="async" style={{ width: "100%", maxHeight: "75dvh", objectFit: "contain", borderRadius: "var(--radius)", background: "var(--surface-2)" }} />
         </Modal>
       )}
     </>
@@ -538,7 +569,7 @@ function CreateAlbumModal({ onClose, onCreated }: { onClose: () => void; onCreat
       }
     >
       <Field label="Titre">
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Vacances en Italie" autoFocus />
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Vacances en Italie" enterKeyHint="done" autoCapitalize="sentences" autoComplete="off" onKeyDown={(e) => e.key === "Enter" && title.trim() && !create.isPending && create.mutate()} autoFocus />
       </Field>
       <Field label="Visibilité">
         <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value as Visibility)}>
@@ -554,7 +585,7 @@ function AlbumCard({ album, onOpen }: { album: Album; onOpen: () => void }) {
   return (
     <button type="button" className="card album-card" onClick={onOpen}>
       <div className="album-card-cover">
-        {album.cover_url ? <img src={album.cover_url} alt="" loading="lazy" /> : <span className="album-card-empty"><Icon name="image" size={28} /></span>}
+        {album.cover_url ? <img src={album.cover_url} alt="" loading="lazy" decoding="async" /> : <span className="album-card-empty"><Icon name="image" size={28} /></span>}
         <span className="album-card-count"><Icon name="image" size={12} /> {album.photo_count}</span>
       </div>
       <div className="album-card-body">

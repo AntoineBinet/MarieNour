@@ -33,6 +33,8 @@ function MiniAvatar({ user, size = 22 }: { user: PublicUser; size?: number }) {
         src={user.avatar_url}
         alt={user.display_name}
         title={user.display_name}
+        loading="lazy"
+        decoding="async"
         style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flex: "none" }}
       />
     );
@@ -223,6 +225,7 @@ function CreateModal({ onClose, onCreate, busy }: { onClose: () => void; onCreat
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="On part où ce week-end ?"
+          autoCapitalize="sentences"
         />
       </Field>
 
@@ -235,6 +238,10 @@ function CreateModal({ onClose, onCreate, busy }: { onClose: () => void; onCreat
                 value={o}
                 onChange={(e) => setOpt(i, e.target.value)}
                 placeholder={`Option ${i + 1}`}
+                // Sur iOS : « suivant » pour enchaîner les options, « OK » sur la dernière.
+                enterKeyHint={i === options.length - 1 ? "done" : "next"}
+                autoCapitalize="sentences"
+                autoComplete="off"
                 style={{ flex: 1 }}
               />
               <button
@@ -269,8 +276,13 @@ function CreateModal({ onClose, onCreate, busy }: { onClose: () => void; onCreat
         />
       </Field>
 
-      <label className="row gap-2" style={{ cursor: "pointer", marginTop: "var(--space-2)" }}>
-        <input type="checkbox" checked={multi} onChange={(e) => setMulti(e.target.checked)} />
+      <label className="row gap-2" style={{ cursor: "pointer", marginTop: "var(--space-2)", minHeight: 44 }}>
+        <input
+          type="checkbox"
+          checked={multi}
+          onChange={(e) => setMulti(e.target.checked)}
+          style={{ width: 20, height: 20, accentColor: "var(--accent)", flex: "none" }}
+        />
         <span>Autoriser les choix multiples</span>
       </label>
     </Modal>

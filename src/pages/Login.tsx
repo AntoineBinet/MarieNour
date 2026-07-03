@@ -152,14 +152,14 @@ function AuthCard({
       <form onSubmit={submit}>
         {mode === "register" && (
           <Field label="Prénom ou pseudo">
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Marie-Nour" required />
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Marie-Nour" required autoComplete="name" autoCapitalize="words" enterKeyHint="next" />
           </Field>
         )}
         <Field label="Email">
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@email.com" required autoComplete="email" />
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@email.com" required autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false} enterKeyHint="next" />
         </Field>
         <Field label="Mot de passe">
-          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={mode === "login" ? "current-password" : "new-password"} />
+          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={mode === "login" ? "current-password" : "new-password"} enterKeyHint="go" />
         </Field>
         {mode === "register" && (
           <div className="field">

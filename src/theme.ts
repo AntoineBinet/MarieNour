@@ -53,13 +53,30 @@ export function appearanceFromUser(u: { accent?: string; prefs?: UserPrefs } | n
 }
 
 function syncMetaThemeColor(theme: Theme) {
-  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  // Couleur de fond RÉELLE : tient compte des packs design (graphite, editorial…)
+  // et des ambiances [data-bg], pas seulement du thème clair/sombre. On lit --bg
+  // calculé sur <html> après application des attributs data-* ; repli sur la table
+  // figée si la variable n'est pas encore résolue (feuille CSS pas chargée).
+  let color = "";
+  try {
+    color = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  } catch {
+    /* getComputedStyle indisponible : on garde le repli */
+  }
+  if (!color) color = THEME_COLORS[theme];
+
+  // Balise « maîtresse » SANS attribut media : une fois le JS chargé elle prime
+  // sur les deux balises statiques light/dark. On la place en tête des balises
+  // theme-color pour gagner selon l'algorithme « premier match » du HTML.
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])');
   if (!meta) {
     meta = document.createElement("meta");
     meta.name = "theme-color";
-    document.head.appendChild(meta);
+    const first = document.querySelector('meta[name="theme-color"]');
+    if (first && first.parentNode) first.parentNode.insertBefore(meta, first);
+    else document.head.appendChild(meta);
   }
-  meta.setAttribute("content", THEME_COLORS[theme]);
+  meta.setAttribute("content", color);
 }
 
 function setAttr(root: HTMLElement, name: string, value: string | null | undefined) {
@@ -82,7 +99,10 @@ export function applyAppearance(app: Appearance, persist = true) {
 
   const theme = resolveMode(prefs.theme_mode);
   root.setAttribute("data-theme", theme);
-  syncMetaThemeColor(theme);
+  // Aligne les contrôles natifs iOS (pickers date/heure, select, clavier,
+  // scrollbars, autofill) sur le thème FORCÉ in-app, même si l'appareil est
+  // réglé à l'inverse — sinon blocs clairs au milieu d'une UI sombre.
+  root.style.colorScheme = theme;
 
   // Style d'interface global (« pack » coordonné). 'default' = pas d'attribut.
   setAttr(root, "data-design", prefs.design && prefs.design !== "default" ? prefs.design : null);
@@ -107,6 +127,10 @@ export function applyAppearance(app: Appearance, persist = true) {
   setAttr(root, "data-bg", prefs.background && prefs.background !== "default" ? prefs.background : null);
   setAttr(root, "data-contrast", prefs.contrast ? "high" : null);
   setAttr(root, "data-motion", prefs.reduce_motion ? "off" : null);
+
+  // En dernier : la couleur de la barre d'état reflète le fond réel une fois
+  // TOUS les attributs (design, ambiance de fond) appliqués.
+  syncMetaThemeColor(theme);
 
   current = { accent: app.accent || "terracotta", prefs };
   if (persist) {

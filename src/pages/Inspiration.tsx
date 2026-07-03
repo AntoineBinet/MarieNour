@@ -34,7 +34,7 @@ function InspoCard({
   return (
     <div className="card card-pad-sm" style={{ padding: 0, overflow: "hidden" }}>
       {ins.image_url && (
-        <img src={ins.image_url} alt={ins.title ?? ""} style={{ width: "100%", display: "block", objectFit: "cover" }} />
+        <img src={ins.image_url} alt={ins.title ?? ""} loading="lazy" decoding="async" style={{ width: "100%", display: "block", objectFit: "cover" }} />
       )}
       <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         {ins.title && <strong style={{ fontFamily: "var(--font-display)" }}>{ins.title}</strong>}
@@ -44,7 +44,7 @@ function InspoCard({
         </div>
         {ins.note && <p className="muted small">{ins.note}</p>}
         {ins.url && (
-          <a href={ins.url} target="_blank" rel="noreferrer" className="small"><Icon name="link" size={14} /> Ouvrir</a>
+          <a href={ins.url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm"><Icon name="link" size={14} /> Ouvrir</a>
         )}
         {actions && <div className="row gap-2 wrap" style={{ marginTop: "var(--space-2)" }}>{actions}</div>}
       </div>
@@ -204,7 +204,7 @@ function BoardView({
     <Modal title={board.title} onClose={onClose} wide>
       <div className="col gap-4">
         {board.cover_url && (
-          <img src={board.cover_url} alt={board.title} style={{ width: "100%", maxHeight: 240, objectFit: "cover", borderRadius: "var(--radius)" }} />
+          <img src={board.cover_url} alt={board.title} decoding="async" style={{ width: "100%", maxHeight: 240, objectFit: "cover", borderRadius: "var(--radius)" }} />
         )}
         {board.description && <p className="muted">{board.description}</p>}
         <div className="row gap-2 wrap">
@@ -327,7 +327,7 @@ function InboxTab() {
           </div>
           <div className="col gap-3">
             <div className="row gap-3 wrap">
-              <input className="input grow" style={{ minWidth: 200 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Lien (Instagram, TikTok, Pinterest…)" autoFocus />
+              <input className="input grow" style={{ minWidth: 200 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Lien (Instagram, TikTok, Pinterest…)" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" enterKeyHint="done" onKeyDown={(e) => e.key === "Enter" && submit()} autoFocus />
               <select className="select" style={{ width: "auto" }} value={source} onChange={(e) => setSource(e.target.value)}>
                 {SOURCES.map((s) => (
                   <option key={s.value} value={s.value}>{s.label}</option>
@@ -342,7 +342,7 @@ function InboxTab() {
               </button>
             ) : (
               <div className="disclosure-body col gap-3">
-                <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre (optionnel)" />
+                <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre (optionnel)" autoCapitalize="sentences" autoComplete="off" enterKeyHint="done" />
                 <Field label="Image">
                   <ImageField value={imageUrl} onChange={setImageUrl} />
                 </Field>
@@ -442,7 +442,7 @@ function BoardsTab() {
             <div key={b.id} className="card card-pad-sm" style={{ cursor: "pointer", padding: 0, overflow: "hidden" }} onClick={() => setViewing(b)}>
               <div style={{ height: 140 }}>
                 {b.cover_url ? (
-                  <img src={b.cover_url} alt={b.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={b.cover_url} alt={b.title} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "var(--muted)", background: "var(--surface-2)" }}><Icon name="archive" size={40} /></div>
                 )}

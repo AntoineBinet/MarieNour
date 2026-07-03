@@ -67,7 +67,7 @@ export function ImageField({
 
       {value ? (
         <div className="image-field-preview">
-          <img src={value} alt="" />
+          <img src={value} alt="" loading="lazy" decoding="async" />
           <div className="image-field-actions">
             <button type="button" className="btn btn-soft btn-sm row gap-1" onClick={browse} disabled={uploading || disabled}>
               <Icon name="image" size={14} /> {uploading ? "Envoi…" : "Remplacer"}
@@ -93,7 +93,12 @@ export function ImageField({
             <p className="muted small">Envoi en cours…</p>
           ) : (
             <p className="muted small">
-              <strong style={{ color: "var(--accent-ink)" }}>Glisse une image ici</strong> ou clique pour parcourir
+              {/* Libellé pointeur (ordi) et libellé tactile (mobile) : le CSS
+                  n'en montre qu'un selon (hover: none) — sur iPhone il n'y a pas
+                  de glisser-déposer, seulement le tap qui ouvre la photothèque. */}
+              <strong className="image-drop-lead" style={{ color: "var(--accent-ink)" }}>Glisse une image ici</strong>
+              <span className="image-drop-hint"> ou clique pour parcourir</span>
+              <strong className="image-drop-touch" style={{ color: "var(--accent-ink)" }}>Touche pour choisir une photo</strong>
               <br />JPG, PNG, HEIC…
             </p>
           )}
@@ -113,7 +118,12 @@ export function ImageField({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="https://…"
+            type="url"
             inputMode="url"
+            enterKeyHint="done"
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
             disabled={disabled}
           />
         </div>

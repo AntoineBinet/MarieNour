@@ -192,7 +192,7 @@ export function ContributeModal({ goal, cur, onClose }: { goal: FinanceGoal; cur
           Épargné : {money(goal.saved_amount, cur)} / {money(goal.target_amount, cur)}
         </p>
         <Field label="Montant à ajouter">
-          <input className="input" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" autoFocus />
+          <input className="input" type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" autoFocus />
         </Field>
       </form>
     </Modal>

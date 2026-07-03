@@ -3,6 +3,7 @@
 // son propre fichier ./finance/*Tab.tsx. Ce fichier ne garde que l'enveloppe :
 // en-tête, sélecteur d'espace partagé, barre d'onglets, ajout rapide, démarrage.
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { useToast } from "../ui";
@@ -27,6 +28,7 @@ export default function Finance() {
   const [quickAdd, setQuickAdd] = useState(false);
   const [txPrefill, setTxPrefill] = useState<Partial<TxForm> | null>(null);
   const [txFilter, setTxFilter] = useState<TxFilter | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Ouverture pré-remplie depuis une note convertie (« Ajouter au portefeuille »).
   useEffect(() => {
@@ -35,6 +37,22 @@ export default function Finance() {
     setTxPrefill(c.prefill as Partial<TxForm>);
     setQuickAdd(true);
   }, []);
+  // Quick-add : /finances?new=1 place sur l'onglet Transactions, ouvre le
+  // formulaire d'ajout, puis nettoie l'URL (idempotent, compatible React.StrictMode
+  // grâce à la mise à jour fonctionnelle des paramètres).
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setTab("transactions");
+    setQuickAdd(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
   // Navigue vers l'onglet Transactions en pré-filtrant (clic depuis l'Accueil).
   const goToTx = (f: TxFilter) => {
     setTxFilter(f);

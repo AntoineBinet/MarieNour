@@ -255,6 +255,9 @@ export default function Appearance() {
                 maxLength={40}
                 onChange={(e) => set({ nickname: e.target.value })}
                 placeholder={user.display_name}
+                autoComplete="off"
+                autoCapitalize="words"
+                enterKeyHint="done"
               />
               <p className="muted small" style={{ marginTop: 4 }}>
                 C'est le prénom (ou surnom) par lequel l'app te parle. Laisse vide pour utiliser ton nom affiché.
@@ -294,7 +297,7 @@ export default function Appearance() {
                     <button
                       key={i}
                       type="button"
-                      className={`appr-opt${selected ? " sel" : ""}`}
+                      className={`appr-opt appr-opt-emoji${selected ? " sel" : ""}`}
                       style={{ minWidth: 0, padding: "0.5rem 0.7rem", fontSize: "1.1rem" }}
                       onClick={() => set({ greeting_emoji: e })}
                       aria-pressed={selected}

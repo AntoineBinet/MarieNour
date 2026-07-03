@@ -76,8 +76,11 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
       setQ("");
       setDebounced("");
       setActive(0);
-      const t = setTimeout(() => inputRef.current?.focus(), 30);
-      return () => clearTimeout(t);
+      // Focus posé dans la frame d'ouverture (au plus près du geste utilisateur)
+      // pour maximiser les chances que le clavier iOS s'ouvre tout seul ; repli :
+      // l'utilisateur peut toujours toucher le champ.
+      const raf = requestAnimationFrame(() => inputRef.current?.focus());
+      return () => cancelAnimationFrame(raf);
     }
   }, [open]);
 
@@ -167,6 +170,10 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoCapitalize="none"
             autoComplete="off"
             spellCheck={false}
           />

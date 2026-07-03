@@ -111,7 +111,7 @@ function AccountModal({ account, onClose }: { account: FinanceAccount | null; on
       </>}
     >
       <form onSubmit={submit}>
-        <Field label="Nom"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Compte courant" autoFocus /></Field>
+        <Field label="Nom"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Compte courant" autoCapitalize="sentences" enterKeyHint="done" autoFocus /></Field>
         <div className="row gap-3 wrap">
           <div className="grow">
             <Field label="Type">
@@ -120,10 +120,10 @@ function AccountModal({ account, onClose }: { account: FinanceAccount | null; on
               </select>
             </Field>
           </div>
-          <div style={{ width: 100 }}><Field label="Devise"><input className="input" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} /></Field></div>
+          <div style={{ width: 100 }}><Field label="Devise"><input className="input" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} inputMode="text" autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={3} /></Field></div>
         </div>
         <Field label="Solde de départ">
-          <input className="input" type="number" step="0.01" value={form.start_balance} onChange={(e) => setForm({ ...form, start_balance: e.target.value })} placeholder="0.00" />
+          <input className="input" type="number" inputMode="decimal" enterKeyHint="done" step="0.01" value={form.start_balance} onChange={(e) => setForm({ ...form, start_balance: e.target.value })} placeholder="0.00" />
         </Field>
         <Field label="Couleur"><SwatchRow value={form.color} onChange={(c) => setForm({ ...form, color: c })} /></Field>
       </form>

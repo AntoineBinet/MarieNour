@@ -99,7 +99,7 @@ function ParticipantChip({ p, onRemove }: { p: TripParticipant; onRemove?: () =>
           fontSize: "0.72rem", fontWeight: 700,
         }}
       >
-        {p.avatar_url ? <img src={p.avatar_url} alt="" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} /> : initial}
+        {p.avatar_url ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} /> : initial}
       </span>
       <span className="small" style={{ fontWeight: 600 }}>{p.name}{p.is_me ? " (toi)" : ""}</span>
       {p.role === "owner" && <span className="badge">Orga</span>}
@@ -405,6 +405,9 @@ export default function TripDetail() {
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Ajouter un voyageur (même sans compte)…"
+              autoCapitalize="words"
+              autoComplete="off"
+              enterKeyHint="done"
             />
             <button className="btn btn-soft btn-sm" type="submit" disabled={addParticipant.isPending}>
               <Icon name="plus" size={15} /> Ajouter
@@ -457,7 +460,7 @@ export default function TripDetail() {
                   {isIdeas ? <><Icon name="lightbulb" size={16} /> Idées / à caser</> : formatDayTitle(key)}
                 </h3>
                 {groupItems.map((it) => (
-                  <div key={it.id} className="li-row">
+                  <div key={it.id} className="li-row li-row-wrap">
                     <span
                       className={`check${it.done ? " done" : ""}`}
                       role="checkbox"
@@ -498,25 +501,27 @@ export default function TripDetail() {
                       )}
                     </div>
 
-                    {it.cost != null && (
-                      <span className="chip small">{it.cost} {trip.currency}</span>
-                    )}
-                    <button
-                      className={`btn btn-sm ${it.voted_by_me ? "btn-primary" : "btn-soft"}`}
-                      onClick={() => voteItem.mutate(it.id)}
-                      title="Voter pour cette étape (décision de groupe)"
-                    >
-                      <Icon name="heart" size={14} filled={it.voted_by_me} /> {it.votes ?? 0}
-                    </button>
-                    {isOwner && (
+                    <div className="row gap-2 li-row-end">
+                      {it.cost != null && (
+                        <span className="chip small">{it.cost} {trip.currency}</span>
+                      )}
                       <button
-                        className="btn btn-icon btn-danger btn-sm"
-                        onClick={() => askDeleteItem(it)}
-                        aria-label="Supprimer"
+                        className={`btn btn-sm ${it.voted_by_me ? "btn-primary" : "btn-soft"}`}
+                        onClick={() => voteItem.mutate(it.id)}
+                        title="Voter pour cette étape (décision de groupe)"
                       >
-                        <Icon name="trash" size={15} />
+                        <Icon name="heart" size={14} filled={it.voted_by_me} /> {it.votes ?? 0}
                       </button>
-                    )}
+                      {isOwner && (
+                        <button
+                          className="btn btn-icon btn-danger btn-sm"
+                          onClick={() => askDeleteItem(it)}
+                          aria-label="Supprimer"
+                        >
+                          <Icon name="trash" size={15} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -547,7 +552,7 @@ export default function TripDetail() {
         >
           <form onSubmit={submitTrip}>
             <Field label="Titre">
-              <input className="input" value={tripForm.title} onChange={(e) => setTripForm({ ...tripForm, title: e.target.value })} autoFocus />
+              <input className="input" value={tripForm.title} onChange={(e) => setTripForm({ ...tripForm, title: e.target.value })} autoCapitalize="sentences" autoFocus />
             </Field>
             <Field label="Type de séjour">
               <div className="row gap-2 wrap">
@@ -564,7 +569,7 @@ export default function TripDetail() {
               </div>
             </Field>
             <Field label="Destination">
-              <input className="input" value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} />
+              <input className="input" value={tripForm.destination} onChange={(e) => setTripForm({ ...tripForm, destination: e.target.value })} autoCapitalize="words" autoComplete="off" />
             </Field>
             <div className="row gap-3 wrap">
               <div className="grow">
@@ -581,12 +586,12 @@ export default function TripDetail() {
             <div className="row gap-3 wrap">
               <div className="grow">
                 <Field label="Budget">
-                  <input type="number" className="input" value={tripForm.budget} onChange={(e) => setTripForm({ ...tripForm, budget: e.target.value })} min="0" />
+                  <input type="number" className="input" value={tripForm.budget} onChange={(e) => setTripForm({ ...tripForm, budget: e.target.value })} min="0" inputMode="numeric" />
                 </Field>
               </div>
               <div style={{ width: 120 }}>
                 <Field label="Devise">
-                  <input className="input" value={tripForm.currency} onChange={(e) => setTripForm({ ...tripForm, currency: e.target.value })} />
+                  <input className="input" value={tripForm.currency} onChange={(e) => setTripForm({ ...tripForm, currency: e.target.value })} autoCapitalize="characters" autoComplete="off" spellCheck={false} />
                 </Field>
               </div>
             </div>
@@ -624,7 +629,7 @@ export default function TripDetail() {
         >
           <form onSubmit={submitItem}>
             <Field label="Titre">
-              <input className="input" value={itemForm.title} onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })} placeholder="Visite du château" autoFocus />
+              <input className="input" value={itemForm.title} onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })} placeholder="Visite du château" autoCapitalize="sentences" autoFocus />
             </Field>
             <Field label="Type">
               <select className="select" value={itemForm.kind} onChange={(e) => setItemForm({ ...itemForm, kind: e.target.value as TripItem["kind"] })}>
@@ -648,13 +653,13 @@ export default function TripDetail() {
               </div>
             </div>
             <Field label="Lieu">
-              <input className="input" value={itemForm.location} onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })} placeholder="Adresse, quartier…" />
+              <input className="input" value={itemForm.location} onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })} placeholder="Adresse, quartier…" autoCapitalize="sentences" />
             </Field>
             <Field label="Lien (URL)">
-              <input className="input" value={itemForm.url} onChange={(e) => setItemForm({ ...itemForm, url: e.target.value })} placeholder="https://…" />
+              <input className="input" type="url" inputMode="url" value={itemForm.url} onChange={(e) => setItemForm({ ...itemForm, url: e.target.value })} placeholder="https://…" autoCapitalize="none" autoComplete="off" spellCheck={false} />
             </Field>
             <Field label="Coût">
-              <input type="number" className="input" value={itemForm.cost} onChange={(e) => setItemForm({ ...itemForm, cost: e.target.value })} placeholder="0" min="0" />
+              <input type="number" className="input" value={itemForm.cost} onChange={(e) => setItemForm({ ...itemForm, cost: e.target.value })} placeholder="0" min="0" inputMode="decimal" />
             </Field>
             <Field label="Notes">
               <textarea className="textarea" value={itemForm.notes} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} />
@@ -680,7 +685,7 @@ export default function TripDetail() {
                 <div key={f.id} className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
                   <div className="row gap-2" style={{ minWidth: 0, alignItems: "center" }}>
                     {f.user.avatar_url ? (
-                      <img src={f.user.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
+                      <img src={f.user.avatar_url} alt="" loading="lazy" decoding="async" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
                     ) : (
                       <span style={{ width: 34, height: 34, borderRadius: "50%", flex: "none", display: "grid", placeItems: "center", background: "var(--surface-2)", color: "var(--accent-ink)", fontWeight: 700 }}>
                         {(f.user.display_name || "?").trim().charAt(0).toUpperCase()}

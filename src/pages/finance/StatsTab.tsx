@@ -83,21 +83,34 @@ export function StatsTab({ month, owner, goToTx }: { month: string; owner: strin
             <div className="panel-head"><h2><Icon name="trend" size={18} style={{ verticalAlign: "-3px" }} /> Tendance mensuelle</h2></div>
             <div className="card card-pad-sm">
               <div className="row" style={{ alignItems: "flex-end", gap: 8, height: H + 24, overflowX: "auto" }}>
-                {stats.months.map((p) => (
-                  <div key={p.month} className="col" style={{ alignItems: "center", gap: 4, flex: 1, minWidth: 34 }}>
-                    <div className="row" style={{ alignItems: "flex-end", gap: 3, height: H }}>
-                      <span
-                        title={`Revenus · ${money(p.income, cur)}`}
-                        style={{ width: 11, height: Math.max(2, (p.income / maxBar) * H), background: "var(--ok)", borderRadius: "3px 3px 0 0" }}
-                      />
-                      <span
-                        title={`Dépenses · ${money(p.expense, cur)}`}
-                        style={{ width: 11, height: Math.max(2, (p.expense / maxBar) * H), background: "var(--danger)", borderRadius: "3px 3px 0 0" }}
-                      />
+                {stats.months.map((p) => {
+                  // Colonne tappable → ouvre toutes les opérations de ce mois (accessible au
+                  // doigt sur mobile, là où le survol/title est indisponible).
+                  const go = () => goToTx({ month: p.month });
+                  return (
+                    <div
+                      key={p.month}
+                      className="col fin-click"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${monthShort(p.month)} — revenus ${money(p.income, cur)}, dépenses ${money(p.expense, cur)}`}
+                      title={`Revenus · ${money(p.income, cur)} — Dépenses · ${money(p.expense, cur)}`}
+                      onClick={go}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && go()}
+                      style={{ alignItems: "center", gap: 4, flex: 1, minWidth: 40, padding: "2px 2px 4px", borderRadius: 8 }}
+                    >
+                      <div className="row" style={{ alignItems: "flex-end", gap: 3, height: H }}>
+                        <span
+                          style={{ width: 11, height: Math.max(2, (p.income / maxBar) * H), background: "var(--ok)", borderRadius: "3px 3px 0 0" }}
+                        />
+                        <span
+                          style={{ width: 11, height: Math.max(2, (p.expense / maxBar) * H), background: "var(--danger)", borderRadius: "3px 3px 0 0" }}
+                        />
+                      </div>
+                      <span className="muted" style={{ fontSize: "0.66rem", textTransform: "capitalize" }}>{monthShort(p.month)}</span>
                     </div>
-                    <span className="muted" style={{ fontSize: "0.66rem", textTransform: "capitalize" }}>{monthShort(p.month)}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="row gap-4" style={{ justifyContent: "center", marginTop: "var(--space-2)" }}>
                 <span className="small muted row gap-1"><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--ok)" }} /> Revenus</span>

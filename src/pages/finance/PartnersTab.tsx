@@ -54,7 +54,7 @@ export function PartnersTab({ partners, loading }: { partners: FinancePartner[];
                 <CatDot color="sage" icon="profile" size={30} />
                 <span className="grow" style={{ fontWeight: 600 }}>{p.user.display_name}</span>
                 <label className="row gap-2 small" style={{ cursor: "pointer" }}>
-                  <input type="checkbox" checked={p.can_edit} onChange={(e) => setPartner.mutate({ id: p.user.id, can_edit: e.target.checked })} />
+                  <input className="check-lg" type="checkbox" checked={p.can_edit} onChange={(e) => setPartner.mutate({ id: p.user.id, can_edit: e.target.checked })} />
                   <span>Édition</span>
                 </label>
                 <button className="btn btn-icon btn-danger btn-sm" onClick={() => askRemove(p)} aria-label="Retirer"><Icon name="trash" size={15} /></button>

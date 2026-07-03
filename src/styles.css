@@ -1,6 +1,10 @@
 /* marienour — design system */
 
 :root {
+  /* Schéma de couleurs natif : contrôles de formulaire, clavier virtuel et
+     scrollbars système suivent le thème (corrige leur rendu clair en sombre). */
+  color-scheme: light;
+
   --accent: #c8694b;
   --accent-soft: #e8a98f;
   --accent-ink: #8a3f28;
@@ -69,6 +73,9 @@
 }
 
 [data-theme="dark"] {
+  /* Schéma sombre pour les contrôles natifs (voir :root). */
+  color-scheme: dark;
+
   /* Accent retravaillé pour le fond sombre : teinte vive + « encre » claire et
      lisible (l'encre claire sert au texte/icônes colorés, partout dans l'app). */
   --accent: #db7d5c;
@@ -849,9 +856,9 @@ body { overscroll-behavior-y: none; }
     will-change: transform;
   }
 
-  /* Toasts & bandeau MAJ au-dessus de la bottom-nav */
+  /* Toasts & bandeau MAJ au-dessus de la bottom-nav — et du clavier (--kb). */
   .toast-wrap,
-  .pwa-update { bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + var(--space-3)); }
+  .pwa-update { bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + var(--space-3) + var(--kb, 0px)); }
 
   /* Confort tactile : cibles plus grandes (≥ 44px recommandé par Apple) */
   .btn { padding: 0.7rem 1.1rem; }
@@ -870,13 +877,22 @@ body { overscroll-behavior-y: none; }
   .landing-grid, .landing-grid-3 { grid-template-columns: 1fr 1fr; }
   .landing-nav-cta { display: none; }
 
-  /* Modales : feuille glissante en bas de l'écran (style iOS) */
-  .overlay { align-items: flex-end; padding: 0; }
+  /* Modales : feuille glissante en bas de l'écran (style iOS). Le padding-bottom
+     de l'overlay remonte la feuille au-dessus du clavier virtuel (--kb). */
+  .overlay { align-items: flex-end; padding: 0; padding-bottom: var(--kb, 0px); }
   .modal {
     max-width: 100%; width: 100%; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    max-height: 92vh; max-height: 92dvh; padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+    max-height: 92vh; max-height: 92dvh;
+    /* Bas de feuille : au-dessus de la barre d'accueil OU du clavier, le plus grand. */
+    padding-bottom: calc(var(--space-6) + max(env(safe-area-inset-bottom, 0px), var(--kb, 0px)));
     animation: sheet 0.25s ease both;
+    /* Transition du glisser-pour-fermer (le geste pose un transform inline) +
+       confinement du rebond de défilement à l'intérieur de la feuille. */
+    transition: transform 0.25s var(--ease);
+    overscroll-behavior: contain;
   }
+  /* Pendant le suivi du doigt, on coupe la transition (suivi au pixel près). */
+  .modal.dragging { transition: none; }
   .intro-modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   @keyframes sheet { from { transform: translateY(100%); } to { transform: none; } }
 }
@@ -1558,3 +1574,303 @@ body { overscroll-behavior-y: none; }
 
 /* Accessibilité : focus visible sur la zone de dépôt d'image (clavier). */
 .image-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   v36 — iOS 26 : grande passe « utilisation mobile » (Safari iPhone + PWA)
+   Cibles tactiles ≥ 44 px, feuilles basses, tirer-pour-rafraîchir, bouton
+   central « + », clavier virtuel, safe-areas paysage, etc.
+   Règle d'or : ne rien changer sur desktop (pointeur fin, > 900 px).
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Défilement & ancrage ─────────────────────────────────────────────────
+   Décale l'ancrage des liens internes sous la barre du haut collante ; confine
+   les rebonds de défilement (pas de « fuite » vers la page derrière). */
+html { scroll-padding-top: 84px; }
+.seg-scroll, .stories-row { overscroll-behavior-x: contain; }
+.notif-list, .cmdk-list, .photo-pick { overscroll-behavior: contain; }
+
+/* ── Zéro délai de double-tap : réponse immédiate au toucher ───────────────
+   touch-action: manipulation supprime l'attente de 300 ms des zones cliquables. */
+.btn, .seg-item, .nav-link, .bottomnav-item, .chip-pick, .check,
+.cmdk-item, .appr-opt, .story-touch { touch-action: manipulation; }
+
+/* ── Anti-sélection accidentelle pendant les gestes ───────────────────────── */
+.nav, .bottomnav, .seg, .story-touch, .sheet-handle { user-select: none; -webkit-user-select: none; }
+.story-media img, .story-touch { -webkit-touch-callout: none; }
+
+/* ── Médias plein écran du lecteur de stories : neutralise les gestes iOS
+   gênants (menu « Enregistrer l'image » au maintien, surlignage, sélection). */
+.story-img, .story-link-bg {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Équilibrage typographique des titres (évite les veuves) ───────────────── */
+@supports (text-wrap: balance) {
+  h1, h2, .landing-title { text-wrap: balance; }
+}
+
+/* ── Champs ≥ 16 px sur tout appareil tactile (bloque le zoom au focus Safari,
+   quelle que soit la largeur — pas seulement ≤ 900 px). ───────────────────── */
+@media (hover: none) and (pointer: coarse) {
+  .input, .textarea, .select { font-size: 16px; }
+}
+
+/* ── Poignée de feuille basse (glisser-pour-fermer, mobile) ───────────────── */
+.sheet-handle {
+  width: 40px; height: 5px; border-radius: 999px; background: var(--border-strong);
+  margin: -8px auto 12px; cursor: grab; touch-action: none; flex: none;
+}
+
+/* ── Sélecteur de taille de widget (mode édition du Dashboard) ─────────────── */
+.widget-size-select { width: auto; font-size: 0.75rem; padding: 2px 6px; }
+
+/* ── Badge de version discret (pied de page in-app) ───────────────────────── */
+.app-version {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: var(--muted); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em;
+  vertical-align: middle; font-variant-numeric: tabular-nums;
+}
+
+/* ── Case à cocher native agrandie (édition partenaire, récurrence active…) ── */
+.check-lg {
+  width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; margin: 0;
+}
+
+/* ── Label « je l'apporte » : cible tactile confortable au doigt ───────────── */
+.tap-check {
+  min-height: 44px; display: inline-flex; align-items: center; padding: 0 var(--space-2);
+  cursor: pointer; user-select: none;
+}
+.tap-check input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
+
+/* ── Groupe d'actions de fin de rangée (coût/vote/suppr., échéance/assignation)
+   Desktop : reste collé à droite sur la même ligne (comportement inchangé). */
+.li-row-end { flex: 0 0 auto; margin-left: auto; align-items: center; }
+
+/* ── Boutons d'action d'une rangée de liste (récurrences, transactions) ─────
+   Desktop : alignés à droite, ne rétrécissent pas. */
+.li-actions {
+  display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; margin-left: auto;
+}
+
+/* ── Conteneur de tableau défilant (liste des utilisateurs Admin) ─────────── */
+.table-scroll {
+  overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%;
+  overscroll-behavior-x: contain;
+}
+
+/* ── Bouton central « + » surélevé de la barre inférieure (mobile) ──────────
+   Occupe un des 5 emplacements flex, comme .bottomnav-item ; le FAB (ring)
+   déborde vers le haut (ne PAS mettre overflow:hidden sur .bottomnav). */
+.quickadd-btn {
+  flex: 1; display: flex; align-items: flex-start; justify-content: center;
+  border: none; background: none; padding: 0; cursor: pointer; min-width: 0;
+}
+.quickadd-btn-ring {
+  width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: #fff;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 45%, transparent), 0 2px 4px rgba(0, 0, 0, 0.15);
+  border: 3px solid var(--surface); transform: translateY(-16px);
+  transition: transform 0.12s ease;
+}
+.quickadd-btn-ring svg { flex: none; }
+.quickadd-btn:active .quickadd-btn-ring { transform: translateY(-16px) scale(0.92); }
+
+/* ── Feuille « Créer rapidement » (grille de tuiles) ───────────────────────── */
+.quickadd-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.quickadd-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2); padding: var(--space-4) var(--space-2); min-height: 92px;
+  border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface);
+  color: var(--ink); font-family: var(--font-body); font-size: 0.78rem; font-weight: 600;
+  text-align: center; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.quickadd-item:hover, .quickadd-item:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.quickadd-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.quickadd-item:active { transform: scale(0.97); }
+.quickadd-item-ic {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-ink);
+}
+.quickadd-item-label { line-height: 1.2; font-size: 0.78rem; max-width: 100%; }
+
+/* ── Tirer-pour-rafraîchir (PWA standalone : pas de pull-to-refresh natif) ───
+   Pastille masquée au repos (au-dessus du viewport) ; le composant pose
+   transform:translateY() et opacity en ligne, on ne centre donc PAS via
+   translateX (left + margin négatif à la place). */
+.ptr-indicator {
+  position: fixed; top: calc(env(safe-area-inset-top, 0px) - 44px); left: 50%; margin-left: -18px;
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  color: var(--accent-ink); z-index: 95; pointer-events: none; will-change: transform, opacity;
+  transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.3, 1), opacity 0.2s ease;
+}
+.ptr-indicator.dragging { transition: none; }
+.ptr-spinner { display: grid; place-items: center; color: inherit; }
+.ptr-indicator.refreshing .ptr-spinner { animation: ptr-spin 0.7s linear infinite; }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+
+/* ── Libellés alternatifs de la zone de dépôt d'image ──────────────────────
+   Par défaut (souris) : glisser-déposer ; en tactile : « touche pour choisir ». */
+.image-drop-touch { display: none; }
+@media (hover: none) {
+  .image-drop-lead, .image-drop-hint { display: none; }
+  .image-drop-touch { display: inline; }
+}
+
+/* ── Barre du haut en mode application installée (standalone, toutes largeurs
+   iPad compris) : dégage l'encoche / la Dynamic Island. ────────────────────── */
+@media (display-mode: standalone) {
+  .topbar { padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-3)); }
+}
+
+/* ── Retours tactiles & cibles « appareil sans survol » ────────────────────── */
+@media (hover: none) {
+  /* Poignée de déplacement des widgets : toujours visible au doigt (pas de survol). */
+  .widget-drag { opacity: 0.55; }
+
+  /* Feedback de pression discret sur les cartes/lignes interactives. */
+  .album-card:active, .coll-card:active, .fin-click:active,
+  .cmdk-item:active, .quickadd-item:active { transform: scale(0.98); }
+
+  /* Actions de la grille d'album : plus grandes et plus espacées (éviter de
+     retirer une photo en voulant zoomer). Toujours visibles au tactile. */
+  .album-grid-actions { opacity: 1; gap: 8px; }
+  .album-grid-btn { width: 34px; height: 34px; }
+}
+
+/* ── Retirer un ami d'un partage (chip-x) : cible ~40 px au tactile ────────── */
+@media (hover: none), (max-width: 900px) {
+  .chip:has(.chip-x) { padding-top: 0.32rem; padding-bottom: 0.32rem; }
+  .chip-x { position: relative; width: 22px; height: 22px; }
+  .chip-x::after { content: ""; position: absolute; inset: -9px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Confort tactile ≤ 900 px : agrandissement des cibles sans casser le visuel
+   ════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  /* Safe-areas en paysage : le contenu ne passe pas sous l'encoche / l'indicateur. */
+  .content {
+    padding-left: max(var(--space-4), env(safe-area-inset-left));
+    padding-right: max(var(--space-4), env(safe-area-inset-right));
+  }
+
+  /* Case à cocher d'une liste : visuel un peu plus grand + zone de frappe
+     invisible étendue (≥ 44 px) via un ::after transparent. */
+  .check { position: relative; width: 26px; height: 26px; }
+  .check::after { content: ""; position: absolute; inset: -11px; }
+  /* Rangées de liste plus aérées (cocher au doigt sans se tromper de ligne). */
+  .li-row { padding: 0.55rem 0; }
+
+  /* Pastilles de couleur (SwatchRow) : plus grandes + cible tactile élargie. */
+  .swatch { position: relative; width: 34px; height: 34px; }
+  .swatch::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+
+  /* Boutons de repli / liens dépliants : hauteur tactile correcte. */
+  .disclosure-toggle { padding: 0.55rem 0; min-height: 40px; }
+
+  /* Onglets segmentés : plus hauts au doigt (le conteneur gère déjà le scroll X). */
+  .seg-item { padding-top: 0.55rem; padding-bottom: 0.55rem; min-height: 40px; }
+
+  /* Éléments de la palette ⌘K et de la barre inférieure : cibles généreuses. */
+  .cmdk-item { min-height: 48px; }
+  .bottomnav-item { min-height: 52px; }
+
+  /* Bouton « Échap » de la palette (seul contrôle de fermeture visible en mobile,
+     le pied .cmdk-foot étant masqué) : cible tactile centrée ≥ 44 px. */
+  .cmdk-esc { min-height: 44px; padding-top: 8px; padding-bottom: 8px; display: grid; place-items: center; }
+
+  /* Liens-texte du panneau de notifications (« Tout effacer », toggle push). */
+  .notif-clear { min-height: 44px; padding: 10px 0; }
+
+  /* Puces d'actions suggérées sous une note : plus de hauteur au doigt. */
+  .note-suggest-chip { min-height: 38px; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+  /* Boutons emoji d'accueil (Personnalisation) : cible ≥ 44 px, contenu centré.
+     min-width en !important pour battre le style inline minWidth:0 posé en JSX. */
+  .appr-opt-emoji {
+    min-height: 44px; min-width: 44px !important; display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* Suppression d'une mini-vignette (modale de collection) : cible ≥ 44 px
+     tout en gardant l'apparence compacte (rond noir positionné). */
+  .mem-mini-del { position: relative; }
+  .mem-mini-del::after { content: ""; position: absolute; inset: -9px; }
+
+  /* Pastilles d'étape servant de navigation (tutoriel / guide d'installation) :
+     point visuel inchangé (8 px), zone tactile transparente de 44 px autour. */
+  .intro-dot, .install-dot { position: relative; }
+  .intro-dot::before, .install-dot::before {
+    content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+  }
+
+  /* Sélecteur de taille de widget : 16 px obligatoire (anti-zoom) + cible confortable. */
+  .widget-size-select { font-size: 16px; min-height: 40px; padding: 4px 8px; }
+
+  /* Sélecteur de photos : le pied « Ajouter (n) » de la feuille reste visible. */
+  .photo-pick { max-height: 50dvh; }
+}
+
+/* ── Lecteur de stories : contrôles plein écran ≥ 44 px au tactile ─────────── */
+@media (hover: none), (max-width: 900px) {
+  .story-icon-btn {
+    min-width: 44px; min-height: 44px; display: grid; place-items: center; margin-top: 2px;
+  }
+  .story-like { min-height: 44px; padding: 6px 10px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Rangées qui retombent sur 2 lignes sur iPhone étroit (zéro scroll latéral)
+   ════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 560px) {
+  /* Le groupe d'actions de fin passe sous le titre, pleine largeur, aligné à droite. */
+  .li-row-wrap { flex-wrap: wrap; }
+  .li-row-end { flex-basis: 100%; justify-content: flex-end; margin-top: var(--space-1); }
+
+  /* Idem pour les boutons d'action (récurrences, transactions) : 2e ligne dédiée.
+     Scopé via :has() pour n'affecter que les rangées concernées (iOS 26 OK). */
+  .li-row:has(.li-actions) { flex-wrap: wrap; }
+  .li-actions { width: 100%; justify-content: flex-end; margin-top: var(--space-2); }
+
+  /* Pied de modale (<Modal> de ui.tsx) : les boutons passent proprement à la
+     ligne au lieu de s'écraser sur iPhone étroit. */
+  .modal > .row:last-child { flex-wrap: wrap; row-gap: var(--space-2); }
+
+  /* Safe-areas paysage au plus petit palier (le padding de base y est --space-3). */
+  .content {
+    padding-left: max(var(--space-3), env(safe-area-inset-left));
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
+  }
+
+  /* Palette ⌘K : hauteur qui tient compte du clavier + retrait sous l'encoche. */
+  .cmdk { max-height: calc(100dvh - var(--kb, 0px) - 24px); }
+  .cmdk-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-3)); }
+}
+
+/* ── iPhone en paysage (très bas) : barre inférieure compacte, icône seule ─── */
+@media (max-height: 430px) and (max-width: 900px) {
+  :root { --bottomnav-h: 50px; }
+  .bottomnav-item { min-height: 0; }
+  .bottomnav-item span { display: none; }
+}
+
+/* ── Respect de « animations réduites » pour les nouveautés v36 ────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .quickadd-btn-ring { transition: none; }
+  .quickadd-item { transition: none; }
+  .quickadd-item:active { transform: none; }
+  .ptr-indicator { transition: opacity 0.2s ease; }
+  .ptr-indicator.refreshing .ptr-spinner { animation: none; }
+}
