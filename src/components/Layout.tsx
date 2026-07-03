@@ -191,9 +191,12 @@ export default function Layout({ children }: { children: ReactNode }) {
 
     const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
     // Ne pas armer le geste quand une surface se superpose (modale, palette,
-    // feuille QuickAdd, tiroir latéral) : leur défilement interne est distinct.
+    // feuille QuickAdd, tiroir latéral, lecteur de stories plein écran) : leur
+    // défilement/geste interne est distinct. `.story-overlay` est inclus car le
+    // StoryViewer ne verrouille pas window.scrollY (atTop() y reste vrai) et son
+    // glisser-pour-fermer laisse remonter les touchmove jusqu'ici.
     const overlayOpen = () =>
-      !!document.querySelector(".overlay, .cmdk-overlay, .sidebar.open");
+      !!document.querySelector(".overlay, .cmdk-overlay, .sidebar.open, .story-overlay");
 
     const onStart = (e: TouchEvent) => {
       if (busy || e.touches.length !== 1 || !atTop() || overlayOpen()) {

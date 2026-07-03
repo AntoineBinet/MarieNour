@@ -885,7 +885,12 @@ body { overscroll-behavior-y: none; }
     max-height: 92vh; max-height: 92dvh;
     /* Bas de feuille : au-dessus de la barre d'accueil OU du clavier, le plus grand. */
     padding-bottom: calc(var(--space-6) + max(env(safe-area-inset-bottom, 0px), var(--kb, 0px)));
-    animation: sheet 0.25s ease both;
+    /* Pas de fill-mode : une animation en remplissage-avant (`both`/`forwards`)
+       resterait « en effet » après l'entrée et son image finale `transform: none`
+       écraserait le transform inline posé par le glisser-pour-fermer (ui.tsx) —
+       la feuille ne suivrait plus le doigt. L'état de repos étant déjà
+       `transform: none`, aucune image de remplissage n'est nécessaire. */
+    animation: sheet 0.25s ease;
     /* Transition du glisser-pour-fermer (le geste pose un transform inline) +
        confinement du rebond de défilement à l'intérieur de la feuille. */
     transition: transform 0.25s var(--ease);
