@@ -99,7 +99,18 @@ export function TransactionsTab({
             <option value="transfer">Virements</option>
           </select>
           <div className="grow" style={{ minWidth: 140 }}>
-            <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…" />
+            <input
+              className="input"
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Rechercher…"
+            />
           </div>
           {canEdit && (
             <button className="btn btn-primary" onClick={() => setAdding(true)}>
@@ -148,14 +159,14 @@ export function TransactionsTab({
                         {meta.sign}{money(t.amount, acc?.currency)}
                       </span>
                       {canEdit && (
-                        <>
+                        <div className="li-actions">
                           <button className="btn btn-icon btn-soft btn-sm" onClick={() => setEditing(t)} aria-label="Modifier">
                             <Icon name="edit" size={15} />
                           </button>
                           <button className="btn btn-icon btn-danger btn-sm" onClick={() => askDelete(t)} aria-label="Supprimer">
                             <Icon name="trash" size={15} />
                           </button>
-                        </>
+                        </div>
                       )}
                     </div>
                   );
@@ -316,17 +327,19 @@ export function TxModal({
 
         {/* 2. Montant (mis en avant) */}
         <Field label="Montant">
-          <div className="row gap-2" style={{ alignItems: "stretch" }}>
+          <div className="row gap-2 wrap" style={{ alignItems: "stretch" }}>
             <input
               className="input"
               type="number"
+              inputMode="decimal"
+              enterKeyHint="done"
               min="0"
               step="0.01"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               placeholder="0.00"
               autoFocus
-              style={{ fontSize: "1.5rem", fontWeight: 700, flex: 1, textAlign: "right" }}
+              style={{ fontSize: "1.5rem", fontWeight: 700, flex: 1, minWidth: 140, textAlign: "right" }}
             />
             <input
               className="input"
@@ -390,10 +403,25 @@ export function TxModal({
         )}
 
         <Field label="Libellé (facultatif)">
-          <input className="input" value={form.payee} onChange={(e) => setForm({ ...form, payee: e.target.value })} placeholder="Supermarché, salaire…" />
+          <input
+            className="input"
+            value={form.payee}
+            onChange={(e) => setForm({ ...form, payee: e.target.value })}
+            placeholder="Supermarché, salaire…"
+            autoCapitalize="sentences"
+            autoComplete="off"
+            enterKeyHint="done"
+          />
         </Field>
         <Field label="Note (facultatif)">
-          <input className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Détail…" />
+          <input
+            className="input"
+            value={form.note}
+            onChange={(e) => setForm({ ...form, note: e.target.value })}
+            placeholder="Détail…"
+            autoCapitalize="sentences"
+            enterKeyHint="done"
+          />
         </Field>
       </form>
     </Modal>

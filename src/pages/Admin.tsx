@@ -260,6 +260,10 @@ function EmailSettingsCard() {
               value={notifyEmail}
               onChange={(e) => setNotifyEmail(e.target.value)}
               placeholder="toi@exemple.com"
+              autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
             />
           </Field>
 
@@ -435,7 +439,7 @@ export default function Admin() {
         ) : users.length === 0 ? (
           <EmptyState icon="profile" title="Aucun utilisateur" />
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className="table-scroll">
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ textAlign: "left", color: "var(--muted)" }}>
@@ -527,6 +531,7 @@ export default function Admin() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="new-password"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && submitReset()}
             />

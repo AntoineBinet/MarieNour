@@ -44,8 +44,7 @@ function SortableWidget({
         {editing ? (
           <div className="row gap-2">
             <select
-              className="select"
-              style={{ width: "auto", padding: "2px 6px", fontSize: "0.75rem" }}
+              className="select widget-size-select"
               value={widget.size}
               onChange={(e) => onResize(widget.id, e.target.value as WidgetSize)}
             >

@@ -56,7 +56,7 @@ function GuestAvatar({ g, size = 26 }: { g: EventGuest; size?: number }) {
         flex: "none",
       }}
     >
-      {g.avatar_url ? <img src={g.avatar_url} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} /> : initial}
+      {g.avatar_url ? <img src={g.avatar_url} alt="" loading="lazy" decoding="async" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} /> : initial}
     </span>
   );
 }
@@ -168,7 +168,7 @@ export default function EventDetail() {
       </Link>
 
       {ev.cover_url && (
-        <img src={ev.cover_url} alt={ev.title} style={{ width: "100%", height: 200, objectFit: "cover", borderRadius: "var(--radius)", marginTop: "var(--space-3)" }} />
+        <img src={ev.cover_url} alt={ev.title} decoding="async" style={{ width: "100%", height: 200, objectFit: "cover", borderRadius: "var(--radius)", marginTop: "var(--space-3)" }} />
       )}
 
       <div className="page-head row wrap" style={{ justifyContent: "space-between", marginTop: "var(--space-4)" }}>
@@ -478,7 +478,7 @@ export default function EventDetail() {
                 const assignee = guestName(t.assignee_id);
                 const canToggle = canEdit || (myGuest && t.assignee_id === myGuest.id);
                 return (
-                  <div key={t.id} className="li-row">
+                  <div key={t.id} className="li-row li-row-wrap">
                     <span
                       className={`check${t.done ? " done" : ""}`}
                       role="checkbox"
@@ -493,33 +493,35 @@ export default function EventDetail() {
                     <span className={`li-text grow${t.done ? " done" : ""}`} style={{ fontWeight: 600 }}>
                       {t.title}
                     </span>
-                    {t.due_date && (
-                      <span className="chip small">
-                        <Icon name="clock" size={12} /> {new Date(t.due_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                      </span>
-                    )}
-                    {canEdit ? (
-                      <select
-                        className="select"
-                        style={{ width: "auto", padding: "2px 6px", fontSize: "0.78rem" }}
-                        value={t.assignee_id ?? ""}
-                        onChange={(e) => updateTask.mutate({ tid: t.id, b: { assignee_id: e.target.value || null } })}
-                      >
-                        <option value="">Personne</option>
-                        {ev.guests.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : assignee ? (
-                      <span className="chip small">{assignee}</span>
-                    ) : null}
-                    {canEdit && (
-                      <button className="btn btn-icon btn-danger btn-sm" onClick={() => removeTask.mutate(t.id)} aria-label="Supprimer">
-                        <Icon name="trash" size={13} />
-                      </button>
-                    )}
+                    <div className="row gap-2 li-row-end">
+                      {t.due_date && (
+                        <span className="chip small">
+                          <Icon name="clock" size={12} /> {new Date(t.due_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                        </span>
+                      )}
+                      {canEdit ? (
+                        <select
+                          className="select"
+                          style={{ maxWidth: 150 }}
+                          value={t.assignee_id ?? ""}
+                          onChange={(e) => updateTask.mutate({ tid: t.id, b: { assignee_id: e.target.value || null } })}
+                        >
+                          <option value="">Personne</option>
+                          {ev.guests.map((g) => (
+                            <option key={g.id} value={g.id}>
+                              {g.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : assignee ? (
+                        <span className="chip small">{assignee}</span>
+                      ) : null}
+                      {canEdit && (
+                        <button className="btn btn-icon btn-danger btn-sm" onClick={() => removeTask.mutate(t.id)} aria-label="Supprimer">
+                          <Icon name="trash" size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -676,7 +678,7 @@ function AddGuestRow({ onAdd, pending }: { onAdd: (name: string) => void; pendin
         }
       }}
     >
-      <input className="input" style={{ maxWidth: 280 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un invité (même sans compte)…" />
+      <input className="input" style={{ maxWidth: 280 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un invité (même sans compte)…" autoCapitalize="words" autoComplete="off" enterKeyHint="done" />
       <button className="btn btn-soft btn-sm" type="submit" disabled={pending}>
         <Icon name="plus" size={15} /> Ajouter
       </button>
@@ -725,7 +727,7 @@ function AddTaskRow({ guests, onAdd, pending }: { guests: EventGuest[]; onAdd: (
         }
       }}
     >
-      <input className="input grow" style={{ minWidth: 180 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Réserver le resto, acheter le gâteau…" />
+      <input className="input grow" style={{ minWidth: 180 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Réserver le resto, acheter le gâteau…" autoCapitalize="sentences" enterKeyHint="done" />
       <select className="select" style={{ width: "auto" }} value={assignee} onChange={(e) => setAssignee(e.target.value)}>
         <option value="">Assigner à…</option>
         {guests.map((g) => (
@@ -760,7 +762,7 @@ function AddBringRow({ onAdd, pending }: { onAdd: (b: { title: string; category:
         }
       }}
     >
-      <input className="input grow" style={{ minWidth: 160 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Bouteille de vin, enceinte, dessert…" />
+      <input className="input grow" style={{ minWidth: 160 }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Bouteille de vin, enceinte, dessert…" autoCapitalize="sentences" enterKeyHint="done" />
       <select className="select" style={{ width: "auto" }} value={category} onChange={(e) => setCategory(e.target.value as BringCategory)}>
         {(Object.keys(BRING_CAT_META) as BringCategory[]).map((c) => (
           <option key={c} value={c}>
@@ -768,8 +770,8 @@ function AddBringRow({ onAdd, pending }: { onAdd: (b: { title: string; category:
           </option>
         ))}
       </select>
-      <input type="number" className="input" style={{ width: 80 }} value={qty} min="1" onChange={(e) => setQty(e.target.value)} title="Quantité" />
-      <label className="row gap-1 small muted" style={{ cursor: "pointer" }}>
+      <input type="number" className="input" style={{ width: 80 }} value={qty} min="1" inputMode="numeric" onChange={(e) => setQty(e.target.value)} title="Quantité" />
+      <label className="row gap-1 small muted tap-check">
         <input type="checkbox" checked={claim} onChange={(e) => setClaim(e.target.checked)} /> je l'apporte
       </label>
       <button className="btn btn-soft btn-sm" type="submit" disabled={pending}>
@@ -875,7 +877,7 @@ function CommentsWall({ id }: { id: string }) {
         {comments.map((c) => (
           <div key={c.id} className="row gap-2" style={{ alignItems: "flex-start" }}>
             <span style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--accent-soft)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, flex: "none" }}>
-              {c.author.avatar_url ? <img src={c.author.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} /> : (c.author.display_name || "?").charAt(0).toUpperCase()}
+              {c.author.avatar_url ? <img src={c.author.avatar_url} alt="" loading="lazy" decoding="async" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} /> : (c.author.display_name || "?").charAt(0).toUpperCase()}
             </span>
             <div className="grow">
               <span className="small">
@@ -894,7 +896,7 @@ function CommentsWall({ id }: { id: string }) {
           if (body.trim()) add.mutate(body.trim());
         }}
       >
-        <input className="input grow" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Écrire un message…" />
+        <input className="input grow" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Écrire un message…" autoCapitalize="sentences" enterKeyHint="send" />
         <button className="btn btn-primary btn-sm" type="submit" disabled={add.isPending || !body.trim()}>
           <Icon name="arrowRight" size={15} />
         </button>
@@ -965,7 +967,7 @@ function EditEventModal({ ev, onClose, onSave, pending }: { ev: EventDetailT; on
     >
       <form onSubmit={submit}>
         <Field label="Titre">
-          <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} autoFocus />
+          <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} autoCapitalize="sentences" autoFocus />
         </Field>
         <Field label="Type">
           <div className="row gap-2 wrap">
@@ -979,12 +981,12 @@ function EditEventModal({ ev, onClose, onSave, pending }: { ev: EventDetailT; on
         <div className="row gap-3 wrap">
           <div className="grow">
             <Field label="Lieu">
-              <input className="input" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} />
+              <input className="input" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} autoCapitalize="sentences" />
             </Field>
           </div>
           <div className="grow">
             <Field label="Adresse">
-              <input className="input" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
+              <input className="input" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} autoCapitalize="sentences" />
             </Field>
           </div>
         </div>
@@ -1013,17 +1015,17 @@ function EditEventModal({ ev, onClose, onSave, pending }: { ev: EventDetailT; on
         <div className="row gap-3 wrap">
           <div style={{ width: 130 }}>
             <Field label="Places (max)">
-              <input type="number" className="input" value={f.capacity} min="0" onChange={(e) => setF({ ...f, capacity: e.target.value })} />
+              <input type="number" className="input" value={f.capacity} min="0" inputMode="numeric" onChange={(e) => setF({ ...f, capacity: e.target.value })} />
             </Field>
           </div>
           <div className="grow">
             <Field label="Budget">
-              <input type="number" className="input" value={f.budget} min="0" onChange={(e) => setF({ ...f, budget: e.target.value })} />
+              <input type="number" className="input" value={f.budget} min="0" inputMode="numeric" onChange={(e) => setF({ ...f, budget: e.target.value })} />
             </Field>
           </div>
           <div style={{ width: 100 }}>
             <Field label="Devise">
-              <input className="input" value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })} />
+              <input className="input" value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })} autoCapitalize="characters" autoComplete="off" spellCheck={false} />
             </Field>
           </div>
           <div className="grow">
@@ -1096,7 +1098,7 @@ function AddItemModal({ onClose, onSave, pending }: { onClose: () => void; onSav
     >
       <form onSubmit={submit}>
         <Field label="Titre">
-          <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Apéro, dîner, escape game…" autoFocus />
+          <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Apéro, dîner, escape game…" autoCapitalize="sentences" autoFocus />
         </Field>
         <Field label="Type">
           <select className="select" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as EventItemKind })}>
@@ -1120,7 +1122,7 @@ function AddItemModal({ onClose, onSave, pending }: { onClose: () => void; onSav
           </div>
         </div>
         <Field label="Lieu">
-          <input className="input" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} />
+          <input className="input" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} autoCapitalize="sentences" />
         </Field>
         <Field label="Notes">
           <textarea className="textarea" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />

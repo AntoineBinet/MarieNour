@@ -88,7 +88,7 @@ function RecipeForm({
       }
     >
       <Field label="Titre">
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tarte aux pommes" />
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tarte aux pommes" enterKeyHint="next" autoCapitalize="sentences" autoComplete="off" />
       </Field>
       <Field label="Description">
         <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Quelques mots sur ce plat…" />
@@ -99,15 +99,15 @@ function RecipeForm({
       <div className="row gap-3 wrap">
         <div className="field grow" style={{ minWidth: 120 }}>
           <label className="label">Portions</label>
-          <input className="input" type="number" min="0" value={servings} onChange={(e) => setServings(e.target.value)} placeholder="4" />
+          <input className="input" type="number" min="0" inputMode="numeric" pattern="[0-9]*" value={servings} onChange={(e) => setServings(e.target.value)} placeholder="4" />
         </div>
         <div className="field grow" style={{ minWidth: 120 }}>
           <label className="label">Préparation (min)</label>
-          <input className="input" type="number" min="0" value={prep} onChange={(e) => setPrep(e.target.value)} placeholder="20" />
+          <input className="input" type="number" min="0" inputMode="numeric" pattern="[0-9]*" value={prep} onChange={(e) => setPrep(e.target.value)} placeholder="20" />
         </div>
         <div className="field grow" style={{ minWidth: 120 }}>
           <label className="label">Cuisson (min)</label>
-          <input className="input" type="number" min="0" value={cook} onChange={(e) => setCook(e.target.value)} placeholder="40" />
+          <input className="input" type="number" min="0" inputMode="numeric" pattern="[0-9]*" value={cook} onChange={(e) => setCook(e.target.value)} placeholder="40" />
         </div>
       </div>
       <Field label="Ingrédients (un par ligne)">
@@ -117,10 +117,10 @@ function RecipeForm({
         <textarea className="textarea" style={{ minHeight: 130 }} value={steps} onChange={(e) => setSteps(e.target.value)} placeholder={"Préchauffer le four à 180°C\nÉplucher les pommes\nEnfourner 40 minutes"} />
       </Field>
       <Field label="Tags (séparés par des virgules)">
-        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="dessert, automne, facile" />
+        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="dessert, automne, facile" autoCapitalize="none" autoComplete="off" enterKeyHint="done" />
       </Field>
       <Field label="Source (URL)">
-        <input className="input" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" />
+        <input className="input" type="url" inputMode="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" enterKeyHint="done" />
       </Field>
       <Field label="Visibilité">
         <VisibilityField value={visibility} sharedWith={sharedWith}
@@ -155,6 +155,7 @@ function RecipeReader({
             <img
               src={r.image_url}
               alt={r.title}
+              decoding="async"
               style={{ width: "100%", maxHeight: 320, objectFit: "cover", borderRadius: "var(--radius)" }}
             />
           )}
@@ -200,7 +201,7 @@ function RecipeReader({
 
           {r.source_url && (
             <p>
-              <a href={r.source_url} target="_blank" rel="noreferrer"><Icon name="link" size={14} /> Voir la source</a>
+              <a href={r.source_url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm"><Icon name="link" size={14} /> Voir la source</a>
             </p>
           )}
 
@@ -229,7 +230,7 @@ function RecipeCard({
     <div className="card card-pad-sm" style={{ cursor: "pointer", padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={onOpen}>
       <div style={{ position: "relative", height: 150 }}>
         {r.image_url ? (
-          <img src={r.image_url} alt={r.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={r.image_url} alt={r.title} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "var(--muted)", background: "var(--surface-2)" }}>
             <Icon name="fork" size={44} />
@@ -320,6 +321,9 @@ export default function Recipes() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Rechercher une recette, un ingrédient, un tag…"
+          inputMode="search"
+          enterKeyHint="search"
+          autoComplete="off"
         />
       </div>
 

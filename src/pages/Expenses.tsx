@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
 import { Icon } from "../components/Icon";
@@ -61,10 +62,26 @@ export default function Expenses() {
   const qc = useQueryClient();
   const toast = useToast();
   const { confirm, confirmNode } = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: "", currency: "EUR", members: "" });
+
+  // Quick-add : /depenses?new=1 ouvre la création puis nettoie l'URL (idempotent,
+  // compatible React.StrictMode grâce à la mise à jour fonctionnelle).
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setCreating(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const { data, isLoading } = useQuery({ queryKey: ["expense-groups"], queryFn: () => api.expenseGroups() });
   const groups = data?.groups ?? [];
@@ -210,6 +227,7 @@ export default function Expenses() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Week-end à Lisbonne"
+                autoCapitalize="sentences"
                 autoFocus
               />
             </Field>
@@ -221,6 +239,9 @@ export default function Expenses() {
                     value={form.currency}
                     onChange={(e) => setForm({ ...form, currency: e.target.value })}
                     placeholder="EUR"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    spellCheck={false}
                   />
                 </Field>
               </div>
@@ -231,6 +252,8 @@ export default function Expenses() {
                 value={form.members}
                 onChange={(e) => setForm({ ...form, members: e.target.value })}
                 placeholder="Marie, Léa, Tom"
+                autoCapitalize="words"
+                autoComplete="off"
               />
             </Field>
             <p className="muted small">Tu es ajouté·e automatiquement au groupe.</p>
@@ -564,6 +587,7 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Courses, restaurant…"
+                autoCapitalize="sentences"
                 autoFocus
               />
             </Field>
@@ -578,6 +602,8 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
                     placeholder="0.00"
                     min="0"
                     step="0.01"
+                    inputMode="decimal"
+                    enterKeyHint="done"
                   />
                 </Field>
               </div>
@@ -655,6 +681,7 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
                       placeholder={form.split_mode === "shares" ? "1" : "0.00"}
                       min="0"
                       step={form.split_mode === "shares" ? "1" : "0.01"}
+                      inputMode={form.split_mode === "shares" ? "numeric" : "decimal"}
                     />
                   </div>
                 ))}
@@ -687,6 +714,8 @@ function GroupDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 value={memberName_}
                 onChange={(e) => setMemberName(e.target.value)}
                 placeholder="Prénom du participant"
+                autoCapitalize="words"
+                autoComplete="off"
                 autoFocus
               />
             </Field>

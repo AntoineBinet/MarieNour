@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
@@ -64,7 +64,7 @@ const singleReel = (m: Memory): MemoryReel => ({
 /* ── Avatar ───────────────────────────────────────────────────────────────── */
 function Avatar({ url, size = 36 }: { url: string | null; size?: number }) {
   return url ? (
-    <img src={url} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
+    <img src={url} alt="" loading="lazy" decoding="async" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
   ) : (
     <div
       style={{ width: size, height: size, borderRadius: "50%", flex: "none", display: "grid", placeItems: "center", background: "var(--surface-2)", color: "var(--ink-2)" }}
@@ -125,6 +125,8 @@ function CommentsSection({ memory }: { memory: Memory }) {
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), submit())}
           placeholder="Écris un commentaire…"
+          enterKeyHint="send"
+          autoCapitalize="sentences"
         />
         <button className="btn btn-soft" onClick={submit} disabled={!body.trim() || add.isPending}>Envoyer</button>
       </div>
@@ -144,7 +146,7 @@ function MemoryThumb({ memory, onOpen }: { memory: Memory; onOpen: () => void })
   if (memory.kind === "photo" && memory.media_url) {
     return (
       <button className="mem-thumb" onClick={onOpen}>
-        <img src={memory.media_url} alt={memory.caption ?? ""} loading="lazy" />
+        <img src={memory.media_url} alt={memory.caption ?? ""} loading="lazy" decoding="async" />
       </button>
     );
   }
@@ -160,7 +162,7 @@ function MemoryThumb({ memory, onOpen }: { memory: Memory; onOpen: () => void })
   return (
     <button className="mem-thumb" onClick={onOpen}>
       {memory.link_image ? (
-        <img src={memory.link_image} alt={memory.link_title ?? ""} loading="lazy" />
+        <img src={memory.link_image} alt={memory.link_title ?? ""} loading="lazy" decoding="async" />
       ) : (
         <div className="mem-thumb-text" style={{ background: `linear-gradient(140deg, ${accentHex(memory.collection_accent)}, ${accentHex(memory.collection_accent)}cc)` }}>
           <Icon name="link" size={30} />
@@ -235,9 +237,9 @@ function StoriesRow({ reels, onOpen, onAdd }: { reels: MemoryReel[]; onOpen: (i:
         <button className="story-chip" key={reel.author.id} onClick={() => onOpen(i)}>
           <span className="story-chip-ring" style={{ ["--ring" as string]: accentHex(reel.author.accent) }}>
             {reel.cover_url ? (
-              <img src={reel.cover_url} alt="" />
+              <img src={reel.cover_url} alt="" loading="lazy" decoding="async" />
             ) : reel.author.avatar_url ? (
-              <img src={reel.author.avatar_url} alt="" />
+              <img src={reel.author.avatar_url} alt="" loading="lazy" decoding="async" />
             ) : (
               <span className="story-chip-fallback"><Icon name="flower" size={22} /></span>
             )}
@@ -259,7 +261,7 @@ function CollectionCard({ collection, onOpen }: { collection: MemoryCollection; 
       <div className="coll-cover" style={{ background: `linear-gradient(140deg, ${accentHex(collection.accent)}, ${accentHex(collection.accent)}aa)` }}>
         {previews.length > 0 ? (
           <div className={`coll-cover-grid coll-cover-grid-${Math.min(previews.length, 4)}`}>
-            {previews.map((u, i) => <img key={i} src={u} alt="" loading="lazy" />)}
+            {previews.map((u, i) => <img key={i} src={u} alt="" loading="lazy" decoding="async" />)}
           </div>
         ) : (
           <span className="coll-cover-icon"><Icon name="memories" size={34} /></span>
@@ -485,7 +487,7 @@ function AddMemoryModal({
           <div className="col gap-3">
             <Field label="Lien (vidéo, post Instagram/TikTok, page web…)">
               <div className="row gap-2">
-                <input className="input grow" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={loadPreview} placeholder="https://…" inputMode="url" />
+                <input className="input grow" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={loadPreview} placeholder="https://…" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
                 <button className="btn btn-soft" onClick={loadPreview} disabled={!url.trim() || previewing}>{previewing ? "…" : "Aperçu"}</button>
               </div>
             </Field>
@@ -624,12 +626,28 @@ export default function Fil() {
   const qc = useQueryClient();
   const toast = useToast();
   const { confirm, confirmNode } = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<"feed" | "collections">("feed");
   const [composing, setComposing] = useState(false);
   const [editingColl, setEditingColl] = useState<MemoryCollection | null>(null);
   const [creatingColl, setCreatingColl] = useState(false);
   const [openColl, setOpenColl] = useState<string | null>(null);
   const [story, setStory] = useState<{ reels: MemoryReel[]; start: number } | null>(null);
+
+  // Quick-add : /fil?new=1 ouvre le compositeur de souvenir puis nettoie l'URL
+  // (idempotent, compatible React.StrictMode grâce à la mise à jour fonctionnelle).
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setComposing(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const recapQ = useQuery({ queryKey: ["memory-recap"], queryFn: () => api.memoryRecap(7) });
   const memoriesQ = useQuery({ queryKey: ["memories"], queryFn: () => api.memories() });

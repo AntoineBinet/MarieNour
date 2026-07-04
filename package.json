@@ -1,6 +1,6 @@
 {
   "name": "marienour",
-  "version": "0.1.0",
+  "version": "36.0.0",
   "private": true,
   "description": "marienour — l'atelier personnel pour tout garder, planifier et partager. Dashboard à widgets, multi-utilisateurs, semi-social. Hébergé sur Cloudflare.",
   "type": "module",

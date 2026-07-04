@@ -141,6 +141,9 @@ export default function Profile() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Ton nom"
+            autoComplete="name"
+            autoCapitalize="words"
+            enterKeyHint="done"
           />
         </Field>
 
@@ -191,6 +194,11 @@ export default function Profile() {
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
             placeholder="ton-pseudo"
+            autoComplete="username"
+            inputMode="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
           />
           <p className="muted small" style={{ marginTop: 4 }}>
             Lettres et chiffres uniquement (les accents et espaces sont retirés). C'est ton identifiant public&nbsp;: @{slugifyHandle(handle) || "pseudo"}.
@@ -204,6 +212,10 @@ export default function Profile() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="toi@exemple.com"
+            autoComplete="email"
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
           />
           <p className="muted small" style={{ marginTop: 4 }}>
             Sert à te connecter. En le changeant, tu te connecteras désormais avec ce nouvel e-mail.

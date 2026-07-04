@@ -7,13 +7,21 @@
    - assets      → stale-while-revalidate (réponse cache immédiate + revalidation) ;
    - /api/*      → jamais en cache (données multi-utilisateurs / médias, réseau seul). */
 
-const VERSION = "v2";
+const VERSION = "v36";
 const CACHE = "marienour-" + VERSION;
 const SHELL = "/";
+// Ressources clés précachées à l'installation (chacune indépendamment : un échec
+// isolé — 404, réseau — n'empêche pas les autres d'être mises en cache).
+const PRECACHE = [SHELL, "/manifest.webmanifest", "/favicon.svg", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
-  // Précache la coquille pour garantir l'ouverture hors-ligne dès l'installation.
-  event.waitUntil(caches.open(CACHE).then((c) => c.add(SHELL)).catch(() => {}));
+  // Précache la coquille + les ressources clés pour l'ouverture hors-ligne.
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((c) => Promise.all(PRECACHE.map((u) => c.add(u).catch(() => {}))))
+      .catch(() => {}),
+  );
   // Pas de skipWaiting() ici : on attend la confirmation utilisateur (bandeau MAJ).
 });
 
@@ -22,6 +30,13 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      // Active la navigation preload si le navigateur la gère (le fetch réseau de
+      // navigation démarre en parallèle du réveil du SW → 1re peinture plus rapide).
+      .then(() => {
+        if (self.registration.navigationPreload) {
+          return self.registration.navigationPreload.enable().catch(() => {});
+        }
+      })
       .then(() => self.clients.claim()),
   );
 });
@@ -43,13 +58,21 @@ self.addEventListener("fetch", (event) => {
   // Navigation → network-first, repli sur la coquille en cache.
   if (req.mode === "navigate") {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
+      (async () => {
+        try {
+          // Réponse déjà pré-chargée par le navigateur (navigationPreload) si
+          // disponible, sinon on va au réseau. `event.preloadResponse` résout à
+          // undefined quand la fonctionnalité est absente/désactivée.
+          const preload = await event.preloadResponse;
+          const res = preload || (await fetch(req));
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(SHELL, copy)).catch(() => {});
           return res;
-        })
-        .catch(() => caches.match(SHELL).then((r) => r || caches.match(req))),
+        } catch {
+          // Hors-ligne / réseau KO → repli sur la coquille en cache.
+          return (await caches.match(SHELL)) || (await caches.match(req));
+        }
+      })(),
     );
     return;
   }

@@ -60,6 +60,9 @@ export default function StoryViewer({
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0); // 0→1 de la story courante
   const [muted, setMuted] = useState(true);
+  // Glisser vers le bas pour fermer (geste iOS) : translation qui suit le doigt.
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
 
   const reel = reels[ri];
   const memory = reel?.memories[mi];
@@ -69,6 +72,11 @@ export default function StoryViewer({
   const elapsedRef = useRef<number>(0);
   const pausedRef = useRef<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Suivi du geste en cours (départ + distance verticale + mode « glisser »).
+  const dragRef = useRef<{ x: number; y: number; dy: number; drag: boolean } | null>(null);
+  // Respect de « réduire les animations » : pas de retour élastique animé.
+  const reduceMotion =
+    typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
   // Synchronise la pause sans relancer la boucle d'animation.
   useEffect(() => {
@@ -170,29 +178,92 @@ export default function StoryViewer({
 
   if (!reel || !memory) return null;
 
-  // Gestes tactiles : tap court = navigation, maintien = pause.
-  const onPointerDown = () => {
-    holdTimer.current = setTimeout(() => setPaused(true), 220);
-  };
-  const endHold = (clientX: number, width: number) => {
+  // Gestes tactiles : tap court = navigation, maintien = pause, glisser vers le
+  // bas = fermer (seuil ~80px, la story suit le doigt puis ferme ou revient).
+  const CLOSE_THRESHOLD = 80;
+
+  const clearHold = () => {
     if (holdTimer.current) {
       clearTimeout(holdTimer.current);
       holdTimer.current = null;
     }
+  };
+
+  const onTouchDown = (e: React.PointerEvent) => {
+    dragRef.current = { x: e.clientX, y: e.clientY, dy: 0, drag: false };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* capture non supportée : on retombe sur pointerup/leave */
+    }
+    holdTimer.current = setTimeout(() => setPaused(true), 220);
+  };
+
+  const onTouchMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dy = e.clientY - d.y;
+    const dx = e.clientX - d.x;
+    // Bascule en mode « glisser » dès qu'un mouvement vertical vers le bas domine.
+    if (!d.drag && dy > 10 && dy > Math.abs(dx)) {
+      d.drag = true;
+      clearHold();
+      if (pausedRef.current) setPaused(false);
+      setDragging(true);
+    }
+    if (d.drag) {
+      d.dy = Math.max(0, dy);
+      setDragY(d.dy);
+    }
+  };
+
+  const onTouchUp = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    clearHold();
+    if (d?.drag) {
+      setDragging(false);
+      if (d.dy > CLOSE_THRESHOLD) return goClose();
+      setDragY(0); // retour élastique vers le haut
+      return;
+    }
+    // Sinon : tap / fin de maintien — comportement d'origine.
     if (paused) {
       setPaused(false);
       return;
     }
-    if (clientX < width * 0.32) prev();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < e.currentTarget.clientWidth * 0.32) prev();
     else next();
   };
+
+  const onTouchCancel = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    clearHold();
+    if (d?.drag) {
+      setDragging(false);
+      setDragY(0);
+    } else if (paused) {
+      setPaused(false);
+    }
+  };
+
+  // La scène suit le doigt puis revient en douceur ; le fond s'estompe au glissé.
+  const stageStyle: React.CSSProperties = {
+    transform: `translateY(${dragY}px)`,
+    transition: dragging || reduceMotion ? "none" : "transform .28s cubic-bezier(.22,.61,.36,1)",
+  };
+  const overlayStyle: React.CSSProperties | undefined =
+    dragY > 0 ? { opacity: Math.max(0.4, 1 - dragY / 480) } : undefined;
 
   const author = reel.author;
   const dur = durationFor(memory);
 
   return (
-    <div className="story-overlay" role="dialog" aria-modal="true">
-      <div className="story-stage">
+    <div className="story-overlay" role="dialog" aria-modal="true" style={overlayStyle}>
+      <div className="story-stage" style={stageStyle}>
         {/* Média de fond */}
         <div className="story-media">
           {memory.kind === "photo" && memory.media_url && (
@@ -241,12 +312,11 @@ export default function StoryViewer({
         {/* Zone de gestes (tap / maintien) */}
         <div
           className="story-touch"
-          onPointerDown={onPointerDown}
-          onPointerUp={(e) => endHold(e.clientX - e.currentTarget.getBoundingClientRect().left, e.currentTarget.clientWidth)}
-          onPointerLeave={() => {
-            if (holdTimer.current) clearTimeout(holdTimer.current);
-            if (paused) setPaused(false);
-          }}
+          onPointerDown={onTouchDown}
+          onPointerMove={onTouchMove}
+          onPointerUp={onTouchUp}
+          onPointerCancel={onTouchCancel}
+          onPointerLeave={onTouchCancel}
         />
 
         {/* Barres de progression */}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { takeCompose } from "../compose";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
@@ -84,7 +84,7 @@ function OwnerBadge({ owner }: { owner: NonNullable<Trip["owner"]> }) {
         }}
       >
         {owner.avatar_url ? (
-          <img src={owner.avatar_url} alt="" style={{ width: 24, height: 24, objectFit: "cover" }} />
+          <img src={owner.avatar_url} alt="" loading="lazy" decoding="async" style={{ width: 24, height: 24, objectFit: "cover" }} />
         ) : (
           initial
         )}
@@ -99,6 +99,7 @@ export default function Trips() {
   const toast = useToast();
   const navigate = useNavigate();
   const { confirm, confirmNode } = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<TripForm>(EMPTY_FORM);
@@ -111,6 +112,21 @@ export default function Trips() {
     setForm((f) => ({ ...f, ...(c.prefill as Partial<TripForm>) }));
     setCreating(true);
   }, []);
+
+  // Quick-add : /voyages?new=1 ouvre la création puis nettoie l'URL (idempotent,
+  // compatible React.StrictMode grâce à la mise à jour fonctionnelle).
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setCreating(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const { data, isLoading } = useQuery({ queryKey: ["trips"], queryFn: () => api.trips() });
   const trips = data?.trips ?? [];
@@ -182,6 +198,8 @@ export default function Trips() {
           <img
             src={trip.cover_url}
             alt={trip.title}
+            loading="lazy"
+            decoding="async"
             style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: "var(--radius) var(--radius) 0 0" }}
           />
         ) : (
@@ -297,6 +315,8 @@ export default function Trips() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Week-end à Lisbonne"
+                autoCapitalize="sentences"
+                enterKeyHint="next"
                 autoFocus
               />
             </Field>
@@ -320,6 +340,8 @@ export default function Trips() {
                 value={form.destination}
                 onChange={(e) => setForm({ ...form, destination: e.target.value })}
                 placeholder="Lisbonne, Portugal"
+                autoCapitalize="words"
+                autoComplete="off"
               />
             </Field>
             <div className="row gap-3 wrap">
@@ -354,6 +376,7 @@ export default function Trips() {
                     onChange={(e) => setForm({ ...form, budget: e.target.value })}
                     placeholder="800"
                     min="0"
+                    inputMode="numeric"
                   />
                 </Field>
               </div>
@@ -364,6 +387,9 @@ export default function Trips() {
                     value={form.currency}
                     onChange={(e) => setForm({ ...form, currency: e.target.value })}
                     placeholder="EUR"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    spellCheck={false}
                   />
                 </Field>
               </div>

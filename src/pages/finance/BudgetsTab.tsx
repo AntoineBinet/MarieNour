@@ -51,6 +51,8 @@ export function BudgetsTab({ canEdit, owner }: { canEdit: boolean; owner: string
           className="input"
           style={{ width: 120 }}
           type="number"
+          inputMode="decimal"
+          enterKeyHint="done"
           min="0"
           step="0.01"
           placeholder="Pas de budget"
@@ -136,7 +138,7 @@ function CategoryModal({ owner: _owner, onClose }: { owner: string; onClose: () 
       </>}
     >
       <form onSubmit={submit}>
-        <Field label="Nom"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Courses, Loisirs…" autoFocus /></Field>
+        <Field label="Nom"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Courses, Loisirs…" autoCapitalize="sentences" enterKeyHint="done" autoFocus /></Field>
         <Field label="Type">
           <div className="row gap-2">
             {(["expense", "income"] as CategoryKind[]).map((k) => (
@@ -148,7 +150,7 @@ function CategoryModal({ owner: _owner, onClose }: { owner: string; onClose: () 
         </Field>
         {form.kind === "expense" && (
           <Field label="Budget mensuel (facultatif)">
-            <input className="input" type="number" min="0" step="0.01" value={form.monthly_budget} onChange={(e) => setForm({ ...form, monthly_budget: e.target.value })} placeholder="0.00" />
+            <input className="input" type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.01" value={form.monthly_budget} onChange={(e) => setForm({ ...form, monthly_budget: e.target.value })} placeholder="0.00" />
           </Field>
         )}
         <Field label="Couleur"><SwatchRow value={form.color} onChange={(c) => setForm({ ...form, color: c })} /></Field>

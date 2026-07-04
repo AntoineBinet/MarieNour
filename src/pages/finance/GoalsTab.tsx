@@ -123,9 +123,9 @@ function GoalModal({ goal, owner: _owner, onClose }: { goal: FinanceGoal | null;
       </>}
     >
       <form onSubmit={submit}>
-        <Field label="Nom"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Vacances, voiture…" autoFocus /></Field>
+        <Field label="Nom"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Vacances, voiture…" autoCapitalize="sentences" enterKeyHint="done" autoFocus /></Field>
         <div className="row gap-3 wrap">
-          <div style={{ width: 150 }}><Field label="Montant cible"><input className="input" type="number" min="0" step="0.01" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} placeholder="0.00" /></Field></div>
+          <div style={{ width: 150 }}><Field label="Montant cible"><input className="input" type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.01" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} placeholder="0.00" /></Field></div>
           <div className="grow"><Field label="Échéance (facultatif)"><input className="input" type="date" value={form.target_date} onChange={(e) => setForm({ ...form, target_date: e.target.value })} /></Field></div>
         </div>
         <Field label="Couleur"><SwatchRow value={form.color} onChange={(c) => setForm({ ...form, color: c })} /></Field>

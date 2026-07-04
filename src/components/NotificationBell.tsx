@@ -156,7 +156,7 @@ export default function NotificationBell() {
                 >
                   <span className="notif-ic">
                     {n.actor?.avatar_url ? (
-                      <img src={n.actor.avatar_url} alt="" />
+                      <img src={n.actor.avatar_url} alt="" loading="lazy" decoding="async" />
                     ) : (
                       <Icon name={n.icon as IconName} size={17} />
                     )}

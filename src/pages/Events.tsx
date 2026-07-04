@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { takeCompose } from "../compose";
 import { Modal, Spinner, EmptyState, Field, useToast, useConfirm } from "../ui";
@@ -53,6 +53,7 @@ export default function Events() {
   const toast = useToast();
   const navigate = useNavigate();
   const { confirm, confirmNode } = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<EventForm>(EMPTY_FORM);
@@ -66,6 +67,21 @@ export default function Events() {
     setForm((f) => ({ ...f, ...(c.prefill as Partial<EventForm>) }));
     setCreating(true);
   }, []);
+
+  // Quick-add : /evenements?new=1 ouvre la création puis nettoie l'URL (idempotent,
+  // compatible React.StrictMode grâce à la mise à jour fonctionnelle).
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setCreating(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const { data, isLoading } = useQuery({ queryKey: ["events"], queryFn: () => api.events() });
   const events = data?.events ?? [];
@@ -192,7 +208,7 @@ export default function Events() {
                 onKeyDown={(e) => e.key === "Enter" && navigate(`/evenements/${ev.id}`)}
               >
                 {ev.cover_url ? (
-                  <img src={ev.cover_url} alt={ev.title} style={{ width: "100%", height: 140, objectFit: "cover" }} />
+                  <img src={ev.cover_url} alt={ev.title} loading="lazy" decoding="async" style={{ width: "100%", height: 140, objectFit: "cover" }} />
                 ) : (
                   <div
                     style={{
@@ -278,6 +294,8 @@ export default function Events() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="EVG de Thomas, Soirée de Noël…"
+                autoCapitalize="sentences"
+                enterKeyHint="next"
                 autoFocus
               />
             </Field>
@@ -313,22 +331,23 @@ export default function Events() {
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 placeholder="Chez Marie, Le Perchoir…"
+                autoCapitalize="sentences"
               />
             </Field>
             <div className="row gap-3 wrap">
               <div style={{ width: 130 }}>
                 <Field label="Places (max)">
-                  <input type="number" className="input" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} min="0" placeholder="∞" />
+                  <input type="number" className="input" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} min="0" inputMode="numeric" placeholder="∞" />
                 </Field>
               </div>
               <div className="grow">
                 <Field label="Budget">
-                  <input type="number" className="input" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} min="0" placeholder="0" />
+                  <input type="number" className="input" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} min="0" inputMode="numeric" placeholder="0" />
                 </Field>
               </div>
               <div style={{ width: 100 }}>
                 <Field label="Devise">
-                  <input className="input" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
+                  <input className="input" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} autoCapitalize="characters" autoComplete="off" spellCheck={false} />
                 </Field>
               </div>
             </div>

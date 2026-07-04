@@ -1,10 +1,19 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+
+// Version applicative lue depuis package.json et injectée au build (constante
+// __APP_VERSION__ remplacée à la compilation) : affichée dans l'UI (badge de
+// version) et utile aux diagnostics. Source unique = le champ "version" du package.
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8"));
 
 // Le front (Vite/React) tourne sur :5173 et proxy les appels /api vers
 // l'API Cloudflare (Pages Functions servies par `wrangler pages dev` sur :8788).
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
     port: 5173,
     proxy: {

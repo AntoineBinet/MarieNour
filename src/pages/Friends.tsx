@@ -16,6 +16,8 @@ function Avatar({ user, size = 44 }: { user: PublicUser; size?: number }) {
       <img
         src={user.avatar_url}
         alt={user.display_name}
+        loading="lazy"
+        decoding="async"
         style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flex: "none" }}
       />
     );
@@ -131,6 +133,12 @@ export default function Friends() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Rechercher quelqu'un par nom ou @pseudo…"
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
           />
         </div>
         {q.trim().length >= 1 && (

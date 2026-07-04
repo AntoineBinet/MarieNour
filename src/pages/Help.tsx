@@ -43,6 +43,29 @@ const CATS: Cat[] = [
 const TOPICS: Topic[] = [
   /* ── Premiers pas ─────────────────────────────────────────────────────── */
   {
+    id: "v36-mobile",
+    cat: "start",
+    icon: "sparkle",
+    title: "Nouveautés v36 — l'app pensée pour ton iPhone",
+    summary: "Feuilles glissantes, bouton +, tirer pour rafraîchir, clavier mieux géré, plein écran iOS.",
+    keywords: "v36 nouveautés nouveauté mobile iphone ipad ios safari pwa plein écran encoche clavier feuille glissante bouton plus ajout rapide rafraîchir tirer geste tactile tap touche",
+    body: (
+      <>
+        <p className="muted">
+          La version 36 a été entièrement peaufinée pour l'iPhone (Safari et app installée sur l'écran d'accueil).
+          Tout est plus fluide, plus grand sous le doigt et mieux adapté au clavier tactile.
+        </p>
+        <ul>
+          <li><strong>Feuilles glissantes</strong>&nbsp;: les formulaires s'ouvrent en bas de l'écran, comme dans les apps iOS — plus faciles à atteindre d'une seule main.</li>
+          <li><strong>Bouton +</strong>&nbsp;: un raccourci toujours à portée pour ajouter en un geste une note, une liste, une dépense ou un souvenir.</li>
+          <li><strong>Tirer pour rafraîchir</strong>&nbsp;: en haut d'une page, glisse vers le bas pour actualiser son contenu.</li>
+          <li><strong>Clavier mieux géré</strong>&nbsp;: le bon clavier apparaît selon le champ (e-mail, chiffres, recherche), sans zoom intempestif ni majuscule ajoutée par erreur.</li>
+          <li><strong>Plein écran iOS</strong>&nbsp;: installée sur ton écran d'accueil, l'app respecte l'encoche et les bords arrondis, et s'affiche vraiment en plein écran.</li>
+        </ul>
+      </>
+    ),
+  },
+  {
     id: "dashboard",
     cat: "start",
     icon: "grid",
@@ -577,6 +600,8 @@ export default function Help() {
           <input
             className="input"
             type="search"
+            inputMode="search"
+            enterKeyHint="search"
             placeholder="Rechercher une fonctionnalité, une question…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

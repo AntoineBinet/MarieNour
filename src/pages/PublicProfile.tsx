@@ -16,7 +16,7 @@ function CoverCard({ title, cover, subtitle, fallback }: { title: string; cover:
     <div className="card card-pad-sm" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ height: 140 }}>
         {cover ? (
-          <img src={cover} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={cover} alt={title} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "var(--muted)", background: "var(--surface-2)" }}>
             <Icon name={fallback} size={42} />
@@ -75,6 +75,7 @@ export default function PublicProfile() {
               <img
                 src={user.avatar_url}
                 alt={user.display_name}
+                decoding="async"
                 style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover", flex: "none" }}
               />
             ) : (

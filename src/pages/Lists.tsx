@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { takeCompose } from "../compose";
@@ -48,7 +49,8 @@ function ListCard({ list, onOpen }: { list: List; onOpen: () => void }) {
   const total = list.item_count ?? 0;
   const done = list.done_count ?? 0;
   return (
-    <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+    // Carte tappable en entier sur mobile ; le bouton « Ouvrir » reste pour le clavier.
+    <div className="card" style={{ display: "flex", flexDirection: "column", cursor: "pointer" }} onClick={onOpen}>
       <div className="row" style={{ alignItems: "flex-start" }}>
         <span style={{ fontSize: "1.6rem", lineHeight: 1 }}>{list.emoji || "📝"}</span>
         <div className="grow" style={{ minWidth: 0 }}>
@@ -117,6 +119,9 @@ function CreateListModal({
           autoFocus
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Courses, à lire, idées cadeaux…"
+          enterKeyHint="done"
+          autoCapitalize="sentences"
+          autoComplete="off"
           onKeyDown={(e) => e.key === "Enter" && title.trim() && create.mutate()}
         />
       </Field>
@@ -264,7 +269,15 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
         ) : editing ? (
           <div>
             <Field label="Titre">
-              <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+              <input
+                className="input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+                enterKeyHint="done"
+                autoCapitalize="sentences"
+                autoComplete="off"
+              />
             </Field>
             <div className="row gap-3" style={{ marginTop: "var(--space-4)" }}>
               <div style={{ width: 90 }}>
@@ -310,6 +323,9 @@ function ListDetailModal({ listId, onClose }: { listId: string; onClose: () => v
                 value={newItem}
                 onChange={(e) => setNewItem(e.target.value)}
                 placeholder="Ajouter un élément…"
+                enterKeyHint="send"
+                autoCapitalize="sentences"
+                autoComplete="off"
                 onKeyDown={(e) => e.key === "Enter" && submitItem()}
               />
               <button className="btn btn-primary" onClick={submitItem} disabled={!newItem.trim() || addItem.isPending} aria-label="Ajouter">
@@ -383,6 +399,7 @@ export default function Lists() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [prefill, setPrefill] = useState<{ title?: string; emoji?: string; kind?: List["kind"] } | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Ouverture pré-remplie depuis une note convertie (« Transformer en liste »).
   useEffect(() => {
@@ -391,6 +408,21 @@ export default function Lists() {
     setPrefill(c.prefill as { title?: string; emoji?: string; kind?: List["kind"] });
     setCreating(true);
   }, []);
+
+  // Quick-add : /listes?new=1 ouvre la création puis nettoie l'URL (idempotent,
+  // compatible React.StrictMode grâce à la mise à jour fonctionnelle).
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setCreating(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const { data, isLoading } = useQuery({ queryKey: ["lists"], queryFn: () => api.lists() });
   const lists = data?.lists ?? [];

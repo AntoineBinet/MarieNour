@@ -41,6 +41,8 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
       <img
         src={url}
         alt={name}
+        loading="lazy"
+        decoding="async"
         style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flex: "none" }}
       />
     );
@@ -132,6 +134,8 @@ function CommentsSection({ item }: { item: FeedItem }) {
             }
           }}
           placeholder="Écris un commentaire…"
+          enterKeyHint="send"
+          autoCapitalize="sentences"
         />
         <button className="btn btn-soft" onClick={submit} disabled={!body.trim() || add.isPending}>
           Envoyer
@@ -207,6 +211,7 @@ function FeedCard({ item }: { item: FeedItem }) {
           src={item.image_url}
           alt={item.title ?? ""}
           loading="lazy"
+          decoding="async"
           style={{
             width: "100%",
             marginTop: "var(--space-3)",

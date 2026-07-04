@@ -45,7 +45,7 @@ function PageFallback() {
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div style={{ display: "grid", placeItems: "center", height: "100vh" }}><Spinner /></div>;
+  if (loading) return <div style={{ display: "grid", placeItems: "center", minHeight: "100dvh" }}><Spinner /></div>;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
 }

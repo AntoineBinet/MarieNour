@@ -71,7 +71,7 @@ export function RecurringTab({ canEdit, owner }: { canEdit: boolean; owner: stri
                 </div>
                 <span style={{ fontWeight: 700, color: meta.color, whiteSpace: "nowrap" }}>{meta.sign}{money(r.amount, acc?.currency)}</span>
                 {canEdit && (
-                  <>
+                  <div className="li-actions">
                     <button className="btn btn-soft btn-sm" onClick={() => run.mutate(r.id)} disabled={run.isPending} title="Créer la transaction et reporter">
                       <Icon name="check" size={14} /> Pointer
                     </button>
@@ -80,7 +80,7 @@ export function RecurringTab({ canEdit, owner }: { canEdit: boolean; owner: stri
                     </button>
                     <button className="btn btn-icon btn-soft btn-sm" onClick={() => setEditing(r)} aria-label="Modifier"><Icon name="edit" size={15} /></button>
                     <button className="btn btn-icon btn-danger btn-sm" onClick={() => askDelete(r)} aria-label="Supprimer"><Icon name="trash" size={15} /></button>
-                  </>
+                  </div>
                 )}
               </div>
             );
@@ -146,7 +146,7 @@ function RecurringModal({ rec, accounts, owner: _owner, onClose }: { rec: Financ
       </>}
     >
       <form onSubmit={submit}>
-        <Field label="Libellé"><input className="input" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Loyer, salaire, Netflix…" autoFocus /></Field>
+        <Field label="Libellé"><input className="input" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Loyer, salaire, Netflix…" autoCapitalize="sentences" enterKeyHint="done" autoFocus /></Field>
         <div className="row gap-2" style={{ marginBottom: "var(--space-3)" }}>
           {(["expense", "income", "transfer"] as TxType[]).map((tt) => (
             <button key={tt} type="button" className={form.type === tt ? "btn btn-primary btn-sm" : "btn btn-soft btn-sm"} onClick={() => setForm({ ...form, type: tt, category_id: "" })} style={{ flex: 1 }}>
@@ -155,7 +155,7 @@ function RecurringModal({ rec, accounts, owner: _owner, onClose }: { rec: Financ
           ))}
         </div>
         <div className="row gap-3 wrap">
-          <div style={{ width: 140 }}><Field label="Montant"><input className="input" type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></Field></div>
+          <div style={{ width: 140 }}><Field label="Montant"><input className="input" type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></Field></div>
           <div className="grow">
             <Field label="Cadence">
               <select className="select" value={form.cadence} onChange={(e) => setForm({ ...form, cadence: e.target.value as Cadence })}>
@@ -180,7 +180,7 @@ function RecurringModal({ rec, accounts, owner: _owner, onClose }: { rec: Financ
         )}
         <Field label="Prochaine échéance"><input className="input" type="date" value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} /></Field>
         <label className="row gap-2" style={{ cursor: "pointer", marginTop: "var(--space-2)" }}>
-          <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
+          <input className="check-lg" type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
           <span>Active</span>
         </label>
       </form>
