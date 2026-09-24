@@ -447,7 +447,7 @@ const TOPICS: Topic[] = [
     body: (
       <p className="muted">
         Oui. MarieNour est et restera <strong>100&nbsp;% gratuit</strong>&nbsp;: aucun abonnement, aucune publicité,
-        aucune revente de données. C'est un projet personnel d'AB&nbsp;Azur&nbsp;Tech, fourni « en l'état ».
+        aucune revente de données. C'est un projet personnel d'Azur&nbsp;Tech, fourni « en l'état ».
         Pense simplement à exporter tes contenus importants de temps en temps.
       </p>
     ),
