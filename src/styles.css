@@ -276,8 +276,21 @@ a:hover { text-decoration: underline; }
   position: sticky; top: 0; height: 100vh; height: 100dvh; overflow-y: auto;
 }
 .brand { display: flex; align-items: center; gap: var(--space-3); }
-.brand-logo { width: 38px; height: 38px; border-radius: 11px; flex: none; }
-.brand-name { font-family: var(--font-display); font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em; }
+/* Logo MarieNour (icône + nom dessinés) : fond CSS d'un <span role="img">, et une
+   seule règle sombre en change l'image. Les deux PNG ont exactement la même taille
+   (487 × 256) : l'aspect-ratio DOIT rester celui du fichier, sinon un logo
+   régénéré à d'autres proportions flotterait dans une case trop large ou trop
+   étroite. Chaque emplacement ne règle que la hauteur. */
+.brand-wordmark {
+  display: block; flex: none;
+  height: 56px; aspect-ratio: 487 / 256;
+  background: url("/brand/logo.png") center / contain no-repeat;
+}
+[data-theme="dark"] .brand-wordmark { background-image: url("/brand/logo-dark.png"); }
+.brand-wordmark--side { height: 60px; }
+.brand-wordmark--bar { height: 44px; }
+.brand-wordmark--landing { height: 48px; }
+.brand-wordmark--invite { height: 72px; margin: 0 auto; }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-link {
   position: relative; display: flex; align-items: center; gap: var(--space-3); padding: 0.55rem 0.7rem; border-radius: 12px;

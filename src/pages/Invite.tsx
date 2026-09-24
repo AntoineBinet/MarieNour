@@ -50,7 +50,7 @@ export default function Invite() {
   return (
     <div className="auth-wrap">
       <div className="auth-card card center">
-        <img src="/favicon.svg" alt="" style={{ width: 48, height: 48, borderRadius: 14 }} />
+        <span className="brand-wordmark brand-wordmark--invite" role="img" aria-label="MarieNour" />
         {loading || isLoading ? (
           <Spinner />
         ) : isError || !invite ? (

@@ -12,7 +12,14 @@ const CACHE = "marienour-" + VERSION;
 const SHELL = "/";
 // Ressources clés précachées à l'installation (chacune indépendamment : un échec
 // isolé — 404, réseau — n'empêche pas les autres d'être mises en cache).
-const PRECACHE = [SHELL, "/manifest.webmanifest", "/favicon.svg", "/icons/icon-192.png"];
+const PRECACHE = [
+  SHELL,
+  "/manifest.webmanifest",
+  "/brand/favicon.png",
+  "/brand/logo.png",
+  "/brand/logo-dark.png",
+  "/icons/icon-192.png",
+];
 
 self.addEventListener("install", (event) => {
   // Précache la coquille + les ressources clés pour l'ouverture hors-ligne.
@@ -108,7 +115,9 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "",
     icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    // Android ne lit que la couche alpha d'un badge : une icône opaque y devient un
+    // carré blanc. badge-96.png est la silhouette de l'icône sur fond transparent.
+    badge: "/icons/badge-96.png",
     tag: data.tag || undefined,
     renotify: !!data.tag,
     data: { url: data.url || "/" },
