@@ -401,7 +401,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <Link to="/mentions-legales">Mentions légales</Link>
             </div>
             <div className="app-footer-meta">
-              MarieNour — service gratuit de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, sans pub ni revente de données.
+              MarieNour · service gratuit d'<strong>Azur&nbsp;Tech</strong>, sans pub ni revente de données.
               <span className="app-version" title="Version de l'application">{"v" + __APP_VERSION__.split(".")[0]}</span>
             </div>
           </footer>

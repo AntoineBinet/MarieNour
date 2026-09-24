@@ -314,7 +314,7 @@ export default function Login() {
       </section>
 
       <footer className="muted small center landing-footer">
-        Site créé par Antoine Binet, sous la micro-société AB&nbsp;Azur&nbsp;Tech.
+        Site créé par Antoine Binet, sous la micro-société Azur&nbsp;Tech.
         <div style={{ marginTop: 4 }}>
           <Link to="/cgu">Conditions d'utilisation</Link>
           <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>

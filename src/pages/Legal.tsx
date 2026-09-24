@@ -57,7 +57,7 @@ function LegalShell({
           <Link className="btn btn-soft" to="/">← Retour à l'application</Link>
         </div>
         <p className="muted small center" style={{ marginTop: "var(--space-4)" }}>
-          MarieNour est un service de <strong>AB&nbsp;Azur&nbsp;Tech</strong>, micro-entreprise d'Antoine Binet.
+          MarieNour est un service d'<strong>Azur&nbsp;Tech</strong>, micro-entreprise d'Antoine Binet.
         </p>
       </div>
     </div>
@@ -79,7 +79,7 @@ export function Mentions() {
       <Section title="Éditeur du site">
         Le site et l'application <strong>MarieNour</strong> (marienour.work) sont créés et édités par{" "}
         <strong>Antoine Binet</strong>, entrepreneur individuel exerçant{" "}
-        <strong>en micro-entreprise</strong> sous le nom commercial «&nbsp;AB&nbsp;Azur&nbsp;Tech&nbsp;».<br />
+        <strong>en micro-entreprise</strong> sous le nom commercial «&nbsp;Azur&nbsp;Tech&nbsp;».<br />
         Forme juridique&nbsp;: Entreprise individuelle — micro-entreprise.<br />
         Siège social&nbsp;: communiqué sur simple demande à{" "}
         <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.<br />
@@ -89,11 +89,11 @@ export function Mentions() {
         Contact&nbsp;: <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
       </Section>
 
-      <Section title="Lien avec AB Azur Tech">
+      <Section title="Lien avec Azur Tech">
         MarieNour fait partie des applications conçues et publiées par{" "}
-        <strong>AB&nbsp;Azur&nbsp;Tech</strong>, le nom commercial sous lequel Antoine Binet développe ses
+        <strong>Azur&nbsp;Tech</strong>, le nom commercial sous lequel Antoine Binet développe ses
         services (voir aussi le portfolio <a href="https://ab-azurtech.com" target="_blank" rel="noopener noreferrer">ab-azurtech.com</a>).
-        Il s'agit d'une <strong>application personnelle et gratuite</strong>, indépendante&nbsp;: AB&nbsp;Azur&nbsp;Tech
+        Il s'agit d'une <strong>application personnelle et gratuite</strong>, indépendante&nbsp;: Azur&nbsp;Tech
         en est l'éditeur, le responsable de traitement et le seul interlocuteur. Aucune autre société n'est
         impliquée dans l'exploitation du service.
       </Section>
@@ -108,7 +108,7 @@ export function Mentions() {
 
       <Section title="Propriété intellectuelle">
         L'interface, le code, le nom et les visuels de MarieNour sont, sauf mention contraire, la propriété
-        d'Antoine Binet (AB Azur Tech). Les contenus que vous publiez (textes, photos, listes, etc.) restent
+        d'Antoine Binet (Azur Tech). Les contenus que vous publiez (textes, photos, listes, etc.) restent
         votre propriété&nbsp;; vous nous accordez uniquement le droit de les héberger et de les afficher pour
         faire fonctionner le service. Toute reproduction non autorisée de l'application est interdite.
       </Section>
@@ -140,7 +140,7 @@ export function CGU() {
         MarieNour est un <strong>hub personnel</strong> permettant d'organiser et de partager des contenus
         (listes, notes, voyages, recettes, inspirations, photos, dépenses partagées, etc.). Le service est
         édité par <strong>Antoine Binet</strong>, micro-entreprise exerçant sous le nom{" "}
-        <strong>AB&nbsp;Azur&nbsp;Tech</strong> (voir les{" "}
+        <strong>Azur&nbsp;Tech</strong> (voir les{" "}
         <Link to="/mentions-legales">mentions légales</Link>).
       </Section>
 
@@ -251,7 +251,7 @@ export function Confidentialite() {
 
       <Section title="Responsable du traitement">
         <strong>Antoine Binet</strong> — entrepreneur individuel (micro-entreprise) exerçant sous le nom
-        commercial «&nbsp;AB&nbsp;Azur&nbsp;Tech&nbsp;», SIREN&nbsp;106&nbsp;050&nbsp;313. Contact pour toute
+        commercial «&nbsp;Azur&nbsp;Tech&nbsp;», SIREN&nbsp;106&nbsp;050&nbsp;313. Contact pour toute
         question relative à vos données&nbsp;: <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
       </Section>
 
