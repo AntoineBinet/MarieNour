@@ -1,23 +1,54 @@
-# Sauvegarde marienour (oneshot) — déclenchée par marienour-backup.timer.
+# marienour · sauvegarde quotidienne des données vers R2 (marienour-backups).
 #
-# Installation (une seule fois sur la VM) :
-#   sudo cp deployment/marienour-backup.service /etc/systemd/system/
-#   sudo cp deployment/marienour-backup.timer   /etc/systemd/system/
-#   sudo systemctl daemon-reload
-#   sudo systemctl enable --now marienour-backup.timer
+# Lancée par marienour-backup.timer (03:30 UTC). Le script vit dans
+# /usr/local/lib/marienour/ (posé par bootstrap-vm.sh). Il tourne en root pour
+# lire les accès R2 (/etc/marienour/r2-backup.env, 600 root), mais la base est
+# lue SOUS LE COMPTE marienour (setpriv), en lecture seule quand l'app l'a
+# ouverte : il ne peut rien écrire dans les données de l'app.
 #
-# Pour activer la copie off-site, configurer rclone (ex. remote R2) puis ajouter
-# Environment=MARIENOUR_RCLONE_REMOTE=r2:marienour-backups ci-dessous.
+# Résultat : `systemctl status marienour-backup` (dernier code de sortie) et
+# `journalctl -u marienour-backup -n 40 --no-pager` (« RÉSULTAT : OK »).
+# Lancer à la main : sudo systemctl start marienour-backup
+
 [Unit]
-Description=marienour — sauvegarde (SQLite + médias)
-After=marienour.service
+Description=marienour · sauvegarde des données vers R2 (marienour-backups)
+Documentation=https://github.com/AntoineBinet/MarieNour/blob/main/deployment/DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+# Sans accès R2, rien à faire : l'unité est sautée (et non en échec).
+ConditionPathExists=/etc/marienour/r2-backup.env
 
 [Service]
 Type=oneshot
-User=marienour
-Group=marienour
-WorkingDirectory=/opt/marienour/app
-Environment=MARIENOUR_DATA_DIR=/opt/marienour/app/data
-# Décommente et adapte pour pousser hors-site (protège de la perte du disque) :
-# Environment=MARIENOUR_RCLONE_REMOTE=r2:marienour-backups
-ExecStart=/usr/bin/env bash /opt/marienour/app/deployment/backup.sh
+ExecStart=/usr/local/lib/marienour/marienour-backup.sh
+SyslogIdentifier=marienour-backup
+TimeoutStartSec=30min
+
+# Passe après tout le monde : une sauvegarde n'est jamais pressée.
+Nice=10
+IOSchedulingClass=idle
+CPUWeight=20
+IOWeight=20
+MemoryMax=1G
+TasksMax=64
+
+# Durcissement : seuls le dossier des données (les -wal/-shm qu'ouvre SQLite
+# en récupération) et un /var/tmp privé sont inscriptibles. ProspUp et
+# Portfolio sont cachés.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/marienour/app/data
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+InaccessiblePaths=-/etc/litestream.yml -/etc/cloudflared -/etc/prospup -/opt/prospup -/etc/portfolio -/opt/portfolio
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+SystemCallArchitectures=native

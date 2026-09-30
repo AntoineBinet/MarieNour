@@ -44,18 +44,16 @@ restent comme repli serverless, cf. `wrangler.toml`).
 | Nom d'instance | `marienour` |
 | Port applicatif | **8002** (bind `127.0.0.1`, jamais exposé) |
 | Service systemd | `marienour` |
-| Repo GitHub | `AntoineBinet/MarieNour` (privé) · branche `main` |
+| Repo GitHub | `AntoineBinet/MarieNour` (public) · branche `main` |
 | Nom du tunnel | **`marienour-oracle`** |
 | Domaine | **`marienour.work`** + **`www.marienour.work`** |
 | Service tunnel → | `http://localhost:8002` |
 | Secret 1 | `ADMIN_PASSWORD` = `<<MOT_DE_PASSE_ADMIN>>` |
 | Secret 2 | `SESSION_SECRET` = `<<SESSION_SECRET>>` (chaîne aléatoire longue) |
-| Accès repo privé | `GITHUB_PAT` = `<<JETON_GITHUB_LECTURE_SEULE>>` (PAT fine-grained, lecture du repo) |
 | E-mail admin | `binet.antoine215@yahoo.com` (déjà câblé) |
 
-> 🔑 **Le jeton GitHub** : crée un *fine-grained PAT* limité au repo
-> `AntoineBinet/MarieNour` avec **Contents: Read-only**. Il sert uniquement à
-> cloner/puller le repo privé depuis la VM (pas d'onglet GitHub nécessaire).
+> **Aucun jeton GitHub** : le dépôt est public, la VM le clone en HTTPS sans
+> identifiant (décision D2 de la cohabitation, octobre 2026).
 
 ---
 
@@ -73,13 +71,12 @@ saisis JAMAIS un secret ailleurs que dans le champ prévu. Si tu es bloqué sur 
 écran inattendu, arrête-toi et demande-moi plutôt que de forcer.
 
 Valeurs :
-  REPO        = AntoineBinet/MarieNour   (branche main, privé)
+  REPO        = AntoineBinet/MarieNour   (branche main, public)
   PORT        = 8002
   TUNNEL      = marienour-oracle
   DOMAINES    = marienour.work, www.marienour.work
   ADMIN_PASSWORD = <<MOT_DE_PASSE_ADMIN>>
   SESSION_SECRET = <<SESSION_SECRET>>
-  GITHUB_PAT     = <<JETON_GITHUB_LECTURE_SEULE>>
 
 ────────────────────────────────────────────────────────────────────────
 ÉTAPE 1 (Onglet A — Oracle) — Préparer une clé SSH dans la Cloud Shell
@@ -106,18 +103,16 @@ POINT DE CONTRÔLE : VM "Running", IP publique connue.
 ÉTAPE 3 (Onglet A — Cloud Shell) — Provisionner la VM
 8. Dans la Cloud Shell, connecte-toi à la VM (remplace <IP>) :
       ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/marienour ubuntu@<IP>
-9. Une fois sur la VM, récupère le script de provisioning depuis le repo privé
-   (le PAT autorise la lecture), puis lance-le. Exécute, en remplaçant le PAT :
-      PAT="<<JETON_GITHUB_LECTURE_SEULE>>"
-      curl -fsSL -H "Authorization: Bearer $PAT" \
-        -H "Accept: application/vnd.github.raw" \
-        "https://api.github.com/repos/AntoineBinet/MarieNour/contents/deployment/bootstrap-vm.sh?ref=main" \
-        -o /tmp/bootstrap-vm.sh
-      sudo REPO_URL="https://$PAT@github.com/AntoineBinet/MarieNour.git" \
-           MARIENOUR_BRANCH=main bash /tmp/bootstrap-vm.sh
-   Le script installe Node 20 + cloudflared, clone le repo, build le front et le
-   serveur, crée le service systemd "marienour" (activé, pas démarré) et le
-   fichier de secrets. Attends le message "Bootstrap terminé".
+9. Une fois sur la VM, récupère le kit de déploiement (le dossier deployment/
+   de la branche main, dépôt public), puis lance le bootstrap :
+      mkdir -p ~/kit-marienour
+      curl -fsSL https://codeload.github.com/AntoineBinet/MarieNour/tar.gz/refs/heads/main \
+        | tar -xz -C ~/kit-marienour --strip-components=1 MarieNour-main/deployment
+      sudo bash ~/kit-marienour/deployment/bootstrap-vm.sh
+   Le script installe les paquets manquants (sans upgrade) et cloudflared, pose
+   Node v20.20.2 (archive officielle, empreinte vérifiée), clone le repo, build
+   le front et le serveur, pose le service systemd "marienour" (ni activé, ni
+   démarré) et le fichier de secrets. Attends le message "RÉSULTAT : OK".
 
 ÉTAPE 4 (Onglet A — VM) — Secrets + démarrage
 10. Renseigne les secrets puis démarre/vérifie :
@@ -173,11 +168,9 @@ Signale tout écran inattendu plutôt que de forcer.
 - **Pas de Cloud Shell / tu préfères ton terminal** : tu peux faire les ÉTAPES
   1–4 et 6 depuis un terminal local en SSH (`ssh -i <clé> ubuntu@<IP>`). Le reste
   (tunnel) se fait dans l'onglet Cloudflare.
-- **Sécurité du PAT** : il finit dans l'URL du remote git sur la VM
-  (`.git/config`, lisible par l'utilisateur du service). Limite-le en lecture
-  seule à ce repo et révoque-le si besoin. Variante plus propre : une **deploy
-  key** SSH (cf. `deployment/bootstrap-vm.sh`, variable `DEPLOY_KEY_SRC`) au lieu
-  du PAT.
+- **Si le dépôt redevient privé** : le clone HTTPS anonyme échouera. Il faudra
+  une clé de déploiement (alternative de la décision D2), à ajouter au kit ; ne
+  jamais mettre un jeton dans l'URL du dépôt, il finirait dans `.git/config`.
 - **Tunnel locally-managed** (sans token) : `sudo cloudflared tunnel login` puis
   `sudo PROD=1 bash deployment/setup-cloudflared.sh` sur la VM (génère le
   `config.yml` + les routes DNS).
@@ -186,9 +179,8 @@ Signale tout écran inattendu plutôt que de forcer.
 
 - **Depuis l'admin** (recommandé) : `/admin` → carte « Mise à jour de
   l'application ».
-- **En SSH**, en tant qu'utilisateur **ops** (ex. `ubuntu`, pas `marienour`) :
-  `cd /opt/marienour/app && bash deployment/update.sh` (git pull + build +
-  restart, sans toucher aux données).
+- **En SSH**, en root : `cd /opt/marienour/app && sudo bash deployment/update.sh`
+  (git pull + build + restart, sans toucher aux données).
 
 ## Dépannage rapide
 

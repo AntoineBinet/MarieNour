@@ -90,8 +90,8 @@ et Prospup, mais **100 % séparée**.
   [`docs/SETUP-CLOUDFLARE-CHROME.md`](docs/SETUP-CLOUDFLARE-CHROME.md) à *Claude
   dans Chrome*, il pilote les deux onglets.
 - **Mise à jour** : bouton « Mettre à jour » dans `/admin` (carte « Mise à jour de
-  l'application »), ou en SSH **en tant qu'utilisateur ops** (ex. `ubuntu`)&nbsp;:
-  `cd /opt/marienour/app && bash deployment/update.sh`.
+  l'application »), ou en SSH, en root&nbsp;:
+  `cd /opt/marienour/app && sudo bash deployment/update.sh`.
 
 > **Repli serverless Cloudflare Pages** (toujours possible — le code Hono est
 > commun) : la base **D1 `marienour`** et le bucket **R2 `marienour-media`** sont

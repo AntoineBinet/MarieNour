@@ -1,24 +1,26 @@
-# marienour (marienour.work) — unité systemd (VM Oracle Cloud dédiée).
+# marienour (marienour.work) · unité systemd de l'app.
 #
-# Machine SÉPARÉE de Portfolio (ab-azurtech.com) et de Prospup (prospup.work) :
-# ce service n'a AUCUN rapport avec portfolio.service / prospup.service (autre VM,
-# autre user, autre tunnel, autre port). Voir deployment/DEPLOY.md.
+# Tourne sur une VM Oracle, seule OU à côté de ProspUp (prospup-prod, depuis
+# octobre 2026 : cf. la section « Machine partagée avec ProspUp » de
+# deployment/DEPLOY.md). La même unité sert les deux cas : les chemins cachés
+# ci-dessous n'existent pas sur une VM dédiée, et le préfixe « - » les ignore.
 #
-# Installation (faite automatiquement par bootstrap-vm.sh) :
-#   sudo cp deployment/marienour.service /etc/systemd/system/marienour.service
-#   sudo systemctl daemon-reload && sudo systemctl enable marienour
+# Installation (faite par bootstrap-vm.sh, qui n'active PAS l'unité) :
+#   sudo install -m 644 deployment/marienour.service /etc/systemd/system/
+#   sudo systemd-analyze verify /etc/systemd/system/marienour.service
+#   sudo systemctl daemon-reload
 #
 # Sécurité :
-#   - server/node.ts bind 127.0.0.1 : le port 8002 n'est JAMAIS exposé à Internet.
+#   - server/node.ts écoute sur 127.0.0.1 : le port 8002 n'est JAMAIS exposé.
 #     Seul cloudflared (même VM) y accède. Ne PAS ouvrir 8002 dans la Security
 #     List Oracle (seul SSH/22 reste ouvert).
-#   - Les secrets (ADMIN_PASSWORD, SESSION_SECRET…) vivent dans
-#     /etc/marienour/marienour.env (chmod 600, root:root) — JAMAIS dans cette
-#     unité (lisible via `systemctl show`) ni dans git.
+#   - Les secrets (ADMIN_PASSWORD, SESSION_SECRET, SMTP_PASS…) vivent dans
+#     /etc/marienour/marienour.env (600 root:root), jamais dans cette unité
+#     (lisible par tous via `systemctl show`) ni dans git.
 
 [Unit]
-Description=marienour — marienour.work (Node/Hono + SQLite + R2 local)
-Documentation=https://github.com/AntoineBinet/MarieNour
+Description=marienour · marienour.work (Node/Hono + SQLite, 127.0.0.1:8002)
+Documentation=https://github.com/AntoineBinet/MarieNour/blob/main/deployment/DEPLOY.md
 After=network-online.target
 Wants=network-online.target
 # Garde-fou anti-boucle de crash : 5 redémarrages max en 200 s, sinon systemd
@@ -33,25 +35,35 @@ Group=marienour
 WorkingDirectory=/opt/marienour/app
 
 # ── Secrets (fichier 600 root:root, hors git) ─────────────────────────────
-#   ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET, APP_NAME…
-# Préfixe « - » : fichier optionnel — si absent, le service démarre quand même
-# (mais l'admin ne pourra pas se connecter tant que ADMIN_PASSWORD est vide).
+#   ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET, SMTP_PASS, APP_NAME…
+# Lu par systemd AVANT le bac à sable : l'app n'a pas besoin d'accéder à
+# /etc/marienour, qui lui est caché plus bas (le jeton du tunnel et l'accès R2
+# de la sauvegarde y vivent aussi).
 EnvironmentFile=-/etc/marienour/marienour.env
 
 # ── Config runtime NON sensible ───────────────────────────────────────────
 Environment=MARIENOUR_PORT=8002
 Environment=MARIENOUR_HOST=127.0.0.1
 Environment=NODE_ENV=production
-# Données persistantes (SQLite + médias) hors de l'arbre git, conservées entre MAJ :
+# Données persistantes (SQLite + médias + vapid.json), hors de l'arbre git :
 Environment=MARIENOUR_DATA_DIR=/opt/marienour/app/data
+# Node vit dans /opt/node (archive officielle nodejs.org, pas de paquet apt).
+# Le bouton « Mettre à jour » lance git, npm et node avec cet environnement :
+# ce PATH est celui de toute la chaîne de mise à jour.
+Environment=PATH=/opt/node/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/opt/marienour
+# Le git de la mise à jour ignore /etc/gitconfig : sur prospup-prod, il
+# appartient à ProspUp. Le dépôt est public, cloné en HTTPS : aucune clé.
+Environment=GIT_CONFIG_NOSYSTEM=1
+Environment=GIT_TERMINAL_PROMPT=0
 
-ExecStart=/usr/bin/node /opt/marienour/app/dist-server/server.mjs
+ExecStart=/opt/node/bin/node /opt/marienour/app/dist-server/server.mjs
 
 # ── Cycle de vie ──────────────────────────────────────────────────────────
-# Restart=always : couvre tout crash. Mise à jour soit en CLI via
-# deployment/update.sh (git pull + npm ci + build + systemctl restart), soit
-# via le bouton « Mettre à jour » de l'admin in-app : il reconstruit puis sort
-# en 42 (RestartForceExitStatus=42) → systemd relance avec le nouveau build.
+# Restart=always : couvre tout crash. Le bouton « Mettre à jour » de l'admin
+# reconstruit puis sort en 42 (RestartForceExitStatus=42) : systemd relance
+# avec le nouveau build. Cette unité ne relance qu'elle-même : ProspUp et
+# Portfolio n'en dépendent pas.
 Restart=always
 RestartSec=5
 SuccessExitStatus=42
@@ -62,6 +74,57 @@ KillSignal=SIGTERM
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=marienour
+
+# ── Plafonds et priorités (machine partagée, décision D4 du 30/09/2026) ────
+# Sous contention, ProspUp (sans plafond, poids 100) garde la main, puis
+# Portfolio (poids 80), puis MarieNour. Si la mémoire manque, le noyau tue
+# d'abord MarieNour (400), puis Portfolio (200), ProspUp en dernier (0).
+# 4 Go : le build Vite de la mise à jour in-app monte à environ 3 Go et tourne
+# DANS cette unité. Ne jamais descendre sous 3 Go.
+# Sur une VM dédiée, les poids sont sans effet (rien à départager).
+MemoryMax=4G
+TasksMax=512
+CPUWeight=30
+IOWeight=30
+OOMScoreAdjust=400
+
+# ── Durcissement (nouveau : cette unité n'en avait aucun) ─────────────────
+# Compatible avec : l'écriture des données (SQLite, médias, snapshots de
+# maintenance, vapid.json), la mise à jour in-app (git dans app/, npm ci qui
+# écrit dans ~/.npm, build dans dist/ et dist-server/), le réseau sortant
+# (SMTP, Web Push, GitHub, registre npm).
+# NE PAS ajouter MemoryDenyWriteExecute (le JIT de V8 en a besoin) ni
+# SystemCallFilter à l'aveugle (fork/exec de git et npm, sortie en 42).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# Seul chemin inscriptible : /opt/marienour (app, données, ~/.npm).
+# HOME du compte = /opt/marienour.
+ReadWritePaths=/opt/marienour
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+# L'app ne voit plus que ses propres processus dans /proc : sur prospup-prod,
+# le jeton du tunnel de ProspUp est dans la ligne de commande de cloudflared.
+ProtectProc=invisible
+# Ce que l'app ne doit jamais lire sur une machine partagée : les fichiers
+# d'unité (dont cloudflared.service, qui porte le jeton de ProspUp), le bus
+# système (qui le rend aussi), la config litestream (644, clés R2 de ProspUp),
+# les dossiers de ProspUp et de Portfolio, et /etc/marienour (jetons).
+InaccessiblePaths=-/etc/systemd/system -/run/dbus -/etc/litestream.yml -/etc/cloudflared -/etc/prospup -/opt/prospup -/etc/portfolio -/opt/portfolio -/etc/marienour
+# AF_NETLINK : libuv lit les interfaces réseau par netlink (os.networkInterfaces).
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
 
 [Install]
 WantedBy=multi-user.target
