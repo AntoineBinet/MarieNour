@@ -1,12 +1,16 @@
-# Déclenche la sauvegarde marienour chaque jour (cf. marienour-backup.service).
+# marienour · déclenche la sauvegarde chaque nuit (cf. marienour-backup.service).
+# 03:30 UTC, un quart d'heure avant celle de Portfolio (03:45 UTC) : les deux
+# ne se chevauchent pas sur une machine partagée.
+
 [Unit]
-Description=marienour — sauvegarde quotidienne
+Description=marienour · sauvegarde quotidienne vers R2 (03:30 UTC)
 
 [Timer]
-# Tous les jours à 03:30 (heure de la VM), avec rattrapage si la VM était éteinte.
-OnCalendar=*-*-* 03:30:00
+OnCalendar=*-*-* 03:30:00 UTC
+RandomizedDelaySec=300
+AccuracySec=1min
+# Rattrapage au démarrage si la machine était éteinte à l'heure prévue.
 Persistent=true
-RandomizedDelaySec=600
 
 [Install]
 WantedBy=timers.target

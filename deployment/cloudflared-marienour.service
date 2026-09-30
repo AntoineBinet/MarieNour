@@ -1,0 +1,81 @@
+# marienour · connecteur du tunnel Cloudflare « marienour-oracle ».
+#
+# Tunnel « remotely-managed » : ses Public Hostnames (marienour.work et
+# www.marienour.work) sont déclarés dans le dashboard Zero Trust et visent
+# http://localhost:8002. Ce connecteur ne porte qu'un jeton : aucun fichier
+# de config, aucun cert.pem.
+#
+# Pourquoi une unité à part, et pas `cloudflared service install <jeton>` :
+# sur une machine partagée avec ProspUp, `service install` RÉÉCRIT
+# /etc/systemd/system/cloudflared.service, qui porte le tunnel de prospup.work.
+# Ce serait couper ProspUp. Ne jamais lancer `cloudflared service install` sur
+# prospup-prod.
+#
+# Le jeton vit dans /etc/marienour/tunnel.env (600 root:root), une seule ligne :
+#   TUNNEL_TOKEN=<jeton du tunnel marienour-oracle>
+# cloudflared lit TUNNEL_TOKEN dans son environnement : le jeton n'apparaît ni
+# dans cette unité, ni dans `systemctl show`, ni dans /proc/<pid>/cmdline.
+#
+# Installation (bootstrap-vm.sh la pose sans l'activer) :
+#   sudo install -m 644 deployment/cloudflared-marienour.service /etc/systemd/system/
+#   sudo systemd-analyze verify /etc/systemd/system/cloudflared-marienour.service
+#   sudo systemctl daemon-reload
+# La mise en service (enable --now) n'a lieu qu'à la bascule, APRÈS l'arrêt du
+# connecteur de l'ancienne VM : jamais deux connecteurs actifs sur un tunnel.
+#
+# Métriques locales : http://127.0.0.1:20243/ready (20241 = ProspUp,
+# 20242 = Portfolio). Un port fixe par tunnel, pour ne jamais se disputer.
+
+[Unit]
+Description=cloudflared · tunnel marienour-oracle (marienour.work vers 127.0.0.1:8002)
+Documentation=https://github.com/AntoineBinet/MarieNour/blob/main/deployment/DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=notify
+EnvironmentFile=/etc/marienour/tunnel.env
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel --metrics 127.0.0.1:20243 run
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=0
+SyslogIdentifier=cloudflared-marienour
+
+# ── Compte éphémère, sans fichier ─────────────────────────────────────────
+# DynamicUser : un UID créé au démarrage, sans shell, sans droits sur aucun
+# fichier de la machine. L'état éventuel va dans /var/lib/cloudflared-marienour.
+DynamicUser=yes
+StateDirectory=cloudflared-marienour
+Environment=HOME=/var/lib/cloudflared-marienour
+
+# ── Plafonds ──────────────────────────────────────────────────────────────
+MemoryMax=256M
+TasksMax=128
+
+# ── Durcissement ──────────────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+InaccessiblePaths=-/etc/systemd/system -/run/dbus -/etc/litestream.yml -/etc/cloudflared -/etc/prospup -/opt/prospup -/etc/portfolio -/opt/portfolio -/opt/marienour
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

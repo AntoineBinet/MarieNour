@@ -11,6 +11,10 @@
 #        nommé « marienour-oracle » → copier le TOKEN d'installation (eyJ...).
 #     2. Sur la VM (cloudflared déjà installé par bootstrap) :
 #          sudo cloudflared service install <TOKEN>
+#        ⚠️ JAMAIS sur une machine partagée (prospup-prod) : `service install`
+#        réécrit cloudflared.service, qui y porte le tunnel de ProspUp. Là-bas,
+#        le jeton va dans /etc/marienour/tunnel.env et l'unité est
+#        cloudflared-marienour.service (ce script refuse d'y tourner).
 #     3. Public Hostnames (dashboard) — domaine « marienour.work ». Ajoute, tous
 #        → http://localhost:8002 :
 #          marienour.work · www.marienour.work
@@ -33,6 +37,12 @@ CF_ETC=/etc/cloudflared
 log(){ printf '\n\033[1;34m▶ %s\033[0m\n' "$*"; }
 die(){ echo "ERREUR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "sudo requis"
+# Machine partagée (prospup-prod) : ce script réécrit la config de cloudflared,
+# qui y porte le tunnel de ProspUp. Là-bas, le connecteur de marienour est
+# cloudflared-marienour.service (cf. DEPLOY.md, « Machine partagée avec ProspUp »).
+for autre in prospup.service portfolio.service; do
+  [[ -e /etc/systemd/system/$autre ]] && die "machine partagée ($autre présent) : ne pas utiliser ce script, voir cloudflared-marienour.service"
+done
 command -v cloudflared >/dev/null || die "cloudflared absent (installé par bootstrap-vm.sh)"
 [[ -f /root/.cloudflared/cert.pem ]] || die "Lance d'abord (navigateur) : sudo cloudflared tunnel login"
 

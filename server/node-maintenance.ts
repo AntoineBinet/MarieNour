@@ -7,8 +7,8 @@
 //
 // ⚠️ Le snapshot local protège contre la corruption de base et les suppressions
 // accidentelles (restauration rapide), PAS contre la perte du disque de la VM.
-// Pour une copie HORS-SITE durable, voir deployment/backup.sh (Litestream/rclone
-// → R2), à installer une fois sur la VM.
+// La copie HORS-SITE durable est faite chaque nuit par deployment/backup.sh
+// (timer marienour-backup, envoi signé vers le bucket R2 marienour-backups).
 //
 // Ce fichier utilise des API Node (fs, better-sqlite3 .backup) absentes des types
 // Cloudflare Workers : importé UNIQUEMENT par server/node.ts, exclu de tsc, bundlé

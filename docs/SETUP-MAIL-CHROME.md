@@ -67,7 +67,7 @@ Valeurs :
 2. Connecte-toi à la VM (remplace l'IP) :
       ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/marienour ubuntu@<<IP_PUBLIQUE_VM>>
 3. Mets l'app à jour (git pull + npm ci + build + restart) :
-      cd /opt/marienour/app && bash deployment/update.sh
+      cd /opt/marienour/app && sudo bash deployment/update.sh
    Attends "marienour à jour et en ligne". C'est CETTE version qui sait envoyer
    par SMTP — ne saute pas cette étape.
 
