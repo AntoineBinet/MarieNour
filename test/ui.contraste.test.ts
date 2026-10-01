@@ -150,6 +150,19 @@ describe("jetons de lisibilité (styles.css)", () => {
     verifier(cas);
   });
 
+  it("bouton d'action destructrice (alerte au bureau) : --on-danger sur --danger-strong tient 4,5:1", () => {
+    const cas: { label: string; a: RGBA; b: RGBA; min: number }[] = [];
+    for (const theme of THEMES)
+      for (const design of DESIGNS) {
+        const e: Etat = { theme, design };
+        const tok = jetons(R, e);
+        const fond = jeton(tok, "--danger-strong");
+        cas.push({ label: `${nom(e)} danger-strong`, a: jeton(tok, "--on-danger"), b: fond, min: TEXTE });
+        cas.push({ label: `${nom(e)} danger-strong survolé`, a: jeton(tok, "--on-danger"), b: mix(fond, 0.88, hex("#000"), 0.12), min: TEXTE });
+      }
+    verifier(cas);
+  });
+
   it("l'île des toasts : texte 4,5:1, icônes de type 3:1, dans les deux thèmes", () => {
     const cas: { label: string; a: RGBA; b: RGBA; min: number }[] = [];
     for (const theme of THEMES) {

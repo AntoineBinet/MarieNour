@@ -96,11 +96,18 @@ function useLayer(
   const initial = opts.initial ?? "field";
   const initialRef = useRef(initial);
   const keyboard = !!opts.keyboard;
+  // Déclencheur à qui rendre le focus : lu pendant le PREMIER rendu, avant que
+  // React ne pose un éventuel autoFocus dans la couche (l'effet arriverait
+  // trop tard et retiendrait le champ de la couche elle-même).
+  const trigger = useRef<HTMLElement | null | undefined>(undefined);
+  if (trigger.current === undefined && typeof document !== "undefined") {
+    trigger.current = document.activeElement as HTMLElement | null;
+  }
 
   useEffect(() => {
     const id = nextLayerId++;
     layerStack.push(id);
-    const prevActive = document.activeElement as HTMLElement | null;
+    const prevActive = trigger.current ?? null;
     holdInert();
     lockBodyScroll();
     if (keyboard) subscribeKeyboard();
@@ -417,7 +424,7 @@ export function Modal({
   return createPortal(
     <div className="overlay" data-state="open" onMouseDown={(e) => e.target === e.currentTarget && closeRef.current()}>
       <div
-        className={`modal has-body${wide ? " modal-lg" : ""}${dragging ? " dragging" : ""}${footer ? " has-foot" : ""}`}
+        className={`modal has-body${wide ? " modal-lg" : ""}${dragging ? " dragging" : ""}${footer ? " has-foot" : ""}${title ? "" : " no-head"}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}

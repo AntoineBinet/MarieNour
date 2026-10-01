@@ -36,7 +36,7 @@ const Help = lazy(() => import("./pages/Help"));
 
 function PageFallback() {
   return (
-    <div style={{ display: "grid", placeItems: "center", padding: "4rem 0" }}>
+    <div className="page-fallback" style={{ display: "grid", placeItems: "center", padding: "4rem 0" }}>
       <Spinner />
     </div>
   );
