@@ -18,7 +18,9 @@
 
   --ink: #2c2622;
   --ink-2: #5e544c;
-  --muted: #8a7d70;
+  /* Texte secondaire : ≥ 4,5:1 sur --bg, --bg-2, --surface et --surface-2
+     (vérifié par test/ui.contraste.test.ts, qui lit cette feuille). */
+  --muted: #706457;
 
   --sand: #efe2cf;
   --sage: #cdd8c4;
@@ -27,13 +29,44 @@
   --lilac: #d8cfe6;
   --butter: #f3e3b3;
 
-  --ok: #4f8a5b;
+  --ok: #377244;
   --warn: #c98a2b;
-  --danger: #c0533f;
+  --danger: #ae422f;
+
+  /* ── Lisibilité (socle 2026) ──────────────────────────────────────────────
+     --accent garde la couleur choisie (contours, lavis, focus). Tout ce qui
+     PORTE du texte sur l'accent (bouton principal, « + », badge) prend
+     --accent-strong, avec l'encre --on-accent posée dessus : le couple tient
+     4,5:1 pour chaque accent, dans les deux thèmes. */
+  --accent-strong: #b6593b;
+  --on-accent: #ffffff;
+  /* Argent : entrées et sorties lisibles (≥ 4,5:1) sur la surface des cartes. */
+  --money-in: #267340;
+  --money-out: #ae422f;
+  /* Ancien nom lu par les pages Finances (jeton qui n'existait pas). */
+  --sage-ink: var(--money-in);
+  /* Pastels « forts » : barres, anneaux, graphiques (≥ 3:1 sur --surface-2). */
+  --sand-strong: #957647;
+  --sage-strong: #6c8555;
+  --sky-strong: #4c849c;
+  --blush-strong: #ab6661;
+  --lilac-strong: #876ea8;
+  --butter-strong: #91792c;
+  /* L'« île » des toasts : pastille noire façon iOS, identique dans les deux
+     thèmes (encre claire, icônes de type lisibles sur le noir). */
+  --island-bg: #171412;
+  --island-ink: #fbf7f2;
+  --island-ink-2: #c9beb2;
+  --island-ok: #7fd18f;
+  --island-danger: #ff8f7a;
+  --island-info: #a7c8ff;
+  --island-action: #ffcfb8;
 
   --radius: 18px;
   --radius-sm: 12px;
   --radius-lg: 26px;
+  /* Ancien nom (sondages) : suit désormais le réglage d'arrondi. */
+  --radius-2: var(--radius-sm);
   /* Élévation à 3 niveaux : sm = repos (cartes, widgets) → calme et posé ;
      md (--shadow) = éléments flottants (menus, popovers) ; lg = modales + survol
      volontaire. Avant, tout partageait une seule ombre moyenne → « champ de
@@ -90,7 +123,19 @@
   --border-strong: #4a4038;
   --ink: #f3ece2;
   --ink-2: #cdbfb0;
-  --muted: #9b8d7d;
+  --muted: #a19383;
+
+  --ok: #66a272;
+  --warn: #d9a648;
+  --danger: #e5745e;
+  --money-in: #59a46d;
+  --money-out: #e5745e;
+  --sand-strong: #b59666;
+  --sage-strong: #8ba574;
+  --sky-strong: #6ba4bd;
+  --blush-strong: #cd857f;
+  --lilac-strong: #a78ec9;
+  --butter-strong: #b2994e;
 
   /* Pastels en versions sombres harmonieuses (cartes de notes, pastilles…)
      pour rester lisibles avec le texte clair. */
@@ -106,18 +151,41 @@
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
-[data-accent="plum"] { --accent: #8a5a7e; --accent-soft: #c39bba; --accent-ink: #5e3a55; }
-[data-accent="sage"] { --accent: #6f8a5f; --accent-soft: #a8c096; --accent-ink: #4a5e3f; }
-[data-accent="ocean"] { --accent: #3f7d8a; --accent-soft: #8fbac4; --accent-ink: #2a5560; }
-[data-accent="berry"] { --accent: #b04a63; --accent-soft: #d99aab; --accent-ink: #7c3144; }
+/* Premier affichage en thème sombre : tant que src/theme.ts n'a pas posé
+   data-theme (le JS arrive après la feuille), l'appareil réglé en sombre
+   reçoit déjà le fond et l'encre sombres. Plus de flash crème au lancement. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #1d1916;
+    --bg-2: #221d19;
+    --surface: #2a2420;
+    --surface-2: #322b25;
+    --border: #3b332c;
+    --border-strong: #4a4038;
+    --ink: #f3ece2;
+    --ink-2: #cdbfb0;
+    --muted: #a19383;
+  }
+}
 
-[data-accent="rose"]   { --accent: #c4577f; --accent-soft: #e6a6bd; --accent-ink: #8c3556; }
-[data-accent="amber"]  { --accent: #c2871f; --accent-soft: #e6c277; --accent-ink: #8a5d12; }
-[data-accent="teal"]   { --accent: #2f8c80; --accent-soft: #8fc7bf; --accent-ink: #1f6359; }
-[data-accent="indigo"] { --accent: #5b5fc0; --accent-soft: #a9abe0; --accent-ink: #3d3f8a; }
-[data-accent="forest"] { --accent: #4a7a4e; --accent-soft: #9cc09e; --accent-ink: #325636; }
-[data-accent="coral"]  { --accent: #d56a52; --accent-soft: #eea995; --accent-ink: #9c4631; }
-[data-accent="slate"]  { --accent: #5a6b7a; --accent-soft: #a6b3bf; --accent-ink: #3b4853; }
+[data-accent="plum"] { --accent: #8a5a7e; --accent-soft: #c39bba; --accent-ink: #5e3a55; --accent-strong: var(--accent); }
+[data-accent="sage"] { --accent: #6f8a5f; --accent-soft: #a8c096; --accent-ink: #4a5e3f; --accent-strong: #617b51; }
+[data-accent="ocean"] { --accent: #3f7d8a; --accent-soft: #8fbac4; --accent-ink: #2a5560; --accent-strong: var(--accent); }
+[data-accent="berry"] { --accent: #b04a63; --accent-soft: #d99aab; --accent-ink: #7c3144; --accent-strong: var(--accent); }
+
+[data-accent="rose"]   { --accent: #c4577f; --accent-soft: #e6a6bd; --accent-ink: #8c3556; --accent-strong: #ba4e77; }
+[data-accent="amber"]  { --accent: #c2871f; --accent-soft: #e6c277; --accent-ink: #8a5d12; --accent-strong: var(--accent); --on-accent: #1d1916; }
+[data-accent="teal"]   { --accent: #2f8c80; --accent-soft: #8fc7bf; --accent-ink: #1f6359; --accent-strong: #208175; }
+[data-accent="indigo"] { --accent: #5b5fc0; --accent-soft: #a9abe0; --accent-ink: #3d3f8a; --accent-strong: var(--accent); }
+[data-accent="forest"] { --accent: #4a7a4e; --accent-soft: #9cc09e; --accent-ink: #325636; --accent-strong: var(--accent); }
+[data-accent="coral"]  { --accent: #d56a52; --accent-soft: #eea995; --accent-ink: #9c4631; --accent-strong: #bc533c; }
+[data-accent="slate"]  { --accent: #5a6b7a; --accent-soft: #a6b3bf; --accent-ink: #3b4853; --accent-strong: var(--accent); }
+
+/* Thème sombre : l'accent est clair, l'encre posée dessus est sombre (le blanc
+   y tombait à 2,2-3,3:1). Spécificité (0,2,0) : bat les règles d'accent claires
+   ci-dessus, qui posent leur propre --accent-strong. */
+:root[data-theme="dark"] { --accent-strong: var(--accent); --on-accent: #1d1916; }
 
 /* Variantes sombres des accents : « encre » claire pour rester lisible.
    Placées après les règles [data-accent] pour gagner en spécificité. */
@@ -139,10 +207,22 @@
 [data-accent="custom"] {
   --accent-soft: color-mix(in srgb, var(--accent) 42%, #ffffff);
   --accent-ink: color-mix(in srgb, var(--accent) 78%, #000000);
+  /* Repli sans couleur relative : assombri assez pour tenir le blanc même
+     pour un jaune ou un cyan vifs. */
+  --accent-strong: color-mix(in srgb, var(--accent) 50%, #000000);
+  --on-accent: #ffffff;
 }
 [data-theme="dark"][data-accent="custom"] {
   --accent-soft: color-mix(in srgb, var(--accent) 38%, #000000);
   --accent-ink: color-mix(in srgb, var(--accent) 55%, #ffffff);
+  --accent-strong: color-mix(in srgb, var(--accent) 45%, #ffffff);
+  --on-accent: #1d1916;
+}
+/* Navigateurs récents : on ne retouche que la CLARTÉ (teinte et chroma gardées),
+   et seulement si la couleur choisie ne tient pas le contraste. */
+@supports (color: oklch(from red l c h)) {
+  [data-accent="custom"] { --accent-strong: oklch(from var(--accent) min(l, 0.54) c h); }
+  [data-theme="dark"][data-accent="custom"] { --accent-strong: oklch(from var(--accent) max(l, 0.72) c h); }
 }
 
 * { box-sizing: border-box; }
@@ -1037,6 +1117,9 @@ body { overscroll-behavior-y: none; }
 
 /* Ambiances de fond (décor doux derrière toute l'app, teinté par l'accent). */
 [data-bg="plain"] body { background: var(--surface-2); }
+/* Sur une ambiance décorée (lavis d'accent, de ciel, de pêche), le texte
+   secondaire prend l'encre secondaire : --muted y descendait sous 3:1. */
+:root[data-bg]:not([data-bg="plain"]) { --muted: var(--ink-2); }
 [data-bg="warm"] body {
   background:
     radial-gradient(120% 90% at 100% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
@@ -1085,7 +1168,7 @@ body { overscroll-behavior-y: none; }
   --border-strong: #b4bcc7;
   --ink: #1a1f26;
   --ink-2: #424a55;
-  --muted: #69717c;
+  --muted: #5e6670;
   --radius: 14px; --radius-sm: 10px; --radius-lg: 20px;
   --shadow-sm: 0 1px 2px rgba(18, 26, 38, 0.07), 0 1px 3px rgba(18, 26, 38, 0.06);
   --shadow: 0 1px 2px rgba(18, 26, 38, 0.06), 0 10px 30px rgba(18, 26, 38, 0.10);
@@ -1100,7 +1183,7 @@ body { overscroll-behavior-y: none; }
   --border-strong: #3a4350;
   --ink: #eef1f5;
   --ink-2: #b9c2cd;
-  --muted: #7e8a98;
+  --muted: #84909e;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 36px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 18px 56px rgba(0, 0, 0, 0.7);
@@ -1117,7 +1200,7 @@ body { overscroll-behavior-y: none; }
   --border-strong: #c8c2b7;
   --ink: #1a1814;
   --ink-2: #4a463f;
-  --muted: #837d73;
+  --muted: #6c665d;
   --radius: 6px; --radius-sm: 4px; --radius-lg: 10px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05);
