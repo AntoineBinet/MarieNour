@@ -63,6 +63,8 @@
   --island-action: #ffcfb8;
   /* Voile sous les feuilles et modales ; bouton plein d'une action destructrice. */
   --veil: rgba(40, 28, 18, 0.42);
+  /* Piste d'un anneau ou d'une jauge : lavis d'encre, visible sur toute surface. */
+  --ring-track: rgba(44, 38, 34, 0.1);
   --danger-strong: #ae422f;
   --on-danger: #ffffff;
 
@@ -134,6 +136,7 @@
   --danger: #e5745e;
   --danger-strong: #b84a33;
   --veil: rgba(0, 0, 0, 0.56);
+  --ring-track: rgba(243, 236, 226, 0.14);
   --money-in: #59a46d;
   --money-out: #e5745e;
   --sand-strong: #b59666;
@@ -582,7 +585,8 @@ a { color: var(--accent-ink); text-decoration: none; }
 .modal.has-foot > .modal-body { padding-bottom: var(--space-5); }
 /* Champs d'un formulaire de feuille : espacés uniformément, même quand un
    champ suit une rangée ou un paragraphe (et pas seulement un autre champ). */
-.modal-body > :not(.field) + .field { margin-top: var(--space-4); }
+.modal-body > :not(.field) + .field,
+.modal-body > .field + :not(.field) { margin-top: var(--space-4); }
 .sheet-foot {
   flex: none; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center;
   gap: var(--space-2) var(--space-3); padding: var(--space-4) var(--space-6);
@@ -2336,7 +2340,7 @@ html { scroll-padding-top: 84px; }
   width: var(--av, 28px); height: var(--av, 28px); flex: none; border-radius: 50%; overflow: hidden;
   display: grid; place-items: center; box-shadow: 0 0 0 2px var(--surface);
   background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-ink);
-  font-size: calc(var(--av, 28px) * 0.38); font-weight: 700; line-height: 1;
+  font-size: calc(var(--av, 28px) * 0.36); font-weight: 700; line-height: 1; letter-spacing: -0.02em;
 }
 .avatar-stack-item + .avatar-stack-item { margin-left: calc(var(--av, 28px) * -0.3); }
 .avatar-stack-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -2349,14 +2353,16 @@ html { scroll-padding-top: 84px; }
   transition: background 0.15s ease, color 0.15s ease, transform 0.16s var(--ease); touch-action: manipulation;
 }
 .icon-btn svg { flex: none; }
-.icon-btn--soft { background: var(--surface-2); }
+/* Lavis d'encre translucide : visible sur le fond, la carte ou une ambiance,
+   dans les deux thèmes (le --surface-2 opaque disparaissait sur --bg). */
+.icon-btn--soft { background: color-mix(in srgb, var(--ink) 7%, transparent); }
 .icon-btn--plain { color: var(--ink-2); }
 .icon-btn--primary { background: var(--accent-strong); color: var(--on-accent); }
 .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .icon-btn[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); }
 @media (hover: hover) {
-  .icon-btn--soft:hover { background: var(--bg-2); }
+  .icon-btn--soft:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); }
   .icon-btn--plain:hover { background: var(--surface-2); color: var(--ink); }
   .icon-btn--primary:hover { background: color-mix(in srgb, var(--accent-strong) 90%, var(--ink)); }
 }
@@ -2365,7 +2371,7 @@ html { scroll-padding-top: 84px; }
 /* ── État vide : aperçu fantôme ───────────────────────────────────────────── */
 .empty--ghost {
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: var(--space-6) var(--space-4) var(--space-7); color: var(--ink-2);
+  padding: var(--space-6) var(--space-4); color: var(--ink-2);
 }
 .empty-ghost {
   position: relative; width: min(280px, 100%); margin: 0 auto var(--space-5);

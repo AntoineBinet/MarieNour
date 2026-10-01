@@ -38,7 +38,7 @@ export function over(top: RGBA, bottom: RGBA): RGBA {
   const a = top.a;
   return { r: top.r * a + bottom.r * (1 - a), g: top.g * a + bottom.g * (1 - a), b: top.b * a + bottom.b * (1 - a), a: 1 };
 }
-/** color-mix(in srgb, A p1, B p2) — alpha prémultiplié, comme le navigateur. */
+/** color-mix(in srgb, A p1, B p2) : alpha prémultiplié, comme le navigateur. */
 export function mix(a: RGBA, p1: number, b: RGBA, p2: number): RGBA {
   let s = p1 + p2;
   let mult = 1;

@@ -743,7 +743,7 @@ export function Ring({
   size = 44,
   stroke = 4,
   color = "var(--accent-strong)",
-  track = "var(--surface-2)",
+  track = "var(--ring-track)",
   label,
   children,
 }: {

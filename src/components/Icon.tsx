@@ -1,8 +1,8 @@
-// marienour — jeu d'icônes « maison ».
+// marienour · jeu d'icônes « maison ».
 //
 // Remplace les emojis par des logos vectoriels personnalisés, dessinés à la
 // main (viewBox 24×24, trait `currentColor`) : nets sur tous les écrans, ils
-// héritent de la couleur/taille du contexte et du thème clair/sombre — bien
+// héritent de la couleur/taille du contexte et du thème clair/sombre, bien
 // plus pro et cohérent qu'un emoji système. Un seul composant <Icon/> partout.
 
 import type { CSSProperties } from "react";
@@ -565,7 +565,7 @@ const P: Record<IconName, JSX.Element> = {
   arrowUpRight: <path d="M6.5 17.5 17.5 6.5m0 0H10m7.5 0V14" />,
   pause: <path d="M9 5.5v13M15 5.5v13" />,
   minus: <path d="M5 12h14" />,
-  // Punaise (épingler) — distincte de « location » (un lieu). L'ancienne
+  // Punaise (épingler), distincte de « location » (un lieu). L'ancienne
   // icône « pin » reste pour les usages existants.
   thumbtack: (
     <>
