@@ -124,6 +124,34 @@ describe("jetons de lisibilité (styles.css)", () => {
     verifier(cas);
   });
 
+  it("--accent-ink tient 4,5:1 pour un accent personnalisé, même vif (jaune, cyan, blanc, noir)", () => {
+    const cas: { label: string; a: RGBA; b: RGBA; min: number }[] = [];
+    for (const theme of THEMES)
+      for (const c of CUSTOMS)
+        for (const relative of [true, false]) {
+          const e: Etat = { theme, accent: "custom", accentCustom: c, relative };
+          const tok = jetons(R, e);
+          const ink = jeton(tok, "--accent-ink");
+          const surface = jeton(tok, "--surface");
+          cas.push({ label: `${nom(e)} accent-ink/surface`, a: ink, b: surface, min: TEXTE });
+          cas.push({ label: `${nom(e)} accent-ink/lavis16`, a: ink, b: over({ ...jeton(tok, "--accent"), a: 0.16 }, surface), min: TEXTE });
+        }
+    verifier(cas);
+  });
+
+  it("--accent-ink sur --accent-soft (icône de notification, initiales du grand avatar) tient 3:1", () => {
+    const cas: { label: string; a: RGBA; b: RGBA; min: number }[] = [];
+    const tous: Etat[] = [...etats()];
+    for (const theme of THEMES)
+      for (const c of CUSTOMS)
+        for (const relative of [true, false]) tous.push({ theme, accent: "custom", accentCustom: c, relative });
+    for (const e of tous) {
+      const tok = jetons(R, e);
+      cas.push({ label: `${nom(e)} accent-ink/accent-soft`, a: jeton(tok, "--accent-ink"), b: jeton(tok, "--accent-soft"), min: GRAPHIQUE });
+    }
+    verifier(cas);
+  });
+
   it("--ok, --danger, --money-in et --money-out tiennent 4,5:1 sur les fonds des cartes et de page", () => {
     const cas: { label: string; a: RGBA; b: RGBA; min: number }[] = [];
     for (const theme of THEMES)

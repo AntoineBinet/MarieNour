@@ -215,7 +215,9 @@
    color-mix pour garder des contrastes corrects dans les deux thèmes. */
 [data-accent="custom"] {
   --accent-soft: color-mix(in srgb, var(--accent) 42%, #ffffff);
-  --accent-ink: color-mix(in srgb, var(--accent) 78%, #000000);
+  /* Repli sans couleur relative : plus qu'à moitié noir, assez pour un cyan
+     vif sur la carte et sur le lavis d'accent. */
+  --accent-ink: color-mix(in srgb, var(--accent) 45%, #000000);
   /* Repli sans couleur relative : assombri assez pour tenir le blanc même
      pour un jaune ou un cyan vifs. */
   --accent-strong: color-mix(in srgb, var(--accent) 50%, #000000);
@@ -223,15 +225,21 @@
 }
 [data-theme="dark"][data-accent="custom"] {
   --accent-soft: color-mix(in srgb, var(--accent) 38%, #000000);
-  --accent-ink: color-mix(in srgb, var(--accent) 55%, #ffffff);
+  --accent-ink: color-mix(in srgb, var(--accent) 40%, #ffffff);
   --accent-strong: color-mix(in srgb, var(--accent) 45%, #ffffff);
   --on-accent: #1d1916;
 }
 /* Navigateurs récents : on ne retouche que la CLARTÉ (teinte et chroma gardées),
    et seulement si la couleur choisie ne tient pas le contraste. */
 @supports (color: oklch(from red l c h)) {
-  [data-accent="custom"] { --accent-strong: oklch(from var(--accent) min(l, 0.54) c h); }
-  [data-theme="dark"][data-accent="custom"] { --accent-strong: oklch(from var(--accent) max(l, 0.72) c h); }
+  [data-accent="custom"] {
+    --accent-strong: oklch(from var(--accent) min(l, 0.54) c h);
+    --accent-ink: oklch(from var(--accent) min(l, 0.45) c h);
+  }
+  [data-theme="dark"][data-accent="custom"] {
+    --accent-strong: oklch(from var(--accent) max(l, 0.72) c h);
+    --accent-ink: oklch(from var(--accent) max(l, 0.8) c h);
+  }
 }
 
 * { box-sizing: border-box; }
