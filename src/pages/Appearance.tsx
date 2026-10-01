@@ -7,7 +7,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { Field, Spinner, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
-import { applyAppearance, deviceReducesMotion } from "../theme";
+import { applyAppearance, deviceReducesMotion, motionOf } from "../theme";
 import { buildGreeting } from "../greeting";
 import type {
   BackgroundStyle,
@@ -20,7 +20,6 @@ import type {
   ThemeMode,
   UserPrefs,
 } from "@shared/types";
-import { motionOf } from "@shared/types";
 
 /* ── Données des options ──────────────────────────────────────────────────── */
 const ACCENTS: { key: string; label: string; color: string }[] = [

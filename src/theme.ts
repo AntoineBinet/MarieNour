@@ -8,7 +8,11 @@
 // dernière apparence appliquée et on la repose dès le premier rendu.
 
 import type { FontChoice, MotionMode, ThemeMode, UserPrefs } from "@shared/types";
-import { motionOf } from "@shared/types";
+// Valeur (pas seulement un type) : chemin relatif, le front n'a pas d'alias
+// @shared à l'exécution (Vite ne le résout que pour les imports de types).
+import { motionOf } from "../shared/types";
+
+export { motionOf };
 
 export type Theme = "light" | "dark";
 

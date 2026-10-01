@@ -2,7 +2,9 @@ import type { Context, Next } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import type { AppEnv, Bindings } from "./types";
 import type { Gender, PublicUser, Role, UserPrefs } from "@shared/types";
-import { MOTION_MODES } from "@shared/types";
+// Valeur (pas un type) : chemin relatif, sûr pour tous les bundlers (esbuild
+// de la VM comme celui de wrangler pour le repli Pages).
+import { MOTION_MODES } from "../shared/types";
 import { now, uid } from "./util";
 
 const SESSION_COOKIE = "mn_session";
