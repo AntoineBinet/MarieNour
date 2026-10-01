@@ -2,6 +2,9 @@ import type { Context, Next } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import type { AppEnv, Bindings } from "./types";
 import type { Gender, PublicUser, Role, UserPrefs } from "@shared/types";
+// Valeur (pas un type) : chemin relatif, sûr pour tous les bundlers (esbuild
+// de la VM comme celui de wrangler pour le repli Pages).
+import { MOTION_MODES } from "../shared/types";
 import { now, uid } from "./util";
 
 const SESSION_COOKIE = "mn_session";
@@ -89,7 +92,11 @@ export function parsePrefs(raw: string | null | undefined): UserPrefs {
   if (!raw) return {};
   try {
     const v = JSON.parse(raw);
-    return v && typeof v === "object" && !Array.isArray(v) ? (v as UserPrefs) : {};
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const prefs = v as UserPrefs;
+    // L'ancien booléen « Réduire les animations » se lit en trois états.
+    if (prefs.reduce_motion === true && prefs.motion === undefined) prefs.motion = "reduce";
+    return prefs;
   } catch {
     return {};
   }
@@ -103,6 +110,7 @@ const DENSITY = ["compact", "cozy", "comfortable"];
 const FONTS = ["default", "serif", "sans", "rounded", "mono", "humanist"];
 const BACKGROUNDS = ["default", "plain", "warm", "cool", "dawn", "mesh"];
 const GREETINGS = ["time", "custom", "simple", "none"];
+const MOTIONS: readonly string[] = MOTION_MODES;
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**
@@ -147,6 +155,16 @@ export function mergePrefs(existing: UserPrefs, incoming: unknown): UserPrefs {
   setEnum("greeting_style", GREETINGS);
   setBool("contrast");
   setBool("reduce_motion");
+  setEnum("motion", MOTIONS as string[]);
+  // Les deux réglages du mouvement restent d'accord, pour les clients d'avant
+  // (qui ne lisent que le booléen) comme pour ceux d'aujourd'hui.
+  if ("motion" in p) {
+    if (out.motion === "reduce") out.reduce_motion = true;
+    else delete out.reduce_motion;
+  } else if ("reduce_motion" in p) {
+    if (out.reduce_motion === true) out.motion = "reduce";
+    else if (out.motion === "reduce") delete out.motion;
+  }
 
   if ("accent_custom" in p) {
     const v = p.accent_custom;

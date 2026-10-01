@@ -24,6 +24,17 @@ export type DensityStyle = "compact" | "cozy" | "comfortable";
 export type FontChoice = "default" | "serif" | "sans" | "rounded" | "mono" | "humanist";
 export type BackgroundStyle = "default" | "plain" | "warm" | "cool" | "dawn" | "mesh";
 export type GreetingStyle = "time" | "custom" | "simple" | "none";
+/** Mouvement de l'interface (cf. UserPrefs.motion). */
+export type MotionMode = "system" | "reduce" | "always";
+export const MOTION_MODES: readonly MotionMode[] = ["system", "reduce", "always"];
+/** Le mode de mouvement effectif d'un jeu de préférences : `motion` s'il est
+ *  valide, sinon l'ancien booléen `reduce_motion` (`true` vaut « reduce »),
+ *  sinon « system ». */
+export function motionOf(prefs: { motion?: unknown; reduce_motion?: unknown } | null | undefined): MotionMode {
+  const m = prefs?.motion;
+  if (m === "system" || m === "reduce" || m === "always") return m;
+  return prefs?.reduce_motion === true ? "reduce" : "system";
+}
 
 /** Les clés d'accent préréglées proposées dans l'interface. */
 export const ACCENT_PRESETS = [
@@ -65,8 +76,13 @@ export interface UserPrefs {
   font_body?: FontChoice;
   /** Contraste renforcé (bordures/texte plus marqués). */
   contrast?: boolean;
-  /** Réduit les animations et transitions. */
+  /** Ancien réglage booléen (« Réduire les animations ») : toujours LU,
+   *  `true` vaut `motion: "reduce"` quand `motion` est absent. */
   reduce_motion?: boolean;
+  /** Mouvement de l'interface : « system » suit l'appareil
+   *  (prefers-reduced-motion), « reduce » coupe les animations, « always »
+   *  les garde même si l'appareil demande d'en avoir moins. */
+  motion?: MotionMode;
   /** Ambiance de l'arrière-plan. */
   background?: BackgroundStyle;
   /** Style du message d'accueil sur la page d'accueil. */
