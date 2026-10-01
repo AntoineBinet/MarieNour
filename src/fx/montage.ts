@@ -186,6 +186,8 @@ function oublier(racine: Element) {
 }
 
 function surMutations(recs: MutationRecord[]) {
+  // Personne n'écoute : rien à examiner (React mute beaucoup, le rappel reste léger).
+  if (!inscriptions.size) return;
   const retires: Array<[Element, Node]> = [];
   const retiresTous = new Set<Node>();
   const ajoutes: Element[] = [];
