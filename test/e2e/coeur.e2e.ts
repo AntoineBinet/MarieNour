@@ -196,6 +196,32 @@ describe.skipIf(!actif)("cœur et montage de la couche d'effets", () => {
     await page.context().close();
   });
 
+  it("observerAttributs prévient d'un changement d'attribut, avec l'ancienne valeur, jusqu'à l'arrêt", async () => {
+    const page = await ouvrir();
+    const r = await page.evaluate(async () => {
+      const m = (window.MnFx as unknown as Fx).montage;
+      const el = document.createElement("button");
+      el.setAttribute("aria-expanded", "false");
+      document.getElementById("mn-couches")!.appendChild(el);
+      const vus: string[] = [];
+      const stop = (m.observerAttributs as (e: Element, a: string[], cb: (n: string, e: Element, ancien: string | null) => void) => () => void)(
+        el,
+        ["aria-expanded"],
+        (nom, cible, ancien) => vus.push(`${nom}:${ancien}->${cible.getAttribute(nom)}`),
+      );
+      el.setAttribute("aria-expanded", "true");
+      el.setAttribute("title", "ignoré");
+      await Promise.resolve();
+      stop();
+      el.setAttribute("aria-expanded", "false");
+      await Promise.resolve();
+      el.remove();
+      return vus;
+    });
+    expect(r).toEqual(["aria-expanded:false->true"]);
+    await page.context().close();
+  });
+
   it("le relevé suit le défilement, y compris quand le corps est verrouillé (feuille ouverte)", async () => {
     const page = await ouvrir();
     const r = await page.evaluate(async () => {
