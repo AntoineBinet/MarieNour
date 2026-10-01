@@ -4,6 +4,7 @@ import {
   DUR,
   EASE,
   borneContenue,
+  enMs,
   cles,
   clesEntree,
   conteneurFx,
@@ -209,6 +210,18 @@ describe("borneContenue", () => {
     const tourne = borneContenue(100, 20, 8, 1.2, 45);
     expect(tourne).toBeLessThan(droit);
     expect(borneContenue(100, 2, 30)).toBe(0);
+  });
+});
+
+describe("enMs", () => {
+  it("lit les millisecondes et les secondes (le build minifie les jetons en secondes)", () => {
+    expect(enMs("420ms")).toBe(420);
+    expect(enMs(" .42s ")).toBe(420);
+    expect(enMs("0.07s")).toBe(70);
+    expect(enMs("1.5S")).toBe(1500);
+    expect(enMs("160")).toBe(160);
+    expect(Number.isNaN(enMs(""))).toBe(true);
+    expect(Number.isNaN(enMs("vite"))).toBe(true);
   });
 });
 

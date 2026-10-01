@@ -49,13 +49,23 @@ export const EASE: { out: string; inOut: string; spring: string } = {
 
 let jetonsLus = false;
 
+/** Une durée CSS en millisecondes : « 420ms », mais aussi « .42s » (le
+ *  minifieur du build réécrit les jetons en secondes, mesuré). NaN sinon. */
+export function enMs(valeur: string): number {
+  const t = String(valeur ?? "").trim().toLowerCase();
+  const m = /^(-?\d*\.?\d+)(ms|s)?$/.exec(t);
+  if (!m) return Number.NaN;
+  const n = parseFloat(m[1]);
+  return m[2] === "s" ? Math.round(n * 1e6) / 1e3 : n;
+}
+
 /** Relit UNE fois les jetons de fx.css (une seule lecture de style
  *  calculé). Sans document ou sans feuille, les replis restent. */
 export function lireJetons(): void {
   if (jetonsLus || typeof document === "undefined" || typeof getComputedStyle !== "function") return;
   try {
     const cs = getComputedStyle(document.documentElement);
-    const dur = (nom: string) => parseFloat(cs.getPropertyValue(nom));
+    const dur = (nom: string) => enMs(cs.getPropertyValue(nom));
     const lus = { xs: dur("--fx-dur-xs"), s: dur("--fx-dur-s"), m: dur("--fx-dur-m"), l: dur("--fx-dur-l") };
     // Rien de lu : la feuille n'est pas encore là, on réessaiera.
     if (!(lus.m > 0)) return;
@@ -834,5 +844,28 @@ export function installer(): () => void {
   };
 }
 
-/** L'objet public du cœur (débogage et tests ; jamais appelé par l'app). */
-export const api = Object.freeze({ reduit, gesteFrais, haptique, DUR, EASE, conteneurFx });
+/** L'objet public du cœur (débogage et tests ; jamais appelé par l'app). Les
+ *  modules, eux, importent directement de `./core`. */
+export const api = Object.freeze({
+  reduit,
+  peut,
+  gesteFrais,
+  haptique,
+  DUR,
+  EASE,
+  conteneurFx,
+  ressort,
+  valeurA,
+  jouer,
+  lancer,
+  entreeComposee,
+  clesEntree,
+  cles,
+  poser,
+  fantome,
+  cloner,
+  flip,
+  releverRects,
+  gerbe,
+  lireEntier,
+});

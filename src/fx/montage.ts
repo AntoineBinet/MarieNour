@@ -368,3 +368,6 @@ export function installer(): () => void {
 export function etat() {
   return { installe, inscriptions: inscriptions.size, proches: proches.size, attributs: observateursAttributs.size };
 }
+
+/** L'objet public du montage (débogage et tests ; jamais appelé par l'app). */
+export const api = Object.freeze({ etat, surveiller, observerAttributs, dernierRect, couches });

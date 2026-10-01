@@ -379,11 +379,12 @@ export async function simulerIphone(ctx: BrowserContext): Promise<void> {
     }
     const w = window as unknown as { __mnHaptique: { commutations: number; fuites: number } };
     w.__mnHaptique = { commutations: 0, fuites: 0 };
+    // Une bascule = le clic que l'étiquette relaie à SA case (vu en capture).
     document.addEventListener(
       "click",
       (ev) => {
         const t = ev.target as Element | null;
-        if (t && t.closest && t.closest(".fx-haptique")) w.__mnHaptique.commutations += 1;
+        if (t && t.matches && t.matches(".fx-haptique input")) w.__mnHaptique.commutations += 1;
       },
       true,
     );

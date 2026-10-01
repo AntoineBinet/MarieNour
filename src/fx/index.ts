@@ -70,7 +70,7 @@ export function demarrerFx(): void {
     }
   };
   installer("core", core);
-  installer("montage", { installer: montage.installer, api: Object.freeze({ etat: montage.etat }) });
+  installer("montage", montage);
   for (const [nom, m] of MODULES) installer(nom, m);
   window.MnFx = Object.freeze(registre);
   window.__mnFx = {
