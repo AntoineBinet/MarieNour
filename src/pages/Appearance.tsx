@@ -7,7 +7,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { Field, Spinner, useToast, useConfirm } from "../ui";
 import { Icon, type IconName } from "../components/Icon";
-import { applyAppearance } from "../theme";
+import { applyAppearance, deviceReducesMotion, motionOf } from "../theme";
 import { buildGreeting } from "../greeting";
 import type {
   BackgroundStyle,
@@ -15,6 +15,7 @@ import type {
   DesignStyle,
   FontChoice,
   GreetingStyle,
+  MotionMode,
   RadiusStyle,
   ThemeMode,
   UserPrefs,
@@ -88,12 +89,31 @@ const GREETINGS: { key: GreetingStyle; label: string; desc: string }[] = [
   { key: "none", label: "Juste le prénom", desc: "Sans formule" },
 ];
 
+const MOTIONS: { key: MotionMode; label: string; desc: string }[] = [
+  { key: "system", label: "Comme l'appareil", desc: "Suit le réglage de ton téléphone ou de ton ordinateur" },
+  { key: "reduce", label: "Réduites", desc: "Pas d'effets de mouvement, l'essentiel seulement" },
+  { key: "always", label: "Toujours", desc: "Garde les animations, même si l'appareil en demande moins" },
+];
+
+/** L'appareil demande-t-il moins d'animations ? Suivi en direct. */
+function useDeviceReducesMotion(): boolean {
+  const [reduit, setReduit] = useState(deviceReducesMotion);
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mq) return;
+    const maj = () => setReduit(mq.matches);
+    mq.addEventListener?.("change", maj);
+    return () => mq.removeEventListener?.("change", maj);
+  }, []);
+  return reduit;
+}
+
 const EMOJIS = ["", "👋", "✨", "☀️", "🌙", "🌸", "🌿", "☕️", "💛", "🚀", "🪐", "🔥", "🌈", "🦋", "🍃"];
 
 const CLEARED: Record<string, null> = {
   nickname: null, design: null, theme_mode: null, accent_custom: null, font_scale: null,
   radius: null, density: null, font_display: null, font_body: null,
-  contrast: null, reduce_motion: null, background: null,
+  contrast: null, reduce_motion: null, motion: null, background: null,
   greeting_style: null, greeting_custom: null, greeting_emoji: null,
 };
 
@@ -150,6 +170,7 @@ export default function Appearance() {
   // Les réglages fins (fond, typo, formes, accessibilité) sont repliés : on ne
   // présente d'emblée que l'essentiel (style, accueil, thème, couleur).
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const deviceReduces = useDeviceReducesMotion();
 
   // Applique l'apparence en direct sur toute l'app à chaque changement.
   useEffect(() => {
@@ -200,6 +221,7 @@ export default function Appearance() {
     toast.push("Apparence réinitialisée");
   };
 
+  const motion = motionOf(prefs);
   const scale = prefs.font_scale ?? 1;
   const greetStyle = prefs.greeting_style ?? "time";
   const previewGreeting = buildGreeting({ display_name: user.display_name, prefs });
@@ -361,6 +383,30 @@ export default function Appearance() {
             )}
           </section>
 
+          {/* ── Confort : le mouvement (hors du pli des réglages avancés) ──── */}
+          <section className="card appr-section">
+            <SectionHead icon="eye" title="Confort" sub="Les animations et les effets de mouvement de l'app." />
+            <div className="field">
+              <label className="label" id="appr-motion-label">Animations</label>
+              <div className="appr-opts" role="group" aria-labelledby="appr-motion-label">
+                {MOTIONS.map((m) => (
+                  <Opt
+                    key={m.key}
+                    selected={motion === m.key}
+                    title={m.label}
+                    desc={m.desc}
+                    onClick={() => set({ motion: m.key, reduce_motion: undefined })}
+                  />
+                ))}
+              </div>
+              {deviceReduces && motion === "system" && (
+                <p className="muted small" style={{ marginTop: "var(--space-2)" }}>
+                  Ton appareil demande de réduire les animations. Choisis Toujours pour les garder ici.
+                </p>
+              )}
+            </div>
+          </section>
+
           {/* ── Réglages avancés (repliés par défaut) ────────────────────── */}
           <div className="appr-section">
             <button
@@ -371,7 +417,7 @@ export default function Appearance() {
               aria-expanded={showAdvanced}
             >
               <span className={`chev${showAdvanced ? " open" : ""}`}><Icon name="arrowRight" size={15} /></span>
-              {showAdvanced ? "Masquer les réglages avancés" : "Réglages avancés (fond, typo, formes, accessibilité)"}
+              {showAdvanced ? "Masquer les réglages avancés" : "Réglages avancés (fond, typo, formes, contraste)"}
             </button>
           </div>
 
@@ -448,20 +494,13 @@ export default function Appearance() {
 
           {/* ── Accessibilité ────────────────────────────────────────────── */}
           <section className="card appr-section">
-            <SectionHead icon="eye" title="Confort & accessibilité" sub="Pour une lecture plus agréable." />
+            <SectionHead icon="eye" title="Contraste" sub="Pour une lecture plus agréable." />
             <Switch
               id="sw-contrast"
               checked={!!prefs.contrast}
               onChange={(v) => set({ contrast: v })}
               label="Contraste renforcé"
               hint="Bordures et textes secondaires plus marqués."
-            />
-            <Switch
-              id="sw-motion"
-              checked={!!prefs.reduce_motion}
-              onChange={(v) => set({ reduce_motion: v })}
-              label="Réduire les animations"
-              hint="Limite les transitions et effets de mouvement."
             />
           </section>
           </div>

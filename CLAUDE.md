@@ -110,11 +110,49 @@ npm install
 npm run typecheck        # tsc front + serveur (workers-types)
 npm test                 # vitest : calculs Tricount/soldes, crypto auth, gardes sécurité (CI)
 npm run build:all        # front (dist/) + serveur (dist-server/server.mjs)
+# Tests navigateur (Playwright, hors CI) : après build:all, avec un Chromium local
+MN_CHROMIUM=/chemin/vers/chrome npm run test:e2e
 npm start                # lance le serveur Node (lit MARIENOUR_PORT, défaut 8002)
 # Dev VM rapide :
 ADMIN_EMAIL=binet.antoine215@yahoo.com ADMIN_PASSWORD=dev SESSION_SECRET=dev npm start
 # Dev serverless (repli) : npm run dev + npm run dev:api (wrangler)
 ```
+
+## Couche d'effets (src/fx)
+
+L'app est animée par une couche **posée par-dessus** : `src/fx/` (TypeScript, bundlé
+par Vite), démarrée par `demarrerFx()` dans `src/main.tsx` avant le premier rendu.
+Retirer cette ligne rend l'app d'avant. Contrat complet : [docs/DESIGN-FX.md](docs/DESIGN-FX.md).
+
+- **Où** : `core.ts` (arbitre, ressort, `jouer`/`lancer`, fantômes, FLIP, haptique),
+  `montage.ts` (UN MutationObserver sur `#root` et `#mn-couches`, registre
+  `surveiller(selecteur, { entre, sort })`), `fx.css` (jetons `--fx-dur-*`,
+  `--fx-ease-*`, échelle des plans), puis un module par famille d'effets
+  (`eclosion`, `navigation`, `verre`, `feuille`, `flux`, `vivant`, `vol`, `scene`),
+  chacun avec sa feuille et un objet public figé en `window.MnFx.<module>`.
+- **Doctrine** (verrouillée par `test/fx.doctrine.test.ts`) :
+  1. un seul arbitre du mouvement, `reduit()` de `core.ts`, relu à chaque geste :
+     `html[data-motion="off"|"on"]` (réglage « Animations » du membre), sinon l'appareil ;
+  2. rien n'est tenu à la fin (WAAPI `fill: "none"`, annulée à la fin), aucun `await`
+     sur une animation : le geste d'abord ;
+  3. fx n'écrit sur un nœud React que des `data-fx-*`, des `--fx-*` ou
+     `translate`/`scale`/`rotate` ; jamais `classList`, `innerHTML`, `fetch`, `eval` ;
+  4. une sortie passe par un FANTÔME (le nœud que React vient de retirer, ou un clone),
+     posé dans `#mn-fx`, inerte, jamais en retardant le démontage ;
+  5. aucune page ni aucun composant n'importe `src/fx` : seul `main.tsx` le fait ;
+  6. une lecture de géométrie par geste, jamais dans une boucle ; une boucle d'ambiance
+     est marquée `.fx-ambiant` et s'arrête en moins de 5 s.
+- **Réglage** : `UserPrefs.motion` (« system » / « reduce » / « always », l'ancien
+  booléen `reduce_motion` reste lu), posé par `src/theme.ts` en `data-motion` et lisible
+  par `window.MNMotion` ; choisi dans Personnalisation, section « Confort ».
+- **Tests navigateur** : `npm run build:all` puis
+  `MN_CHROMIUM=/chemin/vers/chrome npm run test:e2e` (config `vitest.e2e.config.ts`,
+  fichiers `test/e2e/*.e2e.ts`). Le globalSetup démarre le serveur bâti sur un port
+  libre et un dossier de données jetable, crée le compte admin de test et sème le
+  contenu de démarrage. Sans `MN_CHROMIUM`, tout se saute (CI). Aides portées de
+  Vinyles dans `test/e2e/aides.ts` : `auRepos`, `figerProchain`, enregistreur
+  d'`animate`, iPhone simulé (`switch`), toucher par CDP, `pasDeDebordement`.
+  `playwright-core` ne télécharge aucun navigateur.
 
 ## Variables d'environnement (runtime VM)
 

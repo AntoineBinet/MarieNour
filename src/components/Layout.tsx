@@ -139,6 +139,12 @@ function NavSection({ group, onNavigate }: { group: NavGroup; onNavigate: () => 
   );
 }
 
+/** Profondeur de la page : 1 pour un détail (voyage, événement, profil
+ *  public), 0 pour une page de premier niveau. */
+function pageDepth(pathname: string): "0" | "1" {
+  return /^\/(voyages|evenements)\/[^/]+|^\/u\/[^/]+/.test(pathname) ? "1" : "0";
+}
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -285,7 +291,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const close = () => setOpen(false);
 
   return (
-    <div className="shell">
+    <div className="shell" data-fx-app="">
       {/* Indicateur de tirer-pour-rafraîchir : suit le doigt puis tourne pendant
           le rafraîchissement. Masqué au repos (transform négatif de base). */}
       <div
@@ -391,7 +397,11 @@ export default function Layout({ children }: { children: ReactNode }) {
           <NotificationBell />
         </header>
         <main className="content">
-          {children}
+          {/* Enveloppe de page : lue par la couche d'effets (transition d'onglet
+              ou poussée vers un détail, repli du grand titre). */}
+          <div className="page" data-page={pathname} data-nav={navType} data-depth={pageDepth(pathname)}>
+            {children}
+          </div>
           <footer className="app-footer">
             <div className="app-footer-links">
               <Link to="/cgu">Conditions d'utilisation</Link>
