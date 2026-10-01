@@ -94,7 +94,33 @@ export type IconName =
   | "glass"
   | "gift"
   | "memories"
-  | "play";
+  | "play"
+  | "arrowDownLeft"
+  | "arrowUpRight"
+  | "pause"
+  | "minus"
+  | "thumbtack"
+  | "location"
+  | "mail"
+  | "chevronDown"
+  | "chevronUp"
+  | "chevronRight"
+  | "chevronLeft"
+  | "more"
+  | "swap"
+  | "drag"
+  | "undo"
+  | "cart"
+  | "ticket"
+  | "alert"
+  | "checkCircle"
+  | "xCircle"
+  | "timer"
+  | "sliders"
+  | "phone"
+  | "send"
+  | "pulse"
+  | "ring";
 
 const P: Record<IconName, JSX.Element> = {
   home: <path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" />,
@@ -404,10 +430,13 @@ const P: Record<IconName, JSX.Element> = {
       <path d="M5 19c3-4 6-6 10-7" />
     </>
   ),
+  // Le motif du logo MarieNour : trois pétales en éventail et le cœur au-dessus.
   flower: (
     <>
-      <circle cx="12" cy="12" r="2.4" />
-      <path d="M12 9.6V5a2.4 2.4 0 0 1 0 4.6M12 14.4V19a2.4 2.4 0 0 0 0-4.6M9.6 12H5a2.4 2.4 0 0 0 4.6 0M14.4 12H19a2.4 2.4 0 0 1-4.6 0" />
+      <path d="M8.4 21.4C9.15 16.73 7.51 13.82 8.13 11.33A2.7 2.7 0 0 1 13.37 12.64C12.75 15.13 9.93 16.93 8.4 21.4Z" />
+      <path d="M8.4 21.4C6.2 18.28 3.65 17.77 2.56 15.88A2.3 2.3 0 0 1 6.54 13.58C7.63 15.47 6.8 17.94 8.4 21.4Z" />
+      <path d="M8.4 21.4C11.34 19.08 11.6 16.58 13.44 15.39A2.3 2.3 0 0 1 15.94 19.24C14.11 20.43 11.71 19.66 8.4 21.4Z" />
+      <path d="M17.5 8.19C16.35 6.91 14.3 5.34 14.3 3.9A1.6 1.6 0 0 1 17.5 3.9A1.6 1.6 0 0 1 20.7 3.9C20.7 5.34 18.65 6.91 17.5 8.19Z" />
     </>
   ),
   chat: <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v8a1.5 1.5 0 0 1-1.5 1.5H9l-4 4v-4H5.5A1.5 1.5 0 0 1 4 13.5Z" />,
@@ -529,6 +558,113 @@ const P: Record<IconName, JSX.Element> = {
     </>
   ),
   play: <path d="M7 5.5v13l11-6.5-11-6.5Z" />,
+
+  /* ── Ajouts du socle 2026 ─────────────────────────────────────────────── */
+  // Argent qui entre (vers soi) et qui sort (vers l'extérieur).
+  arrowDownLeft: <path d="M17.5 6.5 6.5 17.5m0 0H14m-7.5 0V10" />,
+  arrowUpRight: <path d="M6.5 17.5 17.5 6.5m0 0H10m7.5 0V14" />,
+  pause: <path d="M9 5.5v13M15 5.5v13" />,
+  minus: <path d="M5 12h14" />,
+  // Punaise (épingler) — distincte de « location » (un lieu). L'ancienne
+  // icône « pin » reste pour les usages existants.
+  thumbtack: (
+    <>
+      <path d="M12 16v5" />
+      <path d="M8 4h8M9.5 4v5l-2.7 2.8a2 2 0 0 0-.6 1.4V14a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-.8a2 2 0 0 0-.6-1.4L14.5 9V4" />
+    </>
+  ),
+  location: (
+    <>
+      <path d="M12 21s-6.5-5.7-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 15.3 12 21 12 21Z" />
+      <circle cx="12" cy="9.8" r="2.4" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2.5" />
+      <path d="m4.5 7.5 7.5 5.5 7.5-5.5" />
+    </>
+  ),
+  chevronDown: <path d="m6 9.5 6 6 6-6" />,
+  chevronUp: <path d="m6 14.5 6-6 6 6" />,
+  chevronRight: <path d="m9.5 6 6 6-6 6" />,
+  chevronLeft: <path d="m14.5 6-6 6 6 6" />,
+  // « Plus d'actions » : les trois points horizontaux (même dessin que dots).
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </>
+  ),
+  swap: <path d="M7 4 3.5 7.5 7 11M3.5 7.5H16M17 13l3.5 3.5L17 20m3.5-3.5H8" />,
+  // Poignée de déplacement : six points.
+  drag: (
+    <>
+      <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+    </>
+  ),
+  undo: <path d="M9 14 4.5 9.5 9 5M4.5 9.5H14a5.5 5.5 0 0 1 0 11h-3" />,
+  cart: (
+    <>
+      <path d="M3.5 4.5h2.1l2.1 10.2a1.5 1.5 0 0 0 1.5 1.2h7.7a1.5 1.5 0 0 0 1.5-1.1l1.4-6.3H6.6" />
+      <circle cx="10" cy="19.5" r="1.3" />
+      <circle cx="17" cy="19.5" r="1.3" />
+    </>
+  ),
+  ticket: (
+    <>
+      <path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5v-2a2.5 2.5 0 0 0 0-5Z" />
+      <path d="M14.5 6.5v1.5M14.5 11.2v1.6M14.5 16v1.5" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M10.3 4.6a2 2 0 0 1 3.4 0l7.3 12.6a2 2 0 0 1-1.7 3H4.7a2 2 0 0 1-1.7-3Z" />
+      <path d="M12 9.5v4.2M12 16.8h.01" />
+    </>
+  ),
+  checkCircle: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.3 12.4 2.5 2.5 4.9-5.3" />
+    </>
+  ),
+  xCircle: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m9.3 9.3 5.4 5.4m0-5.4-5.4 5.4" />
+    </>
+  ),
+  timer: (
+    <>
+      <circle cx="12" cy="13.5" r="7" />
+      <path d="M12 13.5V10M10 3.5h4M18 7.5l1.3-1.3" />
+    </>
+  ),
+  sliders: (
+    <>
+      <path d="M4 7h8.5M17.5 7H20M4 17h2.5M11.5 17H20" />
+      <circle cx="15" cy="7" r="2.5" />
+      <circle cx="9" cy="17" r="2.5" />
+    </>
+  ),
+  phone: (
+    <path d="M8.2 4h-2A1.7 1.7 0 0 0 4.5 5.8c.3 7.6 6.1 13.4 13.7 13.7a1.7 1.7 0 0 0 1.8-1.7v-2a1.5 1.5 0 0 0-1.1-1.4l-2.6-.8a1.5 1.5 0 0 0-1.5.4l-1 1a11 11 0 0 1-4.8-4.8l1-1a1.5 1.5 0 0 0 .4-1.5l-.8-2.6A1.5 1.5 0 0 0 8.2 4Z" />
+  ),
+  send: <path d="M20.5 3.5 10.7 13.3M20.5 3.5l-6.3 17-3.5-7.2-7.2-3.5 17-6.3Z" />,
+  pulse: <path d="M3.5 12h3.8l2.2-5.5 4.6 11 2.3-5.5h4.1" />,
+  ring: (
+    <>
+      <circle cx="12" cy="12" r="8" strokeOpacity="0.35" />
+      <path d="M12 4a8 8 0 0 1 7.6 10.5" />
+    </>
+  ),
 };
 
 export interface IconProps {
