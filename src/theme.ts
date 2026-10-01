@@ -7,7 +7,8 @@
 // que la session ne soit chargée, on garde une copie locale (localStorage) de la
 // dernière apparence appliquée et on la repose dès le premier rendu.
 
-import type { FontChoice, ThemeMode, UserPrefs } from "@shared/types";
+import type { FontChoice, MotionMode, ThemeMode, UserPrefs } from "@shared/types";
+import { motionOf } from "@shared/types";
 
 export type Theme = "light" | "dark";
 
@@ -126,13 +127,20 @@ export function applyAppearance(app: Appearance, persist = true) {
   setAttr(root, "data-density", prefs.density && prefs.density !== "cozy" ? prefs.density : null);
   setAttr(root, "data-bg", prefs.background && prefs.background !== "default" ? prefs.background : null);
   setAttr(root, "data-contrast", prefs.contrast ? "high" : null);
-  setAttr(root, "data-motion", prefs.reduce_motion ? "off" : null);
+  // Mouvement : « reduce » coupe tout (off), « always » le garde même si
+  // l'appareil demande moins d'animations (on), « system » suit l'appareil
+  // (pas d'attribut). Lu par styles.css et par l'arbitre de src/fx/core.ts.
+  const motion = motionOf(prefs);
+  setAttr(root, "data-motion", motion === "reduce" ? "off" : motion === "always" ? "on" : null);
 
   // En dernier : la couleur de la barre d'état reflète le fond réel une fois
   // TOUS les attributs (design, ambiance de fond) appliqués.
   syncMetaThemeColor(theme);
 
+  const avant = motionOf(current.prefs);
   current = { accent: app.accent || "terracotta", prefs };
+  installerMotion();
+  if (motion !== avant) prevenirMotion();
   if (persist) {
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(current));
@@ -140,6 +148,80 @@ export function applyAppearance(app: Appearance, persist = true) {
       /* stockage indisponible : on ignore */
     }
   }
+}
+
+/* ── Le mouvement, lisible par tout le monde (window.MNMotion) ───────────── */
+
+export interface MNMotionApi {
+  /** Le réglage du membre : « system », « reduce » ou « always ». */
+  mode(): MotionMode;
+  /** Vrai quand rien ne doit bouger : relu à CHAQUE appel (le réglage et
+   *  l'appareil peuvent changer pendant la séance). */
+  reduit(): boolean;
+  /** Prévient quand le mode ou la demande de l'appareil change ; rend la
+   *  désinscription. */
+  onChange(cb: (mode: MotionMode, reduit: boolean) => void): () => void;
+}
+
+declare global {
+  interface Window {
+    MNMotion?: MNMotionApi;
+  }
+}
+
+const REDUCED_MQ = "(prefers-reduced-motion: reduce)";
+const motionCbs = new Set<(mode: MotionMode, reduit: boolean) => void>();
+
+/** L'appareil demande-t-il moins d'animations ? */
+export function deviceReducesMotion(): boolean {
+  try {
+    return typeof window !== "undefined" && !!window.matchMedia?.(REDUCED_MQ).matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Le mode de mouvement actuellement appliqué. */
+export function motionMode(): MotionMode {
+  return motionOf(current.prefs);
+}
+
+/** Vrai quand rien ne doit bouger (réglage du membre, sinon l'appareil). */
+export function motionReduced(): boolean {
+  const m = motionMode();
+  if (m === "reduce") return true;
+  if (m === "always") return false;
+  return deviceReducesMotion();
+}
+
+function prevenirMotion() {
+  const m = motionMode();
+  const r = motionReduced();
+  for (const cb of motionCbs) {
+    try {
+      cb(m, r);
+    } catch {
+      /* un abonné qui lève ne prive pas les autres */
+    }
+  }
+}
+
+let motionInstalled = false;
+function installerMotion() {
+  if (motionInstalled || typeof window === "undefined") return;
+  motionInstalled = true;
+  window.MNMotion = Object.freeze({
+    mode: motionMode,
+    reduit: motionReduced,
+    onChange(cb: (mode: MotionMode, reduit: boolean) => void) {
+      motionCbs.add(cb);
+      return () => {
+        motionCbs.delete(cb);
+      };
+    },
+  });
+  // La demande de l'appareil peut changer pendant la séance.
+  window.matchMedia?.(REDUCED_MQ).addEventListener?.("change", prevenirMotion);
 }
 
 /** Bascule rapide clair/sombre — renvoie le nouveau mode (à persister côté serveur). */
