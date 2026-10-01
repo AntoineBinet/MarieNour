@@ -441,19 +441,20 @@ export function cloner<T extends Element>(source: T): T {
   for (let i = 0; i < a.length && i < b.length && i < 4000; i++) {
     const s = a[i];
     const c = b[i];
-    if (s instanceof HTMLInputElement && c instanceof HTMLInputElement) {
-      c.value = s.value;
-      c.checked = s.checked;
-    } else if (s instanceof HTMLTextAreaElement && c instanceof HTMLTextAreaElement) {
-      c.value = s.value;
-    } else if (s instanceof HTMLSelectElement && c instanceof HTMLSelectElement) {
-      c.selectedIndex = s.selectedIndex;
-    } else if (s instanceof HTMLCanvasElement && c instanceof HTMLCanvasElement) {
-      try {
+    try {
+      if (s instanceof HTMLInputElement && c instanceof HTMLInputElement) {
+        // Un champ fichier refuse qu'on lui écrive une valeur : on ne copie que la coche.
+        if (s.type !== "file") c.value = s.value;
+        c.checked = s.checked;
+      } else if (s instanceof HTMLTextAreaElement && c instanceof HTMLTextAreaElement) {
+        c.value = s.value;
+      } else if (s instanceof HTMLSelectElement && c instanceof HTMLSelectElement) {
+        c.selectedIndex = s.selectedIndex;
+      } else if (s instanceof HTMLCanvasElement && c instanceof HTMLCanvasElement) {
         c.getContext("2d")?.drawImage(s, 0, 0);
-      } catch {
-        /* canvas teinté : vide */
       }
+    } catch {
+      /* canvas teinté, champ récalcitrant : la copie reste sans */
     }
     if (s.scrollTop || s.scrollLeft) defilements.set(c, { t: s.scrollTop, l: s.scrollLeft });
     else {
