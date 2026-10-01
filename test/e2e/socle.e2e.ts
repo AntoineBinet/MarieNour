@@ -150,7 +150,13 @@ describe.skipIf(!actif)("socle de la couche d'effets", () => {
     const etat = await page.evaluate(() => {
       const dataFx: string[] = [];
       for (const el of Array.from(document.querySelectorAll("#root *, #mn-couches *"))) {
-        for (const a of Array.from(el.attributes)) if (a.name.startsWith("data-fx")) dataFx.push(`${el.tagName}[${a.name}]`);
+        // Les crochets du contrat (§4 de docs/DESIGN-FX.md) sont posés par l'APP,
+        // pas par la couche : seuls les autres data-fx-* trahiraient fx.
+        for (const a of Array.from(el.attributes)) {
+          if (!a.name.startsWith("data-fx")) continue;
+          if (/^data-fx-(app|list|key|count|amount|progress|check|done|like|hero|lumiere|press)$/.test(a.name)) continue;
+          dataFx.push(`${el.tagName}[${a.name}]`);
+        }
       }
       const fx = document.getElementById("mn-fx");
       return {

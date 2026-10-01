@@ -238,7 +238,10 @@ describe.skipIf(!actif)("cœur et montage de la couche d'effets", () => {
       const poser = () => {
         const el = document.createElement("div");
         el.className = "banc-r";
-        el.style.cssText = `position:absolute;left:20px;top:${window.scrollY + 200}px;width:40px;height:40px`;
+        // #mn-couches est positionné (socle F2 : position relative, plan 500) :
+        // le haut se compte depuis la couche, pas depuis le document.
+        const base = couches.getBoundingClientRect().top + window.scrollY;
+        el.style.cssText = `position:absolute;left:20px;top:${window.scrollY + 200 - base}px;width:40px;height:40px`;
         couches.appendChild(el);
         return el;
       };
